@@ -43,7 +43,7 @@ FORCEINLINE void glm_ivec2_from_vec2_round(vec2 v, ivec2 iv) {
 #define PLAYER_ACC 0.3f
 #define PLAYER_FRIC 0.1f
 #define PLAYER_MAX_VEL 3.5f
-#define PLAYER_JUMP 8.0f
+#define PLAYER_JUMP 13.0f
 
 #define TILE_SIZE 64.0f
 
@@ -172,8 +172,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 		ctx->player.vel[0] = clamp(ctx->player.vel[0], -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 	}
 
-	if (ctx->player.vel[0] < 0.0f) ctx->player.vel[0] = min(0.0f, ctx->player.vel[0] + PLAYER_FRIC);
-	else if (ctx->player.vel[0] > 0.0f) ctx->player.vel[0] = max(0.0f, ctx->player.vel[0] - PLAYER_FRIC);
+	if (ctx->player.can_jump) {
+		if (ctx->player.vel[0] < 0.0f) ctx->player.vel[0] = min(0.0f, ctx->player.vel[0] + PLAYER_FRIC);
+		else if (ctx->player.vel[0] > 0.0f) ctx->player.vel[0] = max(0.0f, ctx->player.vel[0] - PLAYER_FRIC);
+	}
 	
 	ctx->player.vel[1] += GRAVITY;
 
@@ -362,7 +364,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 			}
 			break;
 		case SDLK_UP:
-
+			ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]*GRAVITY);
 			break;
 		case SDLK_DOWN:
 
