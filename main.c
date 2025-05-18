@@ -69,6 +69,10 @@ typedef struct Context {
 	vec2 axis;
 } Context;
 
+void reset_game(Context* ctx) {
+	ctx->player = (Entity){.pos[0] = TILE_SIZE*1.0f, .pos[1] = TILE_SIZE*6.0f};
+}
+
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
 
@@ -95,24 +99,29 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 
 	ctx->renderer = SDL_CreateRenderer(ctx->window, NULL); SDL_CHECK(ctx->renderer);
 
-	ctx->player.pos[0] = TILE_SIZE*3.0f;
+	reset_game(ctx);
 
 	return res; 
 }
 
-#define LEVEL_WIDTH 10
-#define LEVEL_HEIGHT 10
-static bool level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
-	{false, false, false, false, false, false, false, false, false, false},
-	{false, false, false, false, false, false, false, false, false, false},
-	{false, false, false, false, false, false, false, false, false, false},
-	{false, false, false, false, false, false, false, false, false, false},
-	{false, false, false, false, false, false, false, false, false, false},
-	{false, false, true,  true,  true,  false, false, true,  true, false},
-	{true, false,  false, true,  false, false, false, false, true, false},
-	{true, false,  false, true,  false, false, false, false, true, false},
-	{true,  true,  true,  true,  true,  false, true,  true,  true, false},
-	{false, false, false, false, false, false, false, false, false, false},
+#define LEVEL_WIDTH 15
+#define LEVEL_HEIGHT 15
+static int level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0},
+	{0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0},
+	{1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
 typedef struct Rect {
@@ -147,7 +156,7 @@ FORCEINLINE bool tile_is_valid(Tile tile) {
 }
 
 FORCEINLINE bool rect_is_valid(Rect rect) {
-	return rect.pos[0] >= 0.0f && rect.pos[0]+rect.area[0] < LEVEL_WIDTH*TILE_SIZE && rect.pos[1] >= 0.0f && rect.pos[1]+rect.area[1] < LEVEL_HEIGHT*TILE_SIZE;
+	return rect.pos[0] >= 0.0f && rect.pos[0]+rect.area[0] < (LEVEL_WIDTH+1)*TILE_SIZE && rect.pos[1] >= 0.0f && rect.pos[1]+rect.area[1] < (LEVEL_HEIGHT+1)*TILE_SIZE;
 }
 
 FORCEINLINE bool rects_intersect(Rect a, Rect b) {
@@ -195,11 +204,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 					if (level[tile_y][tile_x]) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
-							side.pos[0] = ceilf(side.pos[0]);
-							while (rects_intersect(side, tile)) {
-								side.pos[0] += 1.0f;
-							}
-							ctx->player.pos[0] = side.pos[0];
+							ctx->player.pos[0] = tile.pos[0] + TILE_SIZE;
 							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
@@ -218,11 +223,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 					if (level[tile_y][tile_x]) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
-							side.pos[0] = floorf(side.pos[0]);
-							while (rects_intersect(side, tile)) {
-								side.pos[0] -= 1.0f;
-							}
-							ctx->player.pos[0] = side.pos[0] - TILE_SIZE + 1.0f;
+							ctx->player.pos[0] = tile.pos[0] - TILE_SIZE;
 							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
@@ -244,11 +245,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 					if (level[tile_y][tile_x]) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
-							side.pos[1] = ceilf(side.pos[1]);
-							while (rects_intersect(side, tile)) {
-								side.pos[1] += 1.0f;
-							}
-							ctx->player.pos[1] = side.pos[1];
+							ctx->player.pos[1] = tile.pos[1] + TILE_SIZE;
 							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
@@ -267,11 +264,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 					if (level[tile_y][tile_x]) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
-							side.pos[1] = floorf(side.pos[1]);
-							while (rects_intersect(side, tile)) {
-								side.pos[1] -= 1.0f;
-							}
-							ctx->player.pos[1] = side.pos[1] - TILE_SIZE + 1.0f;
+							ctx->player.pos[1] = tile.pos[1] - TILE_SIZE;
 							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
 							ctx->player.can_jump = PLAYER_JUMP_PERIOD;
 							break_loop = true;
@@ -282,6 +275,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 		}
 
 		glm_vec2_add(ctx->player.pos, ctx->player.vel, ctx->player.pos);
+
+		Rect player_rect = rect(ctx->player.pos, (vec2){TILE_SIZE, TILE_SIZE});
+		if (!rect_is_valid(player_rect)) reset_game(ctx);
 	}
 
 	// render_begin
@@ -349,7 +345,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 		case SDLK_DOWN:
 			break;
 		case SDLK_R:
-			ctx->player = (Entity){.pos = {TILE_SIZE*3.0f}};
+			reset_game(ctx);
 			break;
 		}
 		break;
