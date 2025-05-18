@@ -41,9 +41,9 @@ FORCEINLINE void glm_ivec2_from_vec2_round(vec2 v, ivec2 iv) {
 #define GRAVITY 0.4f
 
 #define PLAYER_ACC 0.3f
-#define PLAYER_FRIC 0.1f
+#define PLAYER_FRIC 0.15f
 #define PLAYER_MAX_VEL 3.5f
-#define PLAYER_JUMP 13.0f
+#define PLAYER_JUMP 14.0f
 
 #define TILE_SIZE 64.0f
 
@@ -100,8 +100,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 }
 
 #define LEVEL_WIDTH 10
-#define LEVEL_HEIGHT 7
+#define LEVEL_HEIGHT 10
 static bool level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
+	{false, false, false, false, false, false, false, false, false, false},
+	{false, false, false, false, false, false, false, false, false, false},
+	{false, false, false, false, false, false, false, false, false, false},
 	{false, false, false, false, false, false, false, false, false, false},
 	{false, false, false, false, false, false, false, false, false, false},
 	{false, false, true,  true,  true,  false, false, true,  true, false},
@@ -166,13 +169,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 		}
 	}
 	
-	{
+	if (ctx->player.can_jump) {
 		float acc = ctx->axis[0] * PLAYER_ACC;
 		ctx->player.vel[0] += acc;
 		ctx->player.vel[0] = clamp(ctx->player.vel[0], -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-	}
 
-	if (ctx->player.can_jump) {
 		if (ctx->player.vel[0] < 0.0f) ctx->player.vel[0] = min(0.0f, ctx->player.vel[0] + PLAYER_FRIC);
 		else if (ctx->player.vel[0] > 0.0f) ctx->player.vel[0] = max(0.0f, ctx->player.vel[0] - PLAYER_FRIC);
 	}
@@ -198,7 +199,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 								side.pos[0] += 1.0f;
 							}
 							ctx->player.pos[0] = side.pos[0];
-							ctx->player.vel[0] = 0.0f;
+							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
 					}
@@ -221,7 +222,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 								side.pos[0] -= 1.0f;
 							}
 							ctx->player.pos[0] = side.pos[0] - TILE_SIZE + 1.0f;
-							ctx->player.vel[0] = 0.0f;
+							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
 					}
@@ -247,7 +248,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 								side.pos[1] += 1.0f;
 							}
 							ctx->player.pos[1] = side.pos[1];
-							ctx->player.vel[1] = 0.0f;
+							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
 							break_loop = true;
 						}
 					}
@@ -270,7 +271,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 								side.pos[1] -= 1.0f;
 							}
 							ctx->player.pos[1] = side.pos[1] - TILE_SIZE + 1.0f;
-							ctx->player.vel[1] = 0.0f;
+							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
 							ctx->player.can_jump = true;
 							break_loop = true;
 						}
