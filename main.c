@@ -94,12 +94,15 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 
 	ctx->renderer = SDL_CreateRenderer(ctx->window, NULL); SDL_CHECK(ctx->renderer);
 
+	ctx->player.pos[0] = TILE_SIZE*3.0f;
+
 	return res; 
 }
 
 #define LEVEL_WIDTH 10
-#define LEVEL_HEIGHT 6
+#define LEVEL_HEIGHT 7
 static bool level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
+	{false, false, false, false, false, false, false, false, false, false},
 	{false, false, false, false, false, false, false, false, false, false},
 	{false, false, true,  true,  true,  false, false, true,  true, false},
 	{true, false,  false, true,  false, false, false, false, true, false},
@@ -135,15 +138,15 @@ FORCEINLINE void tile_from_rect(Rect rect, Tile tile) {
 	glm_ivec2_from_vec2_floor(rect.pos, tile);
 }
 
-bool tile_is_valid(Tile tile) {
+FORCEINLINE bool tile_is_valid(Tile tile) {
 	return tile[0] >= 0 && tile[0] < LEVEL_WIDTH && tile[1] >= 0 && tile[1] < LEVEL_HEIGHT;
 }
 
-bool rect_is_valid(Rect rect) {
+FORCEINLINE bool rect_is_valid(Rect rect) {
 	return rect.pos[0] >= 0.0f && rect.pos[0]+rect.area[0] < LEVEL_WIDTH*TILE_SIZE && rect.pos[1] >= 0.0f && rect.pos[1]+rect.area[1] < LEVEL_HEIGHT*TILE_SIZE;
 }
 
-bool rects_intersect(Rect a, Rect b) {
+FORCEINLINE bool rects_intersect(Rect a, Rect b) {
 	if (!rect_is_valid(a) || !rect_is_valid(b)) return false;
 	return ((a.pos[0] < (b.pos[0] + b.area[0]) && (a.pos[0] + a.area[0]) > b.pos[0]) && (a.pos[1] < (b.pos[1] + b.area[1]) && (a.pos[1] + a.area[1]) > b.pos[1]));
 }
@@ -176,28 +179,105 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 	// player_collision
 	{
-		glm_vec2_add(ctx->player.pos, ctx->player.vel, ctx->player.pos);
-		Rect player_rect = rect(ctx->player.pos, (vec2){TILE_SIZE, TILE_SIZE});
-		bool break_loop = false;
-		for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
-			for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
-				if (level[tile_y][tile_x]) {
-					Tile tile = {(int)tile_x, (int)tile_y};
-					Rect tile_rect = rect_from_tile(tile);
-					if (rects_intersect(player_rect, tile_rect)) {
-						vec2 nvel;
-						glm_vec2_normalize_to(ctx->player.vel, nvel);
-						do {
-							glm_vec2_sub(player_rect.pos, nvel, player_rect.pos);
-						} while (rects_intersect(player_rect, tile_rect));
-						glm_vec2_copy(player_rect.pos, ctx->player.pos);
-						glm_vec2_zero(ctx->player.vel);
-						ctx->player.can_jump = true;
-						break_loop = true;
+		if (ctx->player.vel[0] < 0.0f) {
+			Rect side;
+			side.pos[0] = ctx->player.pos[0] + ctx->player.vel[0];
+			side.pos[1] = ctx->player.pos[1] + 1.0f;
+			side.area[0] = 1.0f;
+			side.area[1] = TILE_SIZE - 2.0f;
+			bool break_loop = false;
+			for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
+				for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
+					if (level[tile_y][tile_x]) {
+						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
+						if (rects_intersect(side, tile)) {
+							side.pos[0] = ceilf(side.pos[0]);
+							while (rects_intersect(side, tile)) {
+								side.pos[0] += 1.0f;
+							}
+							ctx->player.pos[0] = side.pos[0];
+							ctx->player.vel[0] = 0.0f;
+							break_loop = true;
+						}
+					}
+				}
+			}
+		} else if (ctx->player.vel[0] > 0.0f) {
+			Rect side;
+			side.pos[0] = (ctx->player.pos[0] + TILE_SIZE - 1.0f) + ctx->player.vel[0];
+			side.pos[1] = ctx->player.pos[1] + 1.0f;
+			side.area[0] = 1.0f;
+			side.area[1] = TILE_SIZE - 2.0f;
+			bool break_loop = false;
+			for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
+				for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
+					if (level[tile_y][tile_x]) {
+						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
+						if (rects_intersect(side, tile)) {
+							side.pos[0] = floorf(side.pos[0]);
+							while (rects_intersect(side, tile)) {
+								side.pos[0] -= 1.0f;
+							}
+							ctx->player.pos[0] = side.pos[0] - TILE_SIZE + 1.0f;
+							ctx->player.vel[0] = 0.0f;
+							break_loop = true;
+						}
 					}
 				}
 			}
 		}
+
+		ctx->player.can_jump = false;
+		if (ctx->player.vel[1] < 0.0f) {
+			Rect side;
+			side.pos[0] = ctx->player.pos[0] + 1.0f; 
+			side.pos[1] = ctx->player.pos[1] + ctx->player.vel[1];
+			side.area[0] = TILE_SIZE - 2.0f;
+			side.area[1] = 1.0f;
+			bool break_loop = false;
+			for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
+				for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
+					if (level[tile_y][tile_x]) {
+						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
+						if (rects_intersect(side, tile)) {
+							side.pos[1] = ceilf(side.pos[1]);
+							while (rects_intersect(side, tile)) {
+								side.pos[1] += 1.0f;
+							}
+							ctx->player.pos[1] = side.pos[1];
+							ctx->player.vel[1] = 0.0f;
+							break_loop = true;
+						}
+					}
+				}
+			}
+		} else if (ctx->player.vel[1] > 0.0f) {
+			Rect side;
+			side.pos[0] = ctx->player.pos[0] + 1.0f; 
+			side.pos[1] = (ctx->player.pos[1] + TILE_SIZE - 1.0f) + ctx->player.vel[1];
+			side.area[0] = TILE_SIZE - 2.0f;
+			side.area[1] = 1.0f;
+			bool break_loop = false;
+			for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
+				for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
+					if (level[tile_y][tile_x]) {
+						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
+						if (rects_intersect(side, tile)) {
+							side.pos[1] = floorf(side.pos[1]);
+							while (rects_intersect(side, tile)) {
+								side.pos[1] -= 1.0f;
+							}
+							ctx->player.pos[1] = side.pos[1] - TILE_SIZE + 1.0f;
+							ctx->player.vel[1] = 0.0f;
+							ctx->player.can_jump = true;
+							break_loop = true;
+						}
+					}
+				}
+			}
+		}
+
+		glm_vec2_add(ctx->player.pos, ctx->player.vel, ctx->player.pos);
 	}
 
 	// render_begin
@@ -265,8 +345,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 		case SDLK_DOWN:
 			break;
 		case SDLK_R:
-			ctx->player = (Entity){.pos = {TILE_SIZE}};
-			ctx->axis[0] = 0.0f;
+			ctx->player = (Entity){.pos = {TILE_SIZE*3.0f}};
 			break;
 		}
 		break;
