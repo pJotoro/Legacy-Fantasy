@@ -44,6 +44,7 @@ FORCEINLINE void glm_ivec2_from_vec2_round(vec2 v, ivec2 iv) {
 #define PLAYER_FRIC 0.15f
 #define PLAYER_MAX_VEL 3.5f
 #define PLAYER_JUMP 14.0f
+#define PLAYER_JUMP_PERIOD 5
 
 #define TILE_SIZE 64.0f
 
@@ -57,7 +58,7 @@ typedef enum EntityState {
 typedef struct Entity {
 	vec2 pos;
 	vec2 vel;
-	bool can_jump;
+	int can_jump;
 } Entity;
 
 typedef struct Context {
@@ -230,7 +231,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 			}
 		}
 
-		ctx->player.can_jump = false;
+		ctx->player.can_jump = max(0, ctx->player.can_jump - 1);
 		if (ctx->player.vel[1] < 0.0f) {
 			Rect side;
 			side.pos[0] = ctx->player.pos[0] + 1.0f; 
@@ -272,7 +273,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 							}
 							ctx->player.pos[1] = side.pos[1] - TILE_SIZE + 1.0f;
 							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
-							ctx->player.can_jump = true;
+							ctx->player.can_jump = PLAYER_JUMP_PERIOD;
 							break_loop = true;
 						}
 					}
@@ -340,7 +341,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 		case SDLK_UP:
 			if (!ctx->gamepad) {
 				if (!event->key.repeat && ctx->player.can_jump) {
-					ctx->player.can_jump = false;
+					ctx->player.can_jump = 0;
 					ctx->player.vel[1] = -PLAYER_JUMP;
 				}
 			}
@@ -365,7 +366,9 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 			}
 			break;
 		case SDLK_UP:
-			ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]*GRAVITY);
+			if (!ctx->gamepad) {
+				ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]*GRAVITY);
+			}
 			break;
 		case SDLK_DOWN:
 
@@ -383,9 +386,14 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 		if (event->gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
 			if (ctx->player.can_jump) {
-				ctx->player.can_jump = false;
+				ctx->player.can_jump = 0;
 				ctx->player.vel[1] = -PLAYER_JUMP;
 			}
+		}
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		if (event->gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
+			ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]*GRAVITY);
 		}
 		break;
 	case SDL_EVENT_QUIT:
