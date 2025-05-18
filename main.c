@@ -57,7 +57,7 @@ typedef enum EntityState {
 typedef struct Entity {
 	vec2 pos;
 	vec2 vel;
-	EntityState state;
+	bool can_jump;
 } Entity;
 
 typedef struct Context {
