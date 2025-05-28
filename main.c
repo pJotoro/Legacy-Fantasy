@@ -36,6 +36,7 @@ typedef struct Entity {
 typedef struct Context {
 	SDL_Window* window;
 	SDL_Renderer* renderer;
+	bool vsync;
 	Entity player;
 	SDL_Gamepad* gamepad;
 	vec2 axis;
@@ -56,22 +57,26 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 	memset(ctx, 0, sizeof(Context));
 	*appstate = ctx;
 
-	// create_window
+	// create_window_and_renderer
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
 		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
 		SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
 		int w = display_mode->w / 2;
 		int h = display_mode->h / 2;
-#ifndef _DEBUG
+
+		// TODO: If in release mode.
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = display_mode->w;
 		h = display_mode->h;
-#endif
-		ctx->window = SDL_CreateWindow("Platformer", w, h, flags); SDL_CHECK(ctx->window);
-	}
 
-	ctx->renderer = SDL_CreateRenderer(ctx->window, NULL); SDL_CHECK(ctx->renderer);
+		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
+
+		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
+		if (!ctx->vsync) {
+			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
+		}
+	}
 
 	reset_game(ctx);
 
@@ -141,16 +146,17 @@ FORCEINLINE bool rects_intersect(Rect a, Rect b) {
 
 /*
 TODO:
-- VSync
-- Resolution
+- Take resolution into account
+- Improve cmake/ninja setup
 */
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
 	Context* ctx = appstate;
 
-	// TODO: Get VSync to work and get delta time.
-	SDL_Delay(16);
+	if (!ctx->vsync) {
+		SDL_Delay(16); // TODO
+	}
 
 	if (!ctx->gamepad) {
 		int joystick_count = 0;
@@ -290,6 +296,10 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	{
 		SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
 		SDL_CHECK(SDL_RenderPresent(ctx->renderer));
+
+		if (!ctx->vsync) {
+			// TODO
+		}
 	}
 
 	return res; 
