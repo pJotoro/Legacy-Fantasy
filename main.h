@@ -21,8 +21,12 @@
 #define floorf(X) SDL_floorf(X)
 #define ceilf(X) SDL_ceilf(X)
 #define roundf(X) SDL_roundf(X)
+#ifdef max
 #undef max
+#endif
+#ifdef min
 #undef min
+#endif
 #define max(A, B) SDL_max(A, B)
 #define min(A, B) SDL_min(A, B)
 #define signf(X) glm_signf(X)

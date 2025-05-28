@@ -17,15 +17,16 @@ FORCEINLINE void glm_ivec2_from_vec2(vec2 v, ivec2 iv) {
 	iv[1] = (int)v[1];
 }
 
-#define GRAVITY 0.4f
+static float GRAVITY;
 
-#define PLAYER_ACC 0.3f
-#define PLAYER_FRIC 0.15f
-#define PLAYER_MAX_VEL 3.5f
-#define PLAYER_JUMP 14.0f
-#define PLAYER_JUMP_PERIOD 5
+static float PLAYER_ACC;
+static float PLAYER_FRIC;
+static float PLAYER_MAX_VEL;
+static float PLAYER_JUMP;
 
-#define TILE_SIZE 64.0f
+#define PLAYER_JUMP_PERIOD 3
+
+static float TILE_SIZE;
 
 typedef struct Entity {
 	vec2 pos;
@@ -66,9 +67,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		int h = display_mode->h / 2;
 
 		// TODO: If in release mode.
-		flags |= SDL_WINDOW_FULLSCREEN;
-		w = display_mode->w;
-		h = display_mode->h;
+		// flags |= SDL_WINDOW_FULLSCREEN;
+		// w = display_mode->w;
+		// h = display_mode->h;
 
 		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
 
@@ -76,6 +77,15 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		if (!ctx->vsync) {
 			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
 		}
+
+		TILE_SIZE = (float)w / 60.0f;
+
+		GRAVITY = (float)w / 9600.0f; 
+
+		PLAYER_ACC = (float)w / 12800.0f;
+		PLAYER_FRIC = (float)w / 25600.0f;
+		PLAYER_MAX_VEL = (float)w / 1100.0f;
+		PLAYER_JUMP = (float)w / 275.0f;
 	}
 
 	reset_game(ctx);
@@ -146,8 +156,8 @@ FORCEINLINE bool rects_intersect(Rect a, Rect b) {
 
 /*
 TODO:
-- Take resolution into account
-- Improve cmake/ninja setup
+- Improve setup (cmake, ninja, sublime, raddebugger)
+- Buy Legacy-Fantasy asset and render something in it.
 */
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
