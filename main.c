@@ -17,27 +17,6 @@ FORCEINLINE void glm_ivec2_from_vec2(vec2 v, ivec2 iv) {
 	iv[1] = (int)v[1];
 }
 
-FORCEINLINE void glm_ivec2_from_vec2_floor(vec2 v, ivec2 iv) {
-	vec2 vf;
-	glm_vec2_floor(v, vf);
-	iv[0] = (int)vf[0];
-	iv[1] = (int)vf[1];
-}
-
-FORCEINLINE void glm_ivec2_from_vec2_ceil(vec2 v, ivec2 iv) {
-	vec2 vc;
-	glm_vec2_ceil(v, vc);
-	iv[0] = (int)vc[0];
-	iv[1] = (int)vc[1];
-}
-
-FORCEINLINE void glm_ivec2_from_vec2_round(vec2 v, ivec2 iv) {
-	vec2 vr;
-	glm_vec2_round(v, vr);
-	iv[0] = (int)vr[0];
-	iv[1] = (int)vr[1];
-}
-
 #define GRAVITY 0.4f
 
 #define PLAYER_ACC 0.3f
@@ -47,13 +26,6 @@ FORCEINLINE void glm_ivec2_from_vec2_round(vec2 v, ivec2 iv) {
 #define PLAYER_JUMP_PERIOD 5
 
 #define TILE_SIZE 64.0f
-
-typedef enum EntityState {
-	ENTITY_STATE_STAND,
-	ENTITY_STATE_WALK,
-	ENTITY_STATE_JUMP,
-	ENTITY_STATE_FALL,
-} EntityState;
 
 typedef struct Entity {
 	vec2 pos;
@@ -72,6 +44,8 @@ typedef struct Context {
 void reset_game(Context* ctx) {
 	ctx->player = (Entity){.pos[0] = TILE_SIZE*1.0f, .pos[1] = TILE_SIZE*6.0f};
 }
+
+#define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = SDL_APP_FAILURE; })
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
@@ -148,7 +122,8 @@ FORCEINLINE Rect rect_from_tile(Tile tile) {
 }
 
 FORCEINLINE void tile_from_rect(Rect rect, Tile tile) {
-	glm_ivec2_from_vec2_floor(rect.pos, tile);
+	glm_vec2_floor(rect.pos, rect.pos);
+	glm_ivec2_from_vec2(rect.pos, tile);
 }
 
 FORCEINLINE bool tile_is_valid(Tile tile) {
@@ -163,6 +138,12 @@ FORCEINLINE bool rects_intersect(Rect a, Rect b) {
 	if (!rect_is_valid(a) || !rect_is_valid(b)) return false;
 	return ((a.pos[0] < (b.pos[0] + b.area[0]) && (a.pos[0] + a.area[0]) > b.pos[0]) && (a.pos[1] < (b.pos[1] + b.area[1]) && (a.pos[1] + a.area[1]) > b.pos[1]));
 }
+
+/*
+TODO:
+- VSync
+- Resolution
+*/
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
