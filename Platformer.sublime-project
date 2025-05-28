@@ -8,8 +8,13 @@
 	   "build_systems":
     [
         {
-            "name": "Debug",
-            "working_dir": "$project_path/build",
+            "name": "debug",
+            "working_dir": "$project_path/build/ninja/debug",
+            "shell_cmd": "ninja"
+        },
+        {
+            "name": "release",
+            "working_dir": "$project_path/build/ninja/release",
             "shell_cmd": "ninja"
         }
     ]

@@ -66,10 +66,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		int w = display_mode->w / 2;
 		int h = display_mode->h / 2;
 
-		// TODO: If in release mode.
-		// flags |= SDL_WINDOW_FULLSCREEN;
-		// w = display_mode->w;
-		// h = display_mode->h;
+#ifndef _DEBUG
+		flags |= SDL_WINDOW_FULLSCREEN;
+		w = display_mode->w;
+		h = display_mode->h;
+#endif
 
 		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
 
@@ -156,8 +157,11 @@ FORCEINLINE bool rects_intersect(Rect a, Rect b) {
 
 /*
 TODO:
-- Improve setup (cmake, ninja, sublime, raddebugger)
+- Delta time.
 - Buy Legacy-Fantasy asset and render something in it.
+
+TODO (distant future):
+- Include dependencies as Git submodules. Modify cmake build system to build those dependencies too.
 */
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
@@ -390,7 +394,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
 		if (event->gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-			ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]*GRAVITY);
+			ctx->player.vel[1] = max(ctx->player.vel[1], ctx->player.vel[1]/2.0f);
 		}
 		break;
 	case SDL_EVENT_QUIT:
