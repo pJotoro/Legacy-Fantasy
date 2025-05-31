@@ -7,92 +7,17 @@
 
 #include "main.h"
 
-FORCEINLINE void glm_vec2_from_ivec2(ivec2 iv, vec2 v) {
-	v[0] = (float)iv[0];
-	v[1] = (float)iv[1];
-}
-
-FORCEINLINE void glm_ivec2_from_vec2(vec2 v, ivec2 iv) {
-	iv[0] = (int)v[0];
-	iv[1] = (int)v[1];
-}
-
 static float GRAVITY;
 
 static float PLAYER_ACC;
 static float PLAYER_FRIC;
 static float PLAYER_MAX_VEL;
 static float PLAYER_JUMP;
+static float PLAYER_BOUNCE;
 
 #define PLAYER_JUMP_PERIOD 3
 
 static float TILE_SIZE;
-
-typedef struct Entity {
-	vec2 pos;
-	vec2 vel;
-	int can_jump;
-} Entity;
-
-typedef struct Context {
-	SDL_Window* window;
-	SDL_Renderer* renderer;
-	bool vsync;
-	Entity player;
-	SDL_Gamepad* gamepad;
-	vec2 axis;
-} Context;
-
-void reset_game(Context* ctx) {
-	ctx->player = (Entity){.pos[0] = TILE_SIZE*1.0f, .pos[1] = TILE_SIZE*6.0f};
-}
-
-#define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = SDL_APP_FAILURE; })
-
-SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
-	SDL_AppResult res = SDL_APP_CONTINUE;
-
-	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
-
-	Context* ctx = new(1, Context); SDL_CHECK(ctx);
-	memset(ctx, 0, sizeof(Context));
-	*appstate = ctx;
-
-	// create_window_and_renderer
-	{
-		SDL_DisplayID display = SDL_GetPrimaryDisplay();
-		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
-		SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
-		int w = display_mode->w / 2;
-		int h = display_mode->h / 2;
-
-#ifndef _DEBUG
-		flags |= SDL_WINDOW_FULLSCREEN;
-		w = display_mode->w;
-		h = display_mode->h;
-#endif
-
-		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
-
-		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
-		if (!ctx->vsync) {
-			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
-		}
-
-		TILE_SIZE = (float)w / 60.0f;
-
-		GRAVITY = (float)w / 9600.0f; 
-
-		PLAYER_ACC = (float)w / 12800.0f;
-		PLAYER_FRIC = (float)w / 25600.0f;
-		PLAYER_MAX_VEL = (float)w / 1100.0f;
-		PLAYER_JUMP = (float)w / 275.0f;
-	}
-
-	reset_game(ctx);
-
-	return res; 
-}
 
 #define LEVEL_WIDTH 15
 #define LEVEL_HEIGHT 15
@@ -114,45 +39,78 @@ static int level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
 	{1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
-typedef struct Rect {
+#include "util.c"
+
+typedef struct Entity {
 	vec2 pos;
-	vec2 area;
-} Rect;
+	vec2 vel;
+	int can_jump;
+} Entity;
 
-FORCEINLINE Rect rect(vec2 pos, vec2 area) {
-	Rect rect;
-	glm_vec2_copy(pos, rect.pos);
-	glm_vec2_copy(area, rect.area);
-	return rect;
+typedef struct Context {
+	SDL_Window* window;
+	SDL_Renderer* renderer;
+	bool vsync;
+	Entity player;
+	SDL_Gamepad* gamepad;
+	SDL_DisplayMode* display_mode;
+	vec2 axis;
+	SDL_Time time;
+	float dt;
+} Context;
+
+void reset_game(Context* ctx) {
+	ctx->dt = ctx->display_mode->refresh_rate;
+	bool ok = SDL_GetCurrentTime(&ctx->time); SDL_assert(ok && SDL_GetError());
+	ctx->player = (Entity){.pos[0] = TILE_SIZE*1.0f, .pos[1] = TILE_SIZE*6.0f};
 }
 
-typedef ivec2 Tile;
+#define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = SDL_APP_FAILURE; })
 
-FORCEINLINE Rect rect_from_tile(Tile tile) {
-	vec2 pos;
-	glm_vec2_from_ivec2(tile, pos);
-	glm_vec2_scale(pos, TILE_SIZE, pos);
-	vec2 size;
-	glm_vec2_fill(size, TILE_SIZE);
-	return rect(pos, size);
-}
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
+	SDL_AppResult res = SDL_APP_CONTINUE;
 
-FORCEINLINE void tile_from_rect(Rect rect, Tile tile) {
-	glm_vec2_floor(rect.pos, rect.pos);
-	glm_ivec2_from_vec2(rect.pos, tile);
-}
+	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-FORCEINLINE bool tile_is_valid(Tile tile) {
-	return tile[0] >= 0 && tile[0] < LEVEL_WIDTH && tile[1] >= 0 && tile[1] < LEVEL_HEIGHT;
-}
+	Context* ctx = new(1, Context); SDL_CHECK(ctx);
+	memset(ctx, 0, sizeof(Context));
+	*appstate = ctx;
 
-FORCEINLINE bool rect_is_valid(Rect rect) {
-	return rect.pos[0] >= 0.0f && rect.pos[0]+rect.area[0] < (LEVEL_WIDTH+1)*TILE_SIZE && rect.pos[1] >= 0.0f && rect.pos[1]+rect.area[1] < (LEVEL_HEIGHT+1)*TILE_SIZE;
-}
+	// create_window_and_renderer
+	{
+		SDL_DisplayID display = SDL_GetPrimaryDisplay();
+		ctx->display_mode = (SDL_DisplayMode *)SDL_GetDesktopDisplayMode(display); SDL_CHECK(ctx->display_mode);
+		SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+		int w = ctx->display_mode->w / 2;
+		int h = ctx->display_mode->h / 2;
 
-FORCEINLINE bool rects_intersect(Rect a, Rect b) {
-	if (!rect_is_valid(a) || !rect_is_valid(b)) return false;
-	return ((a.pos[0] < (b.pos[0] + b.area[0]) && (a.pos[0] + a.area[0]) > b.pos[0]) && (a.pos[1] < (b.pos[1] + b.area[1]) && (a.pos[1] + a.area[1]) > b.pos[1]));
+#ifndef _DEBUG
+		flags |= SDL_WINDOW_FULLSCREEN;
+		w = ctx->display_mode->w;
+		h = ctx->display_mode->h;
+#endif
+
+		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
+
+		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
+		if (!ctx->vsync) {
+			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
+		}
+
+		TILE_SIZE = 32.0f;
+
+		GRAVITY = 24.0f;
+
+		PLAYER_ACC = 30.0f;
+		PLAYER_FRIC = 12.0f;
+		PLAYER_MAX_VEL = 180.0f;
+		PLAYER_JUMP = 720.0f;
+		PLAYER_BOUNCE = 0.1f;
+	}
+
+	reset_game(ctx);
+
+	return res; 
 }
 
 /*
@@ -168,6 +126,24 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
 	Context* ctx = appstate;
 
+#ifndef _DEBUG
+	{
+		SDL_Time current_time;
+		SDL_CHECK(SDL_GetCurrentTime(&current_time));
+		SDL_Time dt_int = current_time - ctx->time;
+		const double NANOSECONDS_IN_SECOND = 1000000000.0;
+		double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+		ctx->dt = (float)dt_double;
+		ctx->time = current_time;
+	}
+#else
+	ctx->dt = ctx->display_mode->refresh_rate;
+#endif
+
+	if (ctx->player.vel[1] > 81.0f) {
+		SDL_Log("Blah");
+	}
+
 	if (!ctx->vsync) {
 		SDL_Delay(16); // TODO
 	}
@@ -182,14 +158,13 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	
 	if (ctx->player.can_jump) {
 		float acc = ctx->axis[0] * PLAYER_ACC;
-		ctx->player.vel[0] += acc;
-		ctx->player.vel[0] = clamp(ctx->player.vel[0], -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-
+		ctx->player.vel[0] += acc*ctx->dt;
 		if (ctx->player.vel[0] < 0.0f) ctx->player.vel[0] = min(0.0f, ctx->player.vel[0] + PLAYER_FRIC);
 		else if (ctx->player.vel[0] > 0.0f) ctx->player.vel[0] = max(0.0f, ctx->player.vel[0] - PLAYER_FRIC);
+		ctx->player.vel[0] = clamp(ctx->player.vel[0], -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 	}
 	
-	ctx->player.vel[1] += GRAVITY;
+	ctx->player.vel[1] += GRAVITY*ctx->dt;
 
 	// player_collision
 	{
@@ -206,7 +181,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
 							ctx->player.pos[0] = tile.pos[0] + TILE_SIZE;
-							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
+							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_BOUNCE;
 							break_loop = true;
 						}
 					}
@@ -225,7 +200,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
 							ctx->player.pos[0] = tile.pos[0] - TILE_SIZE;
-							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_FRIC;
+							ctx->player.vel[0] = -ctx->player.vel[1] * PLAYER_BOUNCE;
 							break_loop = true;
 						}
 					}
@@ -247,7 +222,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
 							ctx->player.pos[1] = tile.pos[1] + TILE_SIZE;
-							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
+							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_BOUNCE;
 							break_loop = true;
 						}
 					}
@@ -266,7 +241,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 						Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 						if (rects_intersect(side, tile)) {
 							ctx->player.pos[1] = tile.pos[1] - TILE_SIZE;
-							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_FRIC;
+							ctx->player.vel[1] = -ctx->player.vel[1] * PLAYER_BOUNCE;
 							ctx->player.can_jump = PLAYER_JUMP_PERIOD;
 							break_loop = true;
 						}
@@ -275,7 +250,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 			}
 		}
 
-		glm_vec2_add(ctx->player.pos, ctx->player.vel, ctx->player.pos);
+		vec2 vel_dt;
+		glm_vec2_scale(ctx->player.vel, ctx->dt, vel_dt);
+		glm_vec2_add(ctx->player.pos, vel_dt, ctx->player.pos);
 
 		Rect player_rect = rect(ctx->player.pos, (vec2){TILE_SIZE, TILE_SIZE});
 		if (!rect_is_valid(player_rect)) reset_game(ctx);

@@ -15,6 +15,11 @@
 #define new(COUNT, T) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
 #define delete(P) SDL_free(P)
 
+#ifdef assert
+#undef assert
+#endif
+#define assert(COND, MSG) SDL_assert(COND && MSG)
+
 #define memset(DEST, CH, COUNT) SDL_memset(DEST, CH, COUNT)
 #define memcmp(LHS, RHS, COUNT) SDL_memcmp(LHS, RHS, COUNT)
 
