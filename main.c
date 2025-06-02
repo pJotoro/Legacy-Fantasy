@@ -40,11 +40,6 @@ typedef struct Entity {
 	int can_jump;
 } Entity;
 
-typedef struct Variables {
-	char* key;
-	float value;
-} Variables;
-
 typedef struct Context {
 	SDL_Window* window;
 	SDL_Renderer* renderer;
@@ -55,61 +50,10 @@ typedef struct Context {
 	vec2s axis;
 	SDL_Time time;
 	float dt;
-	Variables* variables;
-	SDL_IOStream* variables_stream;
 } Context;
-
-bool load_variable(Context* ctx) {
-	#define MAX_SIZE 256
-	
-	uint8_t name[MAX_SIZE];
-	size_t name_len;
-	for (name_len = 0; name_len < MAX_SIZE; name_len += 1) {
-		if (!SDL_ReadU8(ctx->variables_stream, &name[name_len])) {
-			SDL_IOStatus status = SDL_GetIOStatus(ctx->variables_stream);
-			if (status != SDL_IO_STATUS_READY) {
-				return false;
-			} else {
-				break;
-			}
-		}
-		if (name[name_len] == ':') break;
-	}
-	name[name_len] = '\0';
-	uint8_t value[MAX_SIZE];
-	size_t value_len;
-	for (value_len = 0; value_len < MAX_SIZE; value_len += 1) {
-		if (!SDL_ReadU8(ctx->variables_stream, &value[value_len])) {
-			SDL_IOStatus status = SDL_GetIOStatus(ctx->variables_stream);
-			if (status != SDL_IO_STATUS_READY) {
-				return false;
-			} else {
-				break;
-			}
-		}
-		if (value[value_len] == '\n') break;
-	}
-	value[value_len] = '\0';
-	double double_value = SDL_atof(value);
-	
-	SDL_Log("%s: %lf", name, double_value);
-
-	stbds_shput(ctx->variables, name, (float)double_value);
-
-	return true;
-
-	#undef MAX_SIZE
-}
-
-void load_variables(Context* ctx) {
-	while (load_variable(ctx)) {
-
-	}
-}
 
 void reset_game(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
-	load_variables(ctx);
 	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f};
 }
 
@@ -123,6 +67,12 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 	Context* ctx = new(1, Context); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
 	*appstate = ctx;
+
+	// init_time
+	{
+		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
+		stbds_rand_seed((size_t)ctx->time);
+	}
 
 	// create_window_and_renderer
 	{
@@ -146,9 +96,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		}
 	}
 
-	SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
-	stbds_rand_seed((size_t)ctx->time);
-	ctx->variables_stream = SDL_IOFromFile("variables.c", "r"); SDL_CHECK(ctx->variables_stream);
 	reset_game(ctx);
 	
 	return res; 
