@@ -1,3 +1,4 @@
 vendor/*
 build/*
+fonts/*
 *.sublime-workspace

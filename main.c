@@ -1,12 +1,18 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
-#include <SDL3/SDL_image.h>
+#include <SDL.h>
+#include <SDL_main.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
 
 #include <cglm/struct.h>
 
 #define STBDS_NO_SHORT_NAMES
 #include <stb_ds.h>
+
+#include "nuklear_defines.h"
+#pragma warning(push, 0)
+#include <nuklear.h>
+#pragma warning(pop)
 
 #include "main.h"
 
@@ -40,6 +46,11 @@ typedef struct Entity {
 	int can_jump;
 } Entity;
 
+typedef struct Nuklear {
+	struct nk_context ctx;
+	struct nk_user_font font;
+} Nuklear;
+
 typedef struct Context {
 	SDL_Window* window;
 	SDL_Renderer* renderer;
@@ -50,6 +61,9 @@ typedef struct Context {
 	vec2s axis;
 	SDL_Time time;
 	float dt;
+	Nuklear nk;
+	TTF_Font* font_roboto_regular;
+	float display_content_scale;
 } Context;
 
 void reset_game(Context* ctx) {
@@ -58,11 +72,25 @@ void reset_game(Context* ctx) {
 }
 
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = SDL_APP_FAILURE; })
+#define CHECK(E) STMT(if (!E) { res = SDL_APP_FAILURE; })
+
+float nk_cb_text_width(nk_handle handle, float height, const char *text, int len) {
+	TTF_Font* font = handle.ptr;
+	const int MAX_WIDTH = 256;
+	int measured_width;
+	size_t measured_length;
+	float res = 0.0f;
+	if (TTF_MeasureString(font, text, (size_t)len, MAX_WIDTH, &measured_width, &measured_length)) {
+		res = (float)measured_width;
+	}
+	return res;
+}
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
 
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
+	SDL_CHECK(TTF_Init());
 
 	Context* ctx = new(1, Context); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
@@ -94,6 +122,25 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		if (!ctx->vsync) {
 			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
 		}
+
+		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
+	}
+
+	{
+		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
+		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "fonts/Roboto-Regular.ttf");
+		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 1.0f);
+		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
+		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
+		ctx->font_roboto_regular = TTF_OpenFontWithProperties(props); SDL_CHECK(ctx->font_roboto_regular);
+		SDL_DestroyProperties(props);
+	}
+
+	{
+		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
+		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
+		ctx->nk.font.width = nk_cb_text_width;
+		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
 	reset_game(ctx);
@@ -106,6 +153,7 @@ TODO:
 - Delta time.
 - Buy Legacy-Fantasy asset and render something in it.
 - Make CMake hide full paths.
+- Make CMake give more warnings and consider more warnings errors.
 - Make Sublime Text understand C errors.
 */
 
@@ -378,6 +426,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 	return res; 
 }
 
-void SDL_AppQuit(void* appstate, SDL_AppResult result) {
-	SDL_Quit();
-}
+void SDL_AppQuit(void* appstate, SDL_AppResult result) {}
+
+
