@@ -158,13 +158,9 @@ TODO:
 */
 
 /*
-RECT_FILLED
-RECT_FILLED
 TEXT
 TEXT
-RECT_FILLED
 SCISSOR
-RECT_FILLED
 RECT
 TEXT
 TEXT
@@ -172,17 +168,16 @@ CIRCLE_FILLED
 TEXT
 CIRCLE_FILLED
 TEXT
-RECT_FILLED
-RECT_FILLED
 CIRCLE_FILLED
 SCISSOR
 RECT
 */
 
-void nk_render(Context* _ctx) {
-	struct nk_context* ctx = &_ctx->nk.ctx;
+// TODO: Error handling?
+
+void nk_render(Context* ctx) {
 	const struct nk_command* cmd = NULL;
-	nk_foreach(cmd, ctx) {
+	nk_foreach(cmd, &ctx->nk.ctx) {
 		switch (cmd->type) {
 	        case NK_COMMAND_NOP: {
 	        	SDL_Log("NOP");
@@ -201,7 +196,9 @@ void nk_render(Context* _ctx) {
 		    } break;
 		    case NK_COMMAND_RECT_FILLED: {
 	        	const struct nk_command_rect_filled* c = (const struct nk_command_rect_filled*)cmd;
-	        	
+	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
+	        	SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a);
+	        	SDL_RenderFillRect(ctx->renderer, &rect);
 		    } break;
 		    case NK_COMMAND_RECT_MULTI_COLOR: {
 	        	SDL_Log("RECT_MULTI_COLOR");
