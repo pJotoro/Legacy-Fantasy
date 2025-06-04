@@ -49,6 +49,7 @@ typedef struct Entity {
 typedef struct Nuklear {
 	struct nk_context ctx;
 	struct nk_user_font font;
+	SDL_FRect scissor;
 } Nuklear;
 
 typedef struct Context {
@@ -63,6 +64,7 @@ typedef struct Context {
 	float dt;
 	Nuklear nk;
 	TTF_Font* font_roboto_regular;
+	TTF_TextEngine* text_engine;
 	float display_content_scale;
 } Context;
 
@@ -126,16 +128,23 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
 	}
 
+	// text_engine_init
+	{
+		ctx->text_engine = TTF_CreateRendererTextEngine(ctx->renderer); SDL_CHECK(ctx->text_engine);
+	}
+
+	// load_font
 	{
 		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
 		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "fonts/Roboto-Regular.ttf");
-		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 1.0f);
+		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 15.0f);
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
 		ctx->font_roboto_regular = TTF_OpenFontWithProperties(props); SDL_CHECK(ctx->font_roboto_regular);
 		SDL_DestroyProperties(props);
 	}
 
+	// nuklear_init
 	{
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
@@ -158,24 +167,25 @@ TODO:
 */
 
 /*
-TEXT
-TEXT
 SCISSOR
-RECT
-TEXT
-TEXT
 CIRCLE_FILLED
-TEXT
 CIRCLE_FILLED
-TEXT
 CIRCLE_FILLED
 SCISSOR
-RECT
 */
 
-// TODO: Error handling?
+FORCEINLINE SDL_FRect scissor_rect(const SDL_FRect rect, const SDL_FRect scissor) {
+	SDL_FRect res = rect;
+	res.x += scissor.x;
+	res.y += scissor.y;
+	res.w = min(res.w, scissor.w);
+	res.h = min(res.h, scissor.h);
+	return res;
+}
 
-void nk_render(Context* ctx) {
+bool nk_render(Context* ctx) {
+	SDL_AppResult res = SDL_APP_SUCCESS;
+
 	const struct nk_command* cmd = NULL;
 	nk_foreach(cmd, &ctx->nk.ctx) {
 		switch (cmd->type) {
@@ -183,7 +193,8 @@ void nk_render(Context* ctx) {
 	        	SDL_Log("NOP");
 	        } break;
 		    case NK_COMMAND_SCISSOR: {
-	        	SDL_Log("SCISSOR");
+	        	const struct nk_command_scissor* c = (const struct nk_command_scissor*)cmd;
+	        	ctx->nk.scissor = (SDL_FRect){(float)c->x, (float)c->y, (float)c->w, (float)c->h};
 		    } break;
 		    case NK_COMMAND_LINE: {
 	        	SDL_Log("LINE");
@@ -192,13 +203,18 @@ void nk_render(Context* ctx) {
 	        	SDL_Log("CURVE");
 		    } break;
 		    case NK_COMMAND_RECT: {
-	        	SDL_Log("RECT");
+	        	const struct nk_command_rect* c = (const struct nk_command_rect*)cmd;
+	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
+	        	rect = scissor_rect(rect, ctx->nk.scissor);
+	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
+	        	SDL_CHECK(SDL_RenderRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_RECT_FILLED: {
 	        	const struct nk_command_rect_filled* c = (const struct nk_command_rect_filled*)cmd;
 	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
-	        	SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a);
-	        	SDL_RenderFillRect(ctx->renderer, &rect);
+	        	rect = scissor_rect(rect, ctx->nk.scissor);
+	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
+	        	SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_RECT_MULTI_COLOR: {
 	        	SDL_Log("RECT_MULTI_COLOR");
@@ -231,7 +247,11 @@ void nk_render(Context* ctx) {
 	        	SDL_Log("POLYLINE");
 		    } break;
 		    case NK_COMMAND_TEXT: {
-	        	SDL_Log("TEXT");
+	        	const struct nk_command_text* c = (const struct nk_command_text*)cmd;
+	        	TTF_Text* text = TTF_CreateText(ctx->text_engine, ctx->font_roboto_regular, c->string, (size_t)c->length); SDL_CHECK(text);
+	        	// TODO: text color
+	        	SDL_CHECK(TTF_DrawRendererText(text, (float)ctx->nk.scissor.x + (float)c->x, (float)ctx->nk.scissor.y + (float)c->y));
+	        	TTF_DestroyText(text);
 		    } break;
 		    case NK_COMMAND_IMAGE: {
 	        	SDL_Log("IMAGE");
@@ -241,6 +261,9 @@ void nk_render(Context* ctx) {
 		    } break;
 		}
 	}
+
+	if (res == SDL_APP_FAILURE) return false;
+	else return true;
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
@@ -392,6 +415,9 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 	// update_ui
 	{
+		nk_clear(&ctx->nk.ctx);
+		ctx->nk.scissor = (SDL_FRect){0.0f};
+
 		#define EASY 0
 		#define HARD 1
 
@@ -427,6 +453,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 	// render_begin
 	{
+		SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
 		SDL_CHECK(SDL_RenderClear(ctx->renderer));
 	}
 
@@ -451,14 +478,11 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	}
 
 	SDL_Log("FRAME_BEGIN");
-	nk_render(ctx);
+	CHECK(nk_render(ctx));
 
 	// render_end
 	{
-		SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
 		SDL_CHECK(SDL_RenderPresent(ctx->renderer));
-
-		nk_clear(&ctx->nk.ctx);
 
 		if (!ctx->vsync) {
 			// TODO
@@ -468,7 +492,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	return res; 
 }
 
-int nk_handle_event(Context* _ctx, SDL_Event* event);
+int nk_handle_event(Context* ctx, SDL_Event* event);
 
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 	SDL_AppResult res = SDL_APP_CONTINUE;
@@ -561,9 +585,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 void SDL_AppQuit(void* appstate, SDL_AppResult result) {}
 
 int
-nk_handle_event(Context* _ctx, SDL_Event* event)
+nk_handle_event(Context* ctx, SDL_Event* event)
 {
-    struct nk_context *ctx = &_ctx->nk.ctx;
     int ctrl_down = SDL_GetModState() & (SDL_KMOD_LCTRL | SDL_KMOD_RCTRL);
 
     switch(event->type)
@@ -575,42 +598,42 @@ nk_handle_event(Context* _ctx, SDL_Event* event)
                 switch(event->key.key)
                 {
                     case SDLK_RSHIFT: /* RSHIFT & LSHIFT share same routine */
-                    case SDLK_LSHIFT:    nk_input_key(ctx, NK_KEY_SHIFT, down); break;
-                    case SDLK_DELETE:    nk_input_key(ctx, NK_KEY_DEL, down); break;
+                    case SDLK_LSHIFT:    nk_input_key(&ctx->nk.ctx, NK_KEY_SHIFT, down); break;
+                    case SDLK_DELETE:    nk_input_key(&ctx->nk.ctx, NK_KEY_DEL, down); break;
 
                     case SDLK_KP_ENTER:
-                    case SDLK_RETURN:    nk_input_key(ctx, NK_KEY_ENTER, down); break;
+                    case SDLK_RETURN:    nk_input_key(&ctx->nk.ctx, NK_KEY_ENTER, down); break;
 
-                    case SDLK_TAB:       nk_input_key(ctx, NK_KEY_TAB, down); break;
-                    case SDLK_BACKSPACE: nk_input_key(ctx, NK_KEY_BACKSPACE, down); break;
-                    case SDLK_HOME:      nk_input_key(ctx, NK_KEY_TEXT_START, down);
-                                         nk_input_key(ctx, NK_KEY_SCROLL_START, down); break;
-                    case SDLK_END:       nk_input_key(ctx, NK_KEY_TEXT_END, down);
-                                         nk_input_key(ctx, NK_KEY_SCROLL_END, down); break;
-                    case SDLK_PAGEDOWN:  nk_input_key(ctx, NK_KEY_SCROLL_DOWN, down); break;
-                    case SDLK_PAGEUP:    nk_input_key(ctx, NK_KEY_SCROLL_UP, down); break;
-                    case SDLK_Z:         nk_input_key(ctx, NK_KEY_TEXT_UNDO, down && ctrl_down); break;
-                    case SDLK_R:         nk_input_key(ctx, NK_KEY_TEXT_REDO, down && ctrl_down); break;
-                    case SDLK_C:         nk_input_key(ctx, NK_KEY_COPY, down && ctrl_down); break;
-                    case SDLK_V:         nk_input_key(ctx, NK_KEY_PASTE, down && ctrl_down); break;
-                    case SDLK_X:         nk_input_key(ctx, NK_KEY_CUT, down && ctrl_down); break;
-                    case SDLK_B:         nk_input_key(ctx, NK_KEY_TEXT_LINE_START, down && ctrl_down); break;
-                    case SDLK_E:         nk_input_key(ctx, NK_KEY_TEXT_LINE_END, down && ctrl_down); break;
-                    case SDLK_UP:        nk_input_key(ctx, NK_KEY_UP, down); break;
-                    case SDLK_DOWN:      nk_input_key(ctx, NK_KEY_DOWN, down); break;
+                    case SDLK_TAB:       nk_input_key(&ctx->nk.ctx, NK_KEY_TAB, down); break;
+                    case SDLK_BACKSPACE: nk_input_key(&ctx->nk.ctx, NK_KEY_BACKSPACE, down); break;
+                    case SDLK_HOME:      nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_START, down);
+                                         nk_input_key(&ctx->nk.ctx, NK_KEY_SCROLL_START, down); break;
+                    case SDLK_END:       nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_END, down);
+                                         nk_input_key(&ctx->nk.ctx, NK_KEY_SCROLL_END, down); break;
+                    case SDLK_PAGEDOWN:  nk_input_key(&ctx->nk.ctx, NK_KEY_SCROLL_DOWN, down); break;
+                    case SDLK_PAGEUP:    nk_input_key(&ctx->nk.ctx, NK_KEY_SCROLL_UP, down); break;
+                    case SDLK_Z:         nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_UNDO, down && ctrl_down); break;
+                    case SDLK_R:         nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_REDO, down && ctrl_down); break;
+                    case SDLK_C:         nk_input_key(&ctx->nk.ctx, NK_KEY_COPY, down && ctrl_down); break;
+                    case SDLK_V:         nk_input_key(&ctx->nk.ctx, NK_KEY_PASTE, down && ctrl_down); break;
+                    case SDLK_X:         nk_input_key(&ctx->nk.ctx, NK_KEY_CUT, down && ctrl_down); break;
+                    case SDLK_B:         nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_LINE_START, down && ctrl_down); break;
+                    case SDLK_E:         nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_LINE_END, down && ctrl_down); break;
+                    case SDLK_UP:        nk_input_key(&ctx->nk.ctx, NK_KEY_UP, down); break;
+                    case SDLK_DOWN:      nk_input_key(&ctx->nk.ctx, NK_KEY_DOWN, down); break;
                     case SDLK_A:
                         if (ctrl_down)
-                            nk_input_key(ctx,NK_KEY_TEXT_SELECT_ALL, down);
+                            nk_input_key(&ctx->nk.ctx,NK_KEY_TEXT_SELECT_ALL, down);
                         break;
                     case SDLK_LEFT:
                         if (ctrl_down)
-                            nk_input_key(ctx, NK_KEY_TEXT_WORD_LEFT, down);
-                        else nk_input_key(ctx, NK_KEY_LEFT, down);
+                            nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_WORD_LEFT, down);
+                        else nk_input_key(&ctx->nk.ctx, NK_KEY_LEFT, down);
                         break;
                     case SDLK_RIGHT:
                         if (ctrl_down)
-                            nk_input_key(ctx, NK_KEY_TEXT_WORD_RIGHT, down);
-                        else nk_input_key(ctx, NK_KEY_RIGHT, down);
+                            nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_WORD_RIGHT, down);
+                        else nk_input_key(&ctx->nk.ctx, NK_KEY_RIGHT, down);
                         break;
                 }
             }
@@ -625,32 +648,32 @@ nk_handle_event(Context* _ctx, SDL_Event* event)
                 {
                     case SDL_BUTTON_LEFT:
                         if (event->button.clicks > 1)
-                            nk_input_button(ctx, NK_BUTTON_DOUBLE, x, y, down);
-                        nk_input_button(ctx, NK_BUTTON_LEFT, x, y, down); break;
-                    case SDL_BUTTON_MIDDLE: nk_input_button(ctx, NK_BUTTON_MIDDLE, x, y, down); break;
-                    case SDL_BUTTON_RIGHT:  nk_input_button(ctx, NK_BUTTON_RIGHT, x, y, down); break;
+                            nk_input_button(&ctx->nk.ctx, NK_BUTTON_DOUBLE, x, y, down);
+                        nk_input_button(&ctx->nk.ctx, NK_BUTTON_LEFT, x, y, down); break;
+                    case SDL_BUTTON_MIDDLE: nk_input_button(&ctx->nk.ctx, NK_BUTTON_MIDDLE, x, y, down); break;
+                    case SDL_BUTTON_RIGHT:  nk_input_button(&ctx->nk.ctx, NK_BUTTON_RIGHT, x, y, down); break;
                 }
             }
             return 1;
 
         case SDL_EVENT_MOUSE_MOTION:
-            if (ctx->input.mouse.grabbed) {
-                int x = (int)ctx->input.mouse.prev.x, y = (int)ctx->input.mouse.prev.y;
-                nk_input_motion(ctx, x + event->motion.xrel, y + event->motion.yrel);
+            if (&ctx->nk.ctx.input.mouse.grabbed) {
+                int x = (int)ctx->nk.ctx.input.mouse.prev.x, y = (int)ctx->nk.ctx.input.mouse.prev.y;
+                nk_input_motion(&ctx->nk.ctx, x + event->motion.xrel, y + event->motion.yrel);
             }
-            else nk_input_motion(ctx, event->motion.x, event->motion.y);
+            else nk_input_motion(&ctx->nk.ctx, event->motion.x, event->motion.y);
             return 1;
 
         case SDL_EVENT_TEXT_INPUT:
             {
                 nk_glyph glyph;
                 memcpy(glyph, event->text.text, NK_UTF_SIZE);
-                nk_input_glyph(ctx, glyph);
+                nk_input_glyph(&ctx->nk.ctx, glyph);
             }
             return 1;
 
         case SDL_EVENT_MOUSE_WHEEL:
-            nk_input_scroll(ctx,nk_vec2(event->wheel.x, event->wheel.y));
+            nk_input_scroll(&ctx->nk.ctx,nk_vec2(event->wheel.x, event->wheel.y));
             return 1;
     }
     return 0;
