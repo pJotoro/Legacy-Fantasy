@@ -174,15 +174,6 @@ CIRCLE_FILLED
 SCISSOR
 */
 
-FORCEINLINE SDL_FRect scissor_rect(const SDL_FRect rect, const SDL_FRect scissor) {
-	SDL_FRect res = rect;
-	res.x += scissor.x;
-	res.y += scissor.y;
-	res.w = min(res.w, scissor.w);
-	res.h = min(res.h, scissor.h);
-	return res;
-}
-
 bool nk_render(Context* ctx) {
 	SDL_AppResult res = SDL_APP_SUCCESS;
 
@@ -194,7 +185,8 @@ bool nk_render(Context* ctx) {
 	        } break;
 		    case NK_COMMAND_SCISSOR: {
 	        	const struct nk_command_scissor* c = (const struct nk_command_scissor*)cmd;
-	        	ctx->nk.scissor = (SDL_FRect){(float)c->x, (float)c->y, (float)c->w, (float)c->h};
+	        	const SDL_Rect clip = {c->x, c->y, c->w, c->h};
+	        	SDL_CHECK(SDL_SetRenderClipRect(ctx->renderer, &clip));
 		    } break;
 		    case NK_COMMAND_LINE: {
 	        	SDL_Log("LINE");
@@ -205,14 +197,12 @@ bool nk_render(Context* ctx) {
 		    case NK_COMMAND_RECT: {
 	        	const struct nk_command_rect* c = (const struct nk_command_rect*)cmd;
 	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
-	        	rect = scissor_rect(rect, ctx->nk.scissor);
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
 	        	SDL_CHECK(SDL_RenderRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_RECT_FILLED: {
 	        	const struct nk_command_rect_filled* c = (const struct nk_command_rect_filled*)cmd;
 	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
-	        	rect = scissor_rect(rect, ctx->nk.scissor);
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
 	        	SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		    } break;
@@ -250,7 +240,7 @@ bool nk_render(Context* ctx) {
 	        	const struct nk_command_text* c = (const struct nk_command_text*)cmd;
 	        	TTF_Text* text = TTF_CreateText(ctx->text_engine, ctx->font_roboto_regular, c->string, (size_t)c->length); SDL_CHECK(text);
 	        	// TODO: text color
-	        	SDL_CHECK(TTF_DrawRendererText(text, (float)ctx->nk.scissor.x + (float)c->x, (float)ctx->nk.scissor.y + (float)c->y));
+	        	SDL_CHECK(TTF_DrawRendererText(text, (float)c->x, (float)c->y));
 	        	TTF_DestroyText(text);
 		    } break;
 		    case NK_COMMAND_IMAGE: {
@@ -415,9 +405,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 
 	// update_ui
 	{
-		nk_clear(&ctx->nk.ctx);
-		ctx->nk.scissor = (SDL_FRect){0.0f};
-
 		#define EASY 0
 		#define HARD 1
 
@@ -483,6 +470,8 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 	// render_end
 	{
 		SDL_CHECK(SDL_RenderPresent(ctx->renderer));
+
+		nk_clear(&ctx->nk.ctx);
 
 		if (!ctx->vsync) {
 			// TODO
