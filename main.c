@@ -471,6 +471,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 		SDL_CHECK(SDL_RenderPresent(ctx->renderer));
 
 		nk_clear(&ctx->nk.ctx);
+		nk_input_begin(&ctx->nk.ctx);
 
 		if (!ctx->vsync) {
 			// TODO
@@ -582,7 +583,7 @@ nk_handle_event(Context* ctx, SDL_Event* event)
         case SDL_EVENT_KEY_UP: /* KEYUP & KEYDOWN share same routine */
         case SDL_EVENT_KEY_DOWN:
             {
-                int down = event->type == SDL_EVENT_KEY_DOWN;
+                bool down = event->type == SDL_EVENT_KEY_DOWN;
                 switch(event->key.key)
                 {
                     case SDLK_RSHIFT: /* RSHIFT & LSHIFT share same routine */
