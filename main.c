@@ -166,14 +166,6 @@ TODO:
 - Make Sublime Text understand C errors.
 */
 
-/*
-SCISSOR
-CIRCLE_FILLED
-CIRCLE_FILLED
-CIRCLE_FILLED
-SCISSOR
-*/
-
 bool nk_render(Context* ctx) {
 	SDL_AppResult res = SDL_APP_SUCCESS;
 
@@ -210,10 +202,18 @@ bool nk_render(Context* ctx) {
 	        	SDL_Log("RECT_MULTI_COLOR");
 		    } break;
 		    case NK_COMMAND_CIRCLE: {
-	        	SDL_Log("CIRCLE");
+		    	// TODO: Actually draw a circle.
+	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
+	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
+	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
+	        	SDL_CHECK(SDL_RenderRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_CIRCLE_FILLED: {
-	        	SDL_Log("CIRCLE_FILLED");
+		    	// TODO: Actually draw a circle.
+	        	const struct nk_command_circle_filled* c = (const struct nk_command_circle_filled*)cmd;
+	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
+	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
+	        	SDL_CHECK(SDL_RenderRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_ARC: {
 	        	SDL_Log("ARC");
@@ -464,7 +464,6 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
 		}
 	}
 
-	SDL_Log("FRAME_BEGIN");
 	CHECK(nk_render(ctx));
 
 	// render_end
