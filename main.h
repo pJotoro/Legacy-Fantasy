@@ -1,5 +1,3 @@
-#pragma once
-
 #define FORCEINLINE SDL_FORCE_INLINE
 
 #define KILOBYTE(X) ((X)*1024LL)
@@ -38,3 +36,44 @@
 #define clamp(X, A, B) SDL_clamp(X, A, B)
 
 typedef int64_t ssize_t;
+
+typedef struct Entity {
+	vec2s pos;
+	vec2s vel;
+	int can_jump;
+} Entity;
+
+typedef struct Nuklear {
+	struct nk_context ctx;
+	struct nk_user_font font;
+} Nuklear;
+
+typedef struct Context {
+	SDL_Window* window;
+
+	SDL_Renderer* renderer;
+	SDL_DisplayMode* display_mode;
+	bool vsync;
+	float display_content_scale;
+
+	TTF_TextEngine* text_engine;
+	TTF_Font* font_roboto_regular;
+
+	SDL_Gamepad* gamepad;
+	vec2s axis;
+
+	SDL_Time time;
+	float dt;
+	
+	Entity player;
+	
+	Nuklear nk;
+	
+	bool running;
+} Context;
+
+void reset_game(Context* ctx);
+
+bool nk_handle_event(Context* ctx, SDL_Event* event);
+bool nk_render(Context* ctx);
+float nk_cb_text_width(nk_handle handle, float height, const char *text, int len);
