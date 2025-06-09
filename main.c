@@ -85,7 +85,7 @@ float nk_cb_text_width(nk_handle handle, float height, const char *text, int len
 	return res;
 }
 
-int nk_handle_event(Context* ctx, SDL_Event* event);
+bool nk_handle_event(Context* ctx, SDL_Event* event);
 bool nk_render(Context* ctx);
 
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = -1; })
@@ -562,8 +562,7 @@ bool nk_render(Context* ctx) {
 	else return true;
 }
 
-int
-nk_handle_event(Context* ctx, SDL_Event* event)
+bool nk_handle_event(Context* ctx, SDL_Event* event)
 {
     int ctrl_down = SDL_GetModState() & (SDL_KMOD_LCTRL | SDL_KMOD_RCTRL);
 
@@ -615,7 +614,7 @@ nk_handle_event(Context* ctx, SDL_Event* event)
                         break;
                 }
             }
-            return 1;
+            return true;
 
         case SDL_EVENT_MOUSE_BUTTON_UP: /* MOUSEBUTTONUP & MOUSEBUTTONDOWN share same routine */
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -632,7 +631,7 @@ nk_handle_event(Context* ctx, SDL_Event* event)
                     case SDL_BUTTON_RIGHT:  nk_input_button(&ctx->nk.ctx, NK_BUTTON_RIGHT, x, y, down); break;
                 }
             }
-            return 1;
+            return true;
 
         case SDL_EVENT_MOUSE_MOTION:
             if (&ctx->nk.ctx.input.mouse.grabbed) {
@@ -640,7 +639,7 @@ nk_handle_event(Context* ctx, SDL_Event* event)
                 nk_input_motion(&ctx->nk.ctx, x + event->motion.xrel, y + event->motion.yrel);
             }
             else nk_input_motion(&ctx->nk.ctx, event->motion.x, event->motion.y);
-            return 1;
+            return true;
 
         case SDL_EVENT_TEXT_INPUT:
             {
@@ -648,12 +647,12 @@ nk_handle_event(Context* ctx, SDL_Event* event)
                 memcpy(glyph, event->text.text, NK_UTF_SIZE);
                 nk_input_glyph(&ctx->nk.ctx, glyph);
             }
-            return 1;
+            return true;
 
         case SDL_EVENT_MOUSE_WHEEL:
             nk_input_scroll(&ctx->nk.ctx,nk_vec2(event->wheel.x, event->wheel.y));
-            return 1;
+            return true;
     }
-    return 0;
+    return false;
 }
 
