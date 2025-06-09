@@ -399,7 +399,7 @@ int main(int argc, char* argv[]) {
 			static int i =  20;
 
 			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(50, 50, 220, 220),
-			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
+			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE|NK_WINDOW_SCALABLE)) {
 			    // fixed widget pixel width
 			    nk_layout_row_static(&ctx->nk.ctx, 30, 80, 1);
 			    if (nk_button_label(&ctx->nk.ctx, "button")) {
@@ -474,6 +474,56 @@ int main(int argc, char* argv[]) {
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = false; })
 #define CHECK(E) STMT(if (!E) { res = false; })
 
+// void draw_circle(SDL_Renderer* renderer, int32_t center_x, int32_t center_y, int32_t radius)
+// {
+//    const int32_t diameter = (radius * 2);
+
+//    int32_t x = (radius - 1);
+//    int32_t y = 0;
+//    int32_t tx = 1;
+//    int32_t ty = 1;
+//    int32_t error = (tx - diameter);
+
+//    while (x >= y)
+//    {
+//       //  Each of the following renders an octant of the circle
+//       SDL_RenderPoint(renderer, center_x + x, center_y - y);
+//       SDL_RenderPoint(renderer, center_x + x, center_y + y);
+//       SDL_RenderPoint(renderer, center_x - x, center_y - y);
+//       SDL_RenderPoint(renderer, center_x - x, center_y + y);
+//       SDL_RenderPoint(renderer, center_x + y, center_y - x);
+//       SDL_RenderPoint(renderer, center_x + y, center_y + x);
+//       SDL_RenderPoint(renderer, center_x - y, center_y - x);
+//       SDL_RenderPoint(renderer, center_x - y, center_y + x);
+
+//       if (error <= 0)
+//       {
+//          ++y;
+//          error += ty;
+//          ty += 2;
+//       }
+
+//       if (error > 0)
+//       {
+//          --x;
+//          tx += 2;
+//          error += (tx - diameter);
+//       }
+//    }
+// }
+
+// void draw_circle(SDL_Renderer* renderer, const int x, const int y, const int radius) {
+// 	SDL_Rect viewport;
+// 	SDL_GetRenderViewport(renderer, &viewport);
+// 	int xc = (viewport.x + viewport.w) / 2;
+// 	int yc = (viewport.y + viewport.h) / 2;
+//     for(int i = 0; i < 360; i ++) {                                               
+//     	int xx = x + radius * cosf(i);
+//     	int yy = y + radius * sinf(i);
+//     	SDL_RenderPoint(renderer, xx, yy); 
+// 	}
+// }
+
 bool nk_render(Context* ctx) {
 	bool res = true;
 
@@ -522,7 +572,7 @@ bool nk_render(Context* ctx) {
 	        	const struct nk_command_circle_filled* c = (const struct nk_command_circle_filled*)cmd;
 	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	SDL_CHECK(SDL_RenderRect(ctx->renderer, &rect));
+	        	SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_ARC: {
 	        	SDL_Log("ARC");
@@ -550,7 +600,22 @@ bool nk_render(Context* ctx) {
 
 		    } break;
 		    case NK_COMMAND_TRIANGLE_FILLED: {
-	        	SDL_Log("TRIANGLE_FILLED");
+	        	const struct nk_command_triangle_filled* c = (const struct nk_command_triangle_filled*)cmd;
+	        	SDL_Vertex vertices[] = {
+	        		{
+	        			.position = {c->a.x, c->a.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        		{
+	        			.position = {c->b.x, c->b.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        		{
+	        			.position = {c->c.x, c->c.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        	};
+	        	SDL_CHECK(SDL_RenderGeometry(ctx->renderer, NULL, vertices, 3, NULL, 0));
 		    } break;
 		    case NK_COMMAND_POLYGON: {
 	        	SDL_Log("POLYGON");
