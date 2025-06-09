@@ -2,3 +2,4 @@ vendor/*
 build/*
 fonts/*
 *.sublime-workspace
+*.txt
