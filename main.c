@@ -158,7 +158,6 @@ int main(int argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running && res == 0) {
-		nk_clear(&ctx->nk.ctx);
 		nk_input_begin(&ctx->nk.ctx);
 
 		SDL_Event event;
@@ -451,16 +450,20 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		CHECK(nk_render(ctx));
-
 		// render_end
 		{
+			CHECK(nk_render(ctx));
+
 			SDL_CHECK(SDL_RenderPresent(ctx->renderer));
+
+			nk_clear(&ctx->nk.ctx);
 
 			if (!ctx->vsync) {
 				// TODO
 			}
 		}
+
+
 	}
 	
 	return res; 
