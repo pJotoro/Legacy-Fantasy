@@ -637,11 +637,7 @@ bool nk_handle_event(Context* ctx, SDL_Event* event)
             return true;
 
         case SDL_EVENT_MOUSE_MOTION:
-            if (&ctx->nk.ctx.input.mouse.grabbed) {
-                int x = (int)ctx->nk.ctx.input.mouse.prev.x, y = (int)ctx->nk.ctx.input.mouse.prev.y;
-                nk_input_motion(&ctx->nk.ctx, x + event->motion.xrel, y + event->motion.yrel);
-            }
-            else nk_input_motion(&ctx->nk.ctx, event->motion.x, event->motion.y);
+            nk_input_motion(&ctx->nk.ctx, event->motion.x, event->motion.y);
             return true;
 
         case SDL_EVENT_TEXT_INPUT:
