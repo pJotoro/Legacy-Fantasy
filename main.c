@@ -531,7 +531,23 @@ bool nk_render(Context* ctx) {
 	        	SDL_Log("ARC_FILLED");
 		    } break;
 		    case NK_COMMAND_TRIANGLE: {
-	        	SDL_Log("TRIANGLE");
+	        	const struct nk_command_triangle* c = (const struct nk_command_triangle*)cmd;
+	        	SDL_Vertex vertices[] = {
+	        		{
+	        			.position = {c->a.x, c->a.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        		{
+	        			.position = {c->b.x, c->b.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        		{
+	        			.position = {c->c.x, c->c.y},
+	        			.color = {c->color.r, c->color.g, c->color.b, c->color.a},
+	        		},
+	        	};
+	        	SDL_CHECK(SDL_RenderGeometry(ctx->renderer, NULL, vertices, 3, NULL, 0));
+
 		    } break;
 		    case NK_COMMAND_TRIANGLE_FILLED: {
 	        	SDL_Log("TRIANGLE_FILLED");
