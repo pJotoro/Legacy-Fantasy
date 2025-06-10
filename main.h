@@ -73,7 +73,8 @@ typedef struct Context {
 } Context;
 
 void reset_game(Context* ctx);
-void draw_circle_filled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
+void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r);
+void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r);
 
 bool nk_handle_event(Context* ctx, SDL_Event* event);
 bool nk_render(Context* ctx);

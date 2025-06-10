@@ -60,7 +60,7 @@ bool nk_render(Context* ctx) {
 	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
 	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	draw_circle_filled(ctx->renderer, c->x, c->y, c->w);
+	        	draw_circle(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);
 		    } break;
 		    case NK_COMMAND_CIRCLE_FILLED: {
 		    	// TODO: Actually draw a circle.
