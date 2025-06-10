@@ -431,6 +431,54 @@ int main(int argc, char* argv[]) {
 	return res; 
 }
 
+void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+	int32_t x = r;
+	int32_t y = 0;
+    
+    SDL_RenderLine(renderer, cx, cy, cx + x, cy + y);
+    SDL_RenderLine(renderer, cx, cy, cx - x, cy + y);
+    SDL_RenderLine(renderer, cx, cy, cx + x, cy - y);
+    SDL_RenderLine(renderer, cx, cy, cx - x, cy - y);
+
+    SDL_RenderLine(renderer, cx, cy, cx + y, cy + x);
+    SDL_RenderLine(renderer, cx, cy, cx - y, cy + x);
+    SDL_RenderLine(renderer, cx, cy, cx + y, cy - x);
+    SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);
+
+    int point = 1 - r;
+    while (x > y)
+    { 
+        y += 1;
+        
+        if (point <= 0) {
+			point = point + 2*y + 1;
+        }
+        else
+        {
+            x -= 1;
+            point = point + 2*y - 2*x + 1;
+        }
+        
+        if (x < y) {
+            break;
+        }
+
+        SDL_RenderLine(renderer, cx, cy, cx + x, cy + y);
+        SDL_RenderLine(renderer, cx, cy, cx - x, cy + y);
+        SDL_RenderLine(renderer, cx, cy, cx + x, cy - y);
+        SDL_RenderLine(renderer, cx, cy, cx - x, cy - y);
+        
+        if (x != y)
+        {
+	        SDL_RenderLine(renderer, cx, cy, cx + y, cy + x);
+	        SDL_RenderLine(renderer, cx, cy, cx - y, cy + x);
+	        SDL_RenderLine(renderer, cx, cy, cx + y, cy - x);
+	        SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);   
+        }
+    }	
+
+}
+
 // void draw_circle(SDL_Renderer* renderer, int32_t center_x, int32_t center_y, int32_t radius)
 // {
 //    const int32_t diameter = (radius * 2);
