@@ -116,52 +116,6 @@ int main(int argc, char* argv[]) {
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
-	// load_variables
-	// {
-	// 	SDL_IOStream* fs = SDL_IOFromFile("variables", "r"); SDL_CHECK(fs);
-	// 	while (SDL_GetIOStatus(fs) == SDL_IO_STATUS_READY) {
-	// 		char name[256];
-	// 		size_t name_len;
-	// 		{
-	// 			size_t i = 0;
-	// 			for (bool ok = true; ok; i += 1) {
-	// 				ok = SDL_ReadU8(fs, &name[i]);
-	// 				if (name[i] == ' ') ok = false;
-	// 			}
-	// 			name[i] = '\0';
-	// 			name_len = i;
-	// 		}
-			
-	// 		double float_val = 0.0f;
-	// 		int32_t int_val = 0;
-	// 		bool is_float = false;
-	// 		{
-	// 			char buf[256];
-	// 			size_t i = 0;
-	// 			for (bool ok = true; ok; i += 1) {
-	// 				ok = SDL_ReadU8(fs, &buf[i]);
-	// 				if (buf[i] == '.') is_float = true;
-	// 				else if (buf[i] == '\n') ok = false;
-	// 			}
-	// 			buf[i] = '\0';
-	// 			if (!is_float) {
-	// 				int_val = SDL_atoi(buf);
-	// 			} else {
-	// 				float_val = SDL_strtod(buf, NULL);
-	// 			}
-	// 		}
-
-	// 		if (!is_float) {
-	// 			VarI key = {name, int_val};
-	// 			stbds_shputs(ctx->int_vars, key);
-	// 		} else {
-	// 			VarF key = {name, float_val};
-	// 			stbds_shputs(ctx->float_vars, key);
-	// 		}
-	// 	}
-	// 	SDL_CloseIO(fs);
-	// }
-
 	reset_game(ctx);
 
 	ctx->running = true;
@@ -310,18 +264,6 @@ int main(int argc, char* argv[]) {
 				nk_varf(&ctx->nk.ctx, PLAYER_BOUNCE, 0.0f, 1.0f, 0.01f);
 				nk_vari(&ctx->nk.ctx, TILE_SIZE, 0, 256, 2);
 				nk_vari(&ctx->nk.ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
-
-				/*
-				static int32_t TILE_SIZE = 32;
-				static float GRAVITY = 0.5;
-				static float PLAYER_ACC = 0.6;
-				static float PLAYER_FRIC = 0.3;
-				static float PLAYER_MAX_VEL = 6.0;
-				static float PLAYER_JUMP = 12.0;
-				static float PLAYER_BOUNCE = 0.2;
-				static int32_t PLAYER_JUMP_PERIOD = 3;
-				*/
-
 			}
 			nk_end(&ctx->nk.ctx);
 		}
@@ -596,5 +538,17 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
 	        SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);   
         }
     }	
-
 }
+
+/*
+In case the variables.c file gets corrupted:
+
+static int32_t TILE_SIZE = 32;
+static float GRAVITY = 0.5;
+static float PLAYER_ACC = 0.6;
+static float PLAYER_FRIC = 0.3;
+static float PLAYER_MAX_VEL = 6.0;
+static float PLAYER_JUMP = 12.0;
+static float PLAYER_BOUNCE = 0.2;
+static int32_t PLAYER_JUMP_PERIOD = 3;
+*/
