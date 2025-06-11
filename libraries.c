@@ -20,4 +20,7 @@
 #define NK_VSNPRINTF(s,n,f,a) SDL_vsnprintf(s,n,f,a)
 #include <nuklear.h>
 
+#define RADDBG_MARKUP_IMPLEMENTATION
+#include <raddbg_markup.h>
+
 #pragma warning(pop)

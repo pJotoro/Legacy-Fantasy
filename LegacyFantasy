@@ -1,0 +1,28 @@
+// raddbg 0.9.20 project file
+
+recent_file: path: "main.h"
+recent_file: path: "main.c"
+target:
+{
+  executable: "build/ninja/debug/Platformer.exe"
+  working_directory: ""
+  label: debug
+  enabled: 1
+}
+target:
+{
+  executable: "build/ninja/release/Platformer.exe"
+  working_directory: "build/ninja/release"
+  enabled: 0
+  label: release
+}
+breakpoint:
+{
+  source_location: "main.c:120:1"
+  hit_count: 1
+}
+type_view:
+{
+  type: Level
+  expr: "table(Level.tiles, Level.w, Level.h)"
+}

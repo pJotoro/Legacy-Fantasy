@@ -13,27 +13,9 @@
 #include <nuklear.h>
 #pragma warning(pop)
 
-#include "main.h"
+#include <raddbg_markup.h>
 
-#define LEVEL_WIDTH 15
-#define LEVEL_HEIGHT 15
-static int level[LEVEL_HEIGHT][LEVEL_WIDTH] = {
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0},
-	{0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0},
-	{1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-};
+#include "main.h"
 
 #include "variables.c"
 #include "util.c"
@@ -59,7 +41,7 @@ int main(int argc, char* argv[]) {
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());
 
-	Context* ctx = new(1, Context); SDL_CHECK(ctx);
+	Context* ctx = new(Context); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
 
 	// init_time
@@ -114,6 +96,67 @@ int main(int argc, char* argv[]) {
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
 		ctx->nk.font.width = nk_cb_text_width;
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
+	}
+
+	// load_level
+	{
+		SDL_IOStream* fs = SDL_IOFromFile("level", "r"); SDL_CHECK(fs);
+		size_t file_size;
+		char* file = (char*)SDL_LoadFile_IO(fs, &file_size, false); SDL_CHECK(file);
+
+		for (size_t i = 0, x = 0; i < file_size; i += 1) {
+			if (file[i] != '\n') {
+				x += 1;
+			} else {
+				ctx->level.w = max(x, ctx->level.w);
+				x = 0;
+				ctx->level.h += 1;
+			}
+		}		
+		
+		ctx->level.tiles = new_array(TileType, ctx->level.w * ctx->level.h);
+		memset(ctx->level.tiles, ctx->level.w * ctx->level.h, TILE_TYPE_EMPTY);
+
+		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+				if (file[file_i] == '\n') {
+					file_i += 1;
+					break;
+				}
+				switch (file[file_i]) {
+				case '1':
+					set_tile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
+					break;
+				}
+				file_i += 1;
+			}
+		}
+
+		SDL_free(file);
+		SDL_CloseIO(fs);
+
+		// size_t x = 0;
+		// size_t max_x = 0;
+		// size_t y = 0;
+		// for (size_t i = 0; i < size; i += 1) {
+		// 	x += 1;
+		// 	if (ctx->level.tiles[i] == '\n') {
+		// 		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
+		// 		if (x > max_x) {
+		// 			max_x = x;
+		// 		} else {
+
+		// 		}
+		// 		x = 0;
+		// 		y += 1;
+		// 	} else if (ctx->level.tiles[i] == ' ' || ctx->level.tiles[i] == '0' || ctx->level.tiles[i] == '\r') {
+		// 		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
+		// 	} else if (ctx->level.tiles[i] == '1') {
+		// 		ctx->level.tiles[i] = TILE_TYPE_GROUND;
+		// 	}
+		// }
+		// ctx->level.w = max_x;
+		// ctx->level.h = y;
 	}
 
 	reset_game(ctx);
@@ -289,14 +332,14 @@ int main(int argc, char* argv[]) {
 				side.area.x = 1.0f;
 				side.area.y = TILE_SIZE - 2.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
-						if (level[tile_y][tile_x]) {
+				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Tile t;
 							t.x = (int)tile_x;
 							t.y = (int)tile_y;
 							Rect tile = rect_from_tile(t);
-							if (rects_intersect(side, tile)) {
+							if (rects_intersect(&ctx->level, side, tile)) {
 								ctx->player.pos.x = tile.pos.x + TILE_SIZE;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -311,11 +354,11 @@ int main(int argc, char* argv[]) {
 				side.area.x = 1.0f;
 				side.area.y = TILE_SIZE - 2.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
-						if (level[tile_y][tile_x]) {
+				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(side, tile)) {
+							if (rects_intersect(&ctx->level, side, tile)) {
 								ctx->player.pos.x = tile.pos.x - TILE_SIZE;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -333,11 +376,11 @@ int main(int argc, char* argv[]) {
 				side.area.x = TILE_SIZE - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
-						if (level[tile_y][tile_x]) {
+				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(side, tile)) {
+							if (rects_intersect(&ctx->level, side, tile)) {
 								ctx->player.pos.y = tile.pos.y + TILE_SIZE;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -352,11 +395,11 @@ int main(int argc, char* argv[]) {
 				side.area.x = TILE_SIZE - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < LEVEL_HEIGHT && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < LEVEL_WIDTH && !break_loop; tile_x += 1) {
-						if (level[tile_y][tile_x]) {
+				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(side, tile)) {
+							if (rects_intersect(&ctx->level, side, tile)) {
 								ctx->player.pos.y = tile.pos.y - TILE_SIZE;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								ctx->player.can_jump = PLAYER_JUMP_PERIOD;
@@ -372,7 +415,7 @@ int main(int argc, char* argv[]) {
 			ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
 
 			Rect player_rect = (Rect){ctx->player.pos, (vec2s){TILE_SIZE, TILE_SIZE}};
-			if (!rect_is_valid(player_rect)) {
+			if (!rect_is_valid(&ctx->level, player_rect)) {
 				reset_game(ctx);
 			}
 		}
@@ -393,10 +436,10 @@ int main(int argc, char* argv[]) {
 		// render_level
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
-			for (ssize_t level_y = 0; level_y < LEVEL_HEIGHT; level_y += 1) {
-				for (ssize_t level_x = 0; level_x < LEVEL_WIDTH; level_x += 1) {
-					if (level[level_y][level_x]) {
-						SDL_FRect rect = { (float)level_x * TILE_SIZE, (float)level_y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+			for (ssize_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
+				for (ssize_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+					if (get_tile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
+						SDL_FRect rect = { (float)tile_x * TILE_SIZE, (float)tile_y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
@@ -542,4 +585,13 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
 	        SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);   
         }
     }	
+}
+
+TileType get_tile(Level* level, size_t tile_x, size_t tile_y) {
+	return level->tiles[tile_y*level->w + tile_x];
+}
+
+void set_tile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
+	assert(tile_x < level->w && tile_y < level->h, "out of bounds");
+	level->tiles[tile_y*level->w + tile_x] = tile;
 }

@@ -13,7 +13,8 @@
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 
-#define new(COUNT, T) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
+#define new(T) SDL_aligned_alloc(_Alignof(T), sizeof(T))
+#define new_array(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
 #define delete(P) SDL_free(P)
 
 #ifdef assert
@@ -63,6 +64,20 @@ typedef struct VarI {
 	int32_t value;
 } VarI;
 
+typedef enum TileType {
+	TILE_TYPE_EMPTY,
+	TILE_TYPE_GROUND,
+} TileType;
+
+typedef struct Level {
+	TileType* tiles;
+	size_t w;
+	size_t h;
+} Level;
+
+TileType get_tile(Level* level, size_t tile_x, size_t tile_y);
+void set_tile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
+
 typedef struct Context {
 	SDL_Window* window;
 
@@ -83,6 +98,8 @@ typedef struct Context {
 	Entity player;
 	
 	Nuklear nk;
+
+	Level level;
 
 	// VarF* float_vars;
 	// VarI* int_vars;
