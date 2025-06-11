@@ -336,7 +336,12 @@ int main(int argc, char* argv[]) {
 					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
 					nk_slider_float(ctx, min, &var, max, incr); \
 					)
+#define nk_vari(ctx, var, min, max, incr) STMT( \
+					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %d), var); \
+					nk_slider_int(ctx, min, &var, max, incr); \
+					)
 				nk_varf(&ctx->nk.ctx, GRAVITY, 0.0f, 1.0f, 0.01f);
+				nk_vari(&ctx->nk.ctx, TILE_SIZE, 0, 256, 2);
 				//nk_labelf(&ctx->nk.ctx, NK_TEXT_LEFT, "GRAVITY: %f", GRAVITY);
 				//nk_slider_float(&ctx->nk.ctx, 0.0f, &GRAVITY, 1.0f, 0.01f);
 				//nk_value_float(&ctx->nk.ctx, NULL, GRAVITY);
