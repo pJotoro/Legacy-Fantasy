@@ -417,30 +417,34 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	/*
-	static int32_t TILE_SIZE = 32;
-	static float GRAVITY = 0.5;
-	static float PLAYER_ACC = 0.6;
-	static float PLAYER_FRIC = 0.3;
-	static float PLAYER_MAX_VEL = 6.0;
-	static float PLAYER_JUMP = 12.0;
-	static float PLAYER_BOUNCE = 0.2;
-	static int32_t PLAYER_JUMP_PERIOD = 3;
-	*/
+/*
+In case the variables.c file gets corrupted:
+
+static int32_t TILE_SIZE = 32;
+static float GRAVITY = 0.5;
+static float PLAYER_ACC = 0.6;
+static float PLAYER_FRIC = 0.3;
+static float PLAYER_MAX_VEL = 6.0;
+static float PLAYER_JUMP = 12.0;
+static float PLAYER_BOUNCE = 0.2;
+static int32_t PLAYER_JUMP_PERIOD = 3;
+*/
 
 	// write_variables
-	// {
-	// 	SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w");
-	// 	size_t float_vars_len = stbds_shlen(ctx->float_vars);
-	// 	for (size_t i = 0; i < float_vars_len; i += 1) {
-	// 		SDL_IOprintf(fs, "static float %s;\n", ctx->float_vars[i].key);
-	// 	}
-	// 	size_t int_vars_len = stbds_shlen(ctx->int_vars);
-	// 	for (size_t i = 0; i < int_vars_len; i += 1) {
-	// 		SDL_IOprintf(fs, "static int32_t %s;\n", ctx->int_vars[i].key);
-	// 	}
-	// 	SDL_CloseIO(fs);
-	// }
+	{
+		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w");
+		#define SDL_IOWriteVarI(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var);)
+		#define SDL_IOWriteVarF(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var);)
+		SDL_IOWriteVarI(fs, TILE_SIZE);
+		SDL_IOWriteVarI(fs, PLAYER_JUMP_PERIOD);
+		SDL_IOWriteVarF(fs, GRAVITY);
+		SDL_IOWriteVarF(fs, PLAYER_ACC);
+		SDL_IOWriteVarF(fs, PLAYER_FRIC);
+		SDL_IOWriteVarF(fs, PLAYER_MAX_VEL);
+		SDL_IOWriteVarF(fs, PLAYER_JUMP);
+		SDL_IOWriteVarF(fs, PLAYER_BOUNCE);
+		SDL_CloseIO(fs);
+	}
 	
 	return res; 
 }
@@ -539,16 +543,3 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
         }
     }	
 }
-
-/*
-In case the variables.c file gets corrupted:
-
-static int32_t TILE_SIZE = 32;
-static float GRAVITY = 0.5;
-static float PLAYER_ACC = 0.6;
-static float PLAYER_FRIC = 0.3;
-static float PLAYER_MAX_VEL = 6.0;
-static float PLAYER_JUMP = 12.0;
-static float PLAYER_BOUNCE = 0.2;
-static int32_t PLAYER_JUMP_PERIOD = 3;
-*/
