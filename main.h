@@ -7,6 +7,9 @@
 
 #define STMT(X) do {X} while (false)
 
+#define STRINGIFY(X) #X
+#define CONCAT(A,B) A##B
+
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 

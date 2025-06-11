@@ -332,8 +332,13 @@ int main(int argc, char* argv[]) {
 				    nk_layout_row_dynamic(&ctx->nk.ctx, height, cols);
 				}
 
-				nk_labelf(&ctx->nk.ctx, NK_TEXT_LEFT, "GRAVITY: %f", GRAVITY);
-				nk_slider_float(&ctx->nk.ctx, 0.0f, &GRAVITY, 1.0f, 0.01f);
+#define nk_varf(ctx, var, min, max, incr) STMT( \
+					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
+					nk_slider_float(ctx, min, &var, max, incr); \
+					)
+				nk_varf(&ctx->nk.ctx, GRAVITY, 0.0f, 1.0f, 0.01f);
+				//nk_labelf(&ctx->nk.ctx, NK_TEXT_LEFT, "GRAVITY: %f", GRAVITY);
+				//nk_slider_float(&ctx->nk.ctx, 0.0f, &GRAVITY, 1.0f, 0.01f);
 				//nk_value_float(&ctx->nk.ctx, NULL, GRAVITY);
 				//GRAVITY = nk_propertyf(&ctx->nk.ctx, "GRAVITY", 0.0f, GRAVITY, 2.0f, 0.05f, 1.0f);
 				// PLAYER_ACC = nk_propertyf(&ctx->nk.ctx, "PLAYER_ACC", 0.0f, PLAYER_ACC, 100.0f, 0.05f, 1.0f);
