@@ -116,6 +116,52 @@ int main(int argc, char* argv[]) {
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
+	// load_variables
+	// {
+	// 	SDL_IOStream* fs = SDL_IOFromFile("variables", "r"); SDL_CHECK(fs);
+	// 	while (SDL_GetIOStatus(fs) == SDL_IO_STATUS_READY) {
+	// 		char name[256];
+	// 		size_t name_len;
+	// 		{
+	// 			size_t i = 0;
+	// 			for (bool ok = true; ok; i += 1) {
+	// 				ok = SDL_ReadU8(fs, &name[i]);
+	// 				if (name[i] == ' ') ok = false;
+	// 			}
+	// 			name[i] = '\0';
+	// 			name_len = i;
+	// 		}
+			
+	// 		double float_val = 0.0f;
+	// 		int32_t int_val = 0;
+	// 		bool is_float = false;
+	// 		{
+	// 			char buf[256];
+	// 			size_t i = 0;
+	// 			for (bool ok = true; ok; i += 1) {
+	// 				ok = SDL_ReadU8(fs, &buf[i]);
+	// 				if (buf[i] == '.') is_float = true;
+	// 				else if (buf[i] == '\n') ok = false;
+	// 			}
+	// 			buf[i] = '\0';
+	// 			if (!is_float) {
+	// 				int_val = SDL_atoi(buf);
+	// 			} else {
+	// 				float_val = SDL_strtod(buf, NULL);
+	// 			}
+	// 		}
+
+	// 		if (!is_float) {
+	// 			VarI key = {name, int_val};
+	// 			stbds_shputs(ctx->int_vars, key);
+	// 		} else {
+	// 			VarF key = {name, float_val};
+	// 			stbds_shputs(ctx->float_vars, key);
+	// 		}
+	// 	}
+	// 	SDL_CloseIO(fs);
+	// }
+
 	reset_game(ctx);
 
 	ctx->running = true;
@@ -226,10 +272,6 @@ int main(int argc, char* argv[]) {
 		ctx->dt = 1.0f;
 	#endif
 
-		if (ctx->player.vel.y > 81.0f) {
-			SDL_Log("Blah");
-		}
-
 		if (!ctx->vsync) {
 			SDL_Delay(16); // TODO
 		}
@@ -240,6 +282,80 @@ int main(int argc, char* argv[]) {
 			if (joystick_count != 0) {
 				ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
 			}
+		}
+
+		// update_ui
+		{
+			// #define EASY 0
+			// #define HARD 1
+
+			// static int op = EASY;
+			// static float value = 0.6f;
+			// static int i =  20;
+
+			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(50, 50, 220, 220),
+			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE)) {
+			    // // fixed widget pixel width
+			    // nk_layout_row_static(&ctx->nk.ctx, 30, 80, 1);
+			    // if (nk_button_label(&ctx->nk.ctx, "button")) {
+			    //     // event handling
+			    // }
+			 
+			    // // fixed widget window ratio width
+			    // nk_layout_row_dynamic(&ctx->nk.ctx, 30, 2);
+			    // if (nk_option_label(&ctx->nk.ctx, "easy", op == EASY)) op = EASY;
+			    // if (nk_option_label(&ctx->nk.ctx, "hard", op == HARD)) op = HARD;
+			 
+			    // // custom widget pixel width
+			    // nk_layout_row_begin(&ctx->nk.ctx, NK_STATIC, 30, 2);
+			    // {
+			    //     nk_layout_row_push(&ctx->nk.ctx, 50);
+			    //     nk_label(&ctx->nk.ctx, "Volume:", NK_TEXT_LEFT);
+			    //     nk_layout_row_push(&ctx->nk.ctx, 110);
+			    //     nk_slider_float(&ctx->nk.ctx, 0, &value, 1.0f, 0.1f);
+			    // }
+			    // nk_layout_row_end(&ctx->nk.ctx);
+
+				// size_t float_vars_len = stbds_shlenu(ctx->float_vars);
+			    // for (size_t i = 0; i < float_vars_len; i += 1) {
+			    // 	ctx->float_vars[i].value = nk_propertyd(&ctx->nk.ctx, ctx->float_vars[i].key, 0.0, ctx->float_vars[i].value, 100.0, 1.0, 1.0f);
+			    // }
+
+			    // size_t int_vars_len = stbds_shlenu(ctx->int_vars);
+			    // for (size_t i = 0; i < int_vars_len; i += 1) {
+			    // 	ctx->int_vars[i].value = nk_propertyi(&ctx->nk.ctx, ctx->int_vars[i].key, 0, ctx->int_vars[i].value, 100, 1, 1.0f);
+			    // }
+
+				{
+					float height = 30.0f;
+					int cols = 2;
+				    nk_layout_row_dynamic(&ctx->nk.ctx, height, cols);
+				}
+
+				nk_labelf(&ctx->nk.ctx, NK_TEXT_LEFT, "GRAVITY: %f", GRAVITY);
+				nk_slider_float(&ctx->nk.ctx, 0.0f, &GRAVITY, 1.0f, 0.01f);
+				//nk_value_float(&ctx->nk.ctx, NULL, GRAVITY);
+				//GRAVITY = nk_propertyf(&ctx->nk.ctx, "GRAVITY", 0.0f, GRAVITY, 2.0f, 0.05f, 1.0f);
+				// PLAYER_ACC = nk_propertyf(&ctx->nk.ctx, "PLAYER_ACC", 0.0f, PLAYER_ACC, 100.0f, 0.05f, 1.0f);
+				// PLAYER_FRIC = nk_propertyf(&ctx->nk.ctx, "PLAYER_FRIC", 0.0f, PLAYER_FRIC, 100.0f, 0.05f, 1.0f);
+				// PLAYER_MAX_VEL = nk_propertyf(&ctx->nk.ctx, "PLAYER_MAX_VEL", 0.0f, PLAYER_MAX_VEL, 100.0f, 0.05f, 1.0f);
+				// PLAYER_JUMP = nk_propertyf(&ctx->nk.ctx, "PLAYER_JUMP", 0.0f, PLAYER_JUMP, 100.0f, 0.05f, 1.0f);
+				// PLAYER_BOUNCE = nk_propertyf(&ctx->nk.ctx, "PLAYER_BOUNCE", 0.0f, PLAYER_BOUNCE, 10.0f, 0.01f, 1.0f);
+
+				// TILE_SIZE = nk_propertyi(&ctx->nk.ctx, "TILE_SIZE", 1, TILE_SIZE, 256, TILE_SIZE, (float)TILE_SIZE);
+				// PLAYER_JUMP_PERIOD = nk_propertyi(&ctx->nk.ctx, "PLAYER_JUMP_PERIOD", 0, PLAYER_JUMP_PERIOD, 10, 1, 1.0f);
+
+// 				static int32_t TILE_SIZE = 32;
+// static float GRAVITY = 0.5;
+// static float PLAYER_ACC = 0.6;
+// static float PLAYER_FRIC = 0.3;
+// static float PLAYER_MAX_VEL = 6.0;
+// static float PLAYER_JUMP = 12.0;
+// static float PLAYER_BOUNCE = 0.2;
+// static int32_t PLAYER_JUMP_PERIOD = 3;
+
+			}
+			nk_end(&ctx->nk.ctx);
 		}
 
 		// player_movement 
@@ -351,41 +467,6 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		// update_ui
-		{
-			#define EASY 0
-			#define HARD 1
-
-			static int op = EASY;
-			static float value = 0.6f;
-			static int i =  20;
-
-			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(50, 50, 220, 220),
-			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE|NK_WINDOW_SCALABLE)) {
-			    // fixed widget pixel width
-			    nk_layout_row_static(&ctx->nk.ctx, 30, 80, 1);
-			    if (nk_button_label(&ctx->nk.ctx, "button")) {
-			        // event handling
-			    }
-			 
-			    // fixed widget window ratio width
-			    nk_layout_row_dynamic(&ctx->nk.ctx, 30, 2);
-			    if (nk_option_label(&ctx->nk.ctx, "easy", op == EASY)) op = EASY;
-			    if (nk_option_label(&ctx->nk.ctx, "hard", op == HARD)) op = HARD;
-			 
-			    // custom widget pixel width
-			    nk_layout_row_begin(&ctx->nk.ctx, NK_STATIC, 30, 2);
-			    {
-			        nk_layout_row_push(&ctx->nk.ctx, 50);
-			        nk_label(&ctx->nk.ctx, "Volume:", NK_TEXT_LEFT);
-			        nk_layout_row_push(&ctx->nk.ctx, 110);
-			        nk_slider_float(&ctx->nk.ctx, 0, &value, 1.0f, 0.1f);
-			    }
-			    nk_layout_row_end(&ctx->nk.ctx);
-			}
-			nk_end(&ctx->nk.ctx);
-		}
-
 		// render_begin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
@@ -424,9 +505,32 @@ int main(int argc, char* argv[]) {
 				// TODO
 			}
 		}
-
-
 	}
+
+	/*
+	static int32_t TILE_SIZE = 32;
+	static float GRAVITY = 0.5;
+	static float PLAYER_ACC = 0.6;
+	static float PLAYER_FRIC = 0.3;
+	static float PLAYER_MAX_VEL = 6.0;
+	static float PLAYER_JUMP = 12.0;
+	static float PLAYER_BOUNCE = 0.2;
+	static int32_t PLAYER_JUMP_PERIOD = 3;
+	*/
+
+	// write_variables
+	// {
+	// 	SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w");
+	// 	size_t float_vars_len = stbds_shlen(ctx->float_vars);
+	// 	for (size_t i = 0; i < float_vars_len; i += 1) {
+	// 		SDL_IOprintf(fs, "static float %s;\n", ctx->float_vars[i].key);
+	// 	}
+	// 	size_t int_vars_len = stbds_shlen(ctx->int_vars);
+	// 	for (size_t i = 0; i < int_vars_len; i += 1) {
+	// 		SDL_IOprintf(fs, "static int32_t %s;\n", ctx->int_vars[i].key);
+	// 	}
+	// 	SDL_CloseIO(fs);
+	// }
 	
 	return res; 
 }

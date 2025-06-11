@@ -1,3 +1,4 @@
 #define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_VARARGS
 #define NK_INCLUDE_STANDARD_BOOL
 #define NK_ASSERT(expr) SDL_assert(expr)

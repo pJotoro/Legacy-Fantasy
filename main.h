@@ -18,6 +18,8 @@
 #endif
 #define assert(COND, MSG) SDL_assert(COND && MSG)
 
+#define arraysize(A) SDL_arraysize(A)
+#define strlen(STR) SDL_strlen(STR)
 #define memset(DEST, CH, COUNT) SDL_memset(DEST, CH, COUNT)
 #define memcmp(LHS, RHS, COUNT) SDL_memcmp(LHS, RHS, COUNT)
 
@@ -48,6 +50,16 @@ typedef struct Nuklear {
 	struct nk_user_font font;
 } Nuklear;
 
+typedef struct VarF {
+	char* key;
+	double value;
+} VarF;
+
+typedef struct VarI {
+	char* key;
+	int32_t value;
+} VarI;
+
 typedef struct Context {
 	SDL_Window* window;
 
@@ -68,13 +80,16 @@ typedef struct Context {
 	Entity player;
 	
 	Nuklear nk;
+
+	// VarF* float_vars;
+	// VarI* int_vars;
 	
 	bool running;
 } Context;
 
 void reset_game(Context* ctx);
-void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r);
-void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r);
+void draw_circle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
+void draw_circle_filled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
 bool nk_handle_event(Context* ctx, SDL_Event* event);
 bool nk_render(Context* ctx);
