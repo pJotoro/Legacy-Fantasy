@@ -14,7 +14,7 @@
 #define FLAG(X) (1u << X##u)
 
 #define new(T) SDL_aligned_alloc(_Alignof(T), sizeof(T))
-#define new_array(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
+#define new_arr(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
 #define delete(P) SDL_free(P)
 
 #ifdef assert
@@ -64,10 +64,11 @@ typedef struct VarI {
 	int32_t value;
 } VarI;
 
-typedef enum TileType {
+typedef uint8_t TileType;
+enum {
 	TILE_TYPE_EMPTY,
 	TILE_TYPE_GROUND,
-} TileType;
+};
 
 typedef struct Level {
 	TileType* tiles;

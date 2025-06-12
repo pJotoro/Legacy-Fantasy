@@ -1,28 +1,24 @@
 // raddbg 0.9.20 project file
 
-recent_file: path: "main.h"
 recent_file: path: "main.c"
+recent_file: path: "vendor/SDL3/include/sdl3/sdl_main_impl.h"
+recent_file: path: "main.h"
 target:
 {
   executable: "build/ninja/debug/Platformer.exe"
-  working_directory: ""
   label: debug
   enabled: 1
+  working_directory: ""
 }
 target:
 {
   executable: "build/ninja/release/Platformer.exe"
-  working_directory: "build/ninja/release"
   enabled: 0
   label: release
+  working_directory: ""
 }
 breakpoint:
 {
-  source_location: "main.c:120:1"
+  source_location: "main.c:614:1"
   hit_count: 1
-}
-type_view:
-{
-  type: Level
-  expr: "table(Level.tiles, Level.w, Level.h)"
 }

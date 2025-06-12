@@ -100,27 +100,29 @@ int main(int argc, char* argv[]) {
 
 	// load_level
 	{
-		SDL_IOStream* fs = SDL_IOFromFile("level", "r"); SDL_CHECK(fs);
 		size_t file_size;
-		char* file = (char*)SDL_LoadFile_IO(fs, &file_size, false); SDL_CHECK(file);
+		char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
 
-		for (size_t i = 0, x = 0; i < file_size; i += 1) {
-			if (file[i] != '\n') {
-				x += 1;
-			} else {
+		ctx->level.h = 1; // we count the first row we are on
+		for (size_t file_i = 0, x = 0; file_i < file_size;) {
+			if (file[file_i] == '\r') {
+				file_i += 2;
 				ctx->level.w = max(x, ctx->level.w);
 				x = 0;
 				ctx->level.h += 1;
+			} else {
+				file_i += 1;
+				x += 1;
 			}
-		}		
-		
-		ctx->level.tiles = new_array(TileType, ctx->level.w * ctx->level.h);
+		}
+
+		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
 		memset(ctx->level.tiles, ctx->level.w * ctx->level.h, TILE_TYPE_EMPTY);
 
 		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
 			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-				if (file[file_i] == '\n') {
-					file_i += 1;
+				if (file[file_i] == '\r') {
+					file_i += 2;
 					break;
 				}
 				switch (file[file_i]) {
@@ -132,8 +134,24 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		{
+			char* buf = new_arr(char, ctx->level.w + 1);
+			buf[ctx->level.w] = '\0';
+			SDL_IOStream* ms = SDL_IOFromMem(buf, ctx->level.w);
+			for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
+				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+					TileType t = get_tile(&ctx->level, tile_x, tile_y);
+					assert(t == TILE_TYPE_EMPTY || t == TILE_TYPE_GROUND, "invalid tile type");
+					SDL_IOprintf(ms, "%d", (int)t);
+				}
+				SDL_Log("%s", buf);
+				SDL_SeekIO(ms, 0, SDL_IO_SEEK_SET);
+			}
+			SDL_CloseIO(ms);
+			delete(buf);
+		}
+
 		SDL_free(file);
-		SDL_CloseIO(fs);
 
 		// size_t x = 0;
 		// size_t max_x = 0;
@@ -475,7 +493,7 @@ static int32_t PLAYER_JUMP_PERIOD = 3;
 
 	// write_variables
 	{
-		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w");
+		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
 		#define SDL_IOWriteVarI(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var);)
 		#define SDL_IOWriteVarF(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var);)
 		SDL_IOWriteVarI(fs, TILE_SIZE);
