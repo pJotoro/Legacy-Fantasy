@@ -15,8 +15,8 @@ typedef ivec2s Tile;
 
 FORCEINLINE Rect rect_from_tile(Tile tile) {
 	vec2s pos = vec2_from_ivec2(tile);
-	pos = glms_vec2_scale(pos, TILE_SIZE);
-	vec2s size = (vec2s){TILE_SIZE, TILE_SIZE};
+	pos = glms_vec2_scale(pos, (float)TILE_SIZE);
+	vec2s size = (vec2s){(float)TILE_SIZE, (float)TILE_SIZE};
 	return (Rect){pos, size};
 }
 

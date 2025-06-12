@@ -8,6 +8,7 @@
 #define CHECK(E) STMT(if (!E) { res = false; })
 
 float nk_cb_text_width(nk_handle handle, float height, const char *text, int len) {
+	(void)height;
 	TTF_Font* font = handle.ptr;
 	const int MAX_WIDTH = 256;
 	int measured_width;
@@ -57,13 +58,11 @@ bool nk_render(Context* ctx) {
 		    } break;
 		    case NK_COMMAND_CIRCLE: {
 	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
-	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
 	        	draw_circle(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);
 		    } break;
 		    case NK_COMMAND_CIRCLE_FILLED: {
 	        	const struct nk_command_circle_filled* c = (const struct nk_command_circle_filled*)cmd;
-	        	SDL_FRect rect = {(float)c->x, (float)c->y, (float)c->w, (float)c->h};
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
 	        	draw_circle_filled(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);	        	
 		    } break;
@@ -196,8 +195,8 @@ bool nk_handle_event(Context* ctx, SDL_Event* event)
         case SDL_EVENT_MOUSE_BUTTON_UP: /* MOUSEBUTTONUP & MOUSEBUTTONDOWN share same routine */
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             {
-                int down = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-                const int x = event->button.x, y = event->button.y;
+                bool down = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+                const int32_t x = (int32_t)event->button.x, y = (int32_t)event->button.y;
                 switch(event->button.button)
                 {
                     case SDL_BUTTON_LEFT:
@@ -211,7 +210,7 @@ bool nk_handle_event(Context* ctx, SDL_Event* event)
             return true;
 
         case SDL_EVENT_MOUSE_MOTION:
-            nk_input_motion(&ctx->nk.ctx, event->motion.x, event->motion.y);
+            nk_input_motion(&ctx->nk.ctx, (int32_t)event->motion.x, (int32_t)event->motion.y);
             return true;
 
         case SDL_EVENT_TEXT_INPUT:

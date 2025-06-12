@@ -17,8 +17,3 @@ target:
   label: release
   working_directory: ""
 }
-breakpoint:
-{
-  source_location: "main.c:614:1"
-  hit_count: 1
-}

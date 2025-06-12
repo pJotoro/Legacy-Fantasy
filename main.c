@@ -36,6 +36,9 @@ void reset_game(Context* ctx) {
 #define CHECK(E) STMT(if (!E) { res = -1; })
 
 int main(int argc, char* argv[]) {
+	(void)argc;
+	(void)argv;
+
 	int res = 0;
 
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
@@ -117,7 +120,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
-		memset(ctx->level.tiles, ctx->level.w * ctx->level.h, TILE_TYPE_EMPTY);
+		memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
 
 		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
 			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
@@ -138,7 +141,7 @@ int main(int argc, char* argv[]) {
 			char* buf = new_arr(char, ctx->level.w + 1);
 			buf[ctx->level.w] = '\0';
 			SDL_IOStream* ms = SDL_IOFromMem(buf, ctx->level.w);
-			for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
+			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
 					TileType t = get_tile(&ctx->level, tile_x, tile_y);
 					assert(t == TILE_TYPE_EMPTY || t == TILE_TYPE_GROUND, "invalid tile type");
@@ -350,8 +353,8 @@ int main(int argc, char* argv[]) {
 				side.area.x = 1.0f;
 				side.area.y = TILE_SIZE - 2.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Tile t;
 							t.x = (int)tile_x;
@@ -372,8 +375,8 @@ int main(int argc, char* argv[]) {
 				side.area.x = 1.0f;
 				side.area.y = TILE_SIZE - 2.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
@@ -394,8 +397,8 @@ int main(int argc, char* argv[]) {
 				side.area.x = TILE_SIZE - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
@@ -413,8 +416,8 @@ int main(int argc, char* argv[]) {
 				side.area.x = TILE_SIZE - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
-				for (ssize_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (ssize_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
+				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
+					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
@@ -432,7 +435,7 @@ int main(int argc, char* argv[]) {
 			vel_dt = glms_vec2_scale(ctx->player.vel, ctx->dt);
 			ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
 
-			Rect player_rect = (Rect){ctx->player.pos, (vec2s){TILE_SIZE, TILE_SIZE}};
+			Rect player_rect = (Rect){ctx->player.pos, (vec2s){(float)TILE_SIZE, (float)TILE_SIZE}};
 			if (!rect_is_valid(&ctx->level, player_rect)) {
 				reset_game(ctx);
 			}
@@ -447,17 +450,17 @@ int main(int argc, char* argv[]) {
 		// render_player
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
-			SDL_FRect rect = { ctx->player.pos.x, ctx->player.pos.y, TILE_SIZE, TILE_SIZE };
+			SDL_FRect rect = { ctx->player.pos.x, ctx->player.pos.y, (float)TILE_SIZE, (float)TILE_SIZE };
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		}
 
 		// render_level
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
-			for (ssize_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
-				for (ssize_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
+				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
 					if (get_tile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
-						SDL_FRect rect = { (float)tile_x * TILE_SIZE, (float)tile_y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+						SDL_FRect rect = { (float)(tile_x * TILE_SIZE), (float)(tile_y * TILE_SIZE), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
@@ -514,15 +517,15 @@ void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, con
 	int32_t x = r;
 	int32_t y = 0;
     
-    SDL_RenderPoint(renderer, cx + x, cy + y);
-    SDL_RenderPoint(renderer, cx - x, cy + y);
-    SDL_RenderPoint(renderer, cx + x, cy - y);
-    SDL_RenderPoint(renderer, cx - x, cy - y);
+    SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y));
+    SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y));
+    SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y));
+    SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y));
 
-    SDL_RenderPoint(renderer, cx + y, cy + x);
-    SDL_RenderPoint(renderer, cx - y, cy + x);
-    SDL_RenderPoint(renderer, cx + y, cy - x);
-    SDL_RenderPoint(renderer, cx - y, cy - x);
+    SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x));
+    SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x));
+    SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x));
+    SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x));
 
     int point = 1 - r;
     while (x > y)
@@ -542,17 +545,17 @@ void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, con
             break;
         }
 
-        SDL_RenderPoint(renderer, cx + x, cy + y);
-        SDL_RenderPoint(renderer, cx - x, cy + y);
-        SDL_RenderPoint(renderer, cx + x, cy - y);
-        SDL_RenderPoint(renderer, cx - x, cy - y);
+        SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y));
+        SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y));
+        SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y));
+        SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y));
         
         if (x != y)
         {
-	        SDL_RenderPoint(renderer, cx + y, cy + x);
-	        SDL_RenderPoint(renderer, cx - y, cy + x);
-	        SDL_RenderPoint(renderer, cx + y, cy - x);
-	        SDL_RenderPoint(renderer, cx - y, cy - x);   
+	        SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x));
+	        SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x));
+	        SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x));
+	        SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x));   
         }
     }	
 
@@ -562,15 +565,15 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
 	int32_t x = r;
 	int32_t y = 0;
     
-    SDL_RenderLine(renderer, cx, cy, cx + x, cy + y);
-    SDL_RenderLine(renderer, cx, cy, cx - x, cy + y);
-    SDL_RenderLine(renderer, cx, cy, cx + x, cy - y);
-    SDL_RenderLine(renderer, cx, cy, cx - x, cy - y);
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
 
-    SDL_RenderLine(renderer, cx, cy, cx + y, cy + x);
-    SDL_RenderLine(renderer, cx, cy, cx - y, cy + x);
-    SDL_RenderLine(renderer, cx, cy, cx + y, cy - x);
-    SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));
 
     int point = 1 - r;
     while (x > y)
@@ -590,17 +593,17 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
             break;
         }
 
-        SDL_RenderLine(renderer, cx, cy, cx + x, cy + y);
-        SDL_RenderLine(renderer, cx, cy, cx - x, cy + y);
-        SDL_RenderLine(renderer, cx, cy, cx + x, cy - y);
-        SDL_RenderLine(renderer, cx, cy, cx - x, cy - y);
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
         
         if (x != y)
         {
-	        SDL_RenderLine(renderer, cx, cy, cx + y, cy + x);
-	        SDL_RenderLine(renderer, cx, cy, cx - y, cy + x);
-	        SDL_RenderLine(renderer, cx, cy, cx + y, cy - x);
-	        SDL_RenderLine(renderer, cx, cy, cx - y, cy - x);   
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));   
         }
     }	
 }
