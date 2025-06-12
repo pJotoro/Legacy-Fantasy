@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 		h = ctx->display_mode->h;
 #endif
 
-		SDL_CHECK(SDL_CreateWindowAndRenderer("Platformer", w, h, flags, &ctx->window, &ctx->renderer));
+		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", w, h, flags, &ctx->window, &ctx->renderer));
 
 		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
 		if (!ctx->vsync) {
