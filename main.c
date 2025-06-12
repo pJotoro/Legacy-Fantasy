@@ -106,8 +106,9 @@ int main(int argc, char* argv[]) {
 		size_t file_size;
 		char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
 
-		ctx->level.h = 1; // we count the first row we are on
+		ctx->level.h = 1;
 		for (size_t file_i = 0, x = 0; file_i < file_size;) {
+			x += 1;
 			if (file[file_i] == '\r') {
 				file_i += 2;
 				ctx->level.w = max(x, ctx->level.w);
@@ -115,12 +116,14 @@ int main(int argc, char* argv[]) {
 				ctx->level.h += 1;
 			} else {
 				file_i += 1;
-				x += 1;
 			}
 		}
 
 		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
-		memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
+		for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
+			ctx->level.tiles[i] = TILE_TYPE_EMPTY;
+		}
+		// memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
 
 		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
 			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
@@ -137,47 +140,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		{
-			char* buf = new_arr(char, ctx->level.w + 1);
-			buf[ctx->level.w] = '\0';
-			SDL_IOStream* ms = SDL_IOFromMem(buf, ctx->level.w);
-			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
-				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-					TileType t = get_tile(&ctx->level, tile_x, tile_y);
-					assert(t == TILE_TYPE_EMPTY || t == TILE_TYPE_GROUND, "invalid tile type");
-					SDL_IOprintf(ms, "%d", (int)t);
-				}
-				SDL_Log("%s", buf);
-				SDL_SeekIO(ms, 0, SDL_IO_SEEK_SET);
-			}
-			SDL_CloseIO(ms);
-			delete(buf);
-		}
-
 		SDL_free(file);
-
-		// size_t x = 0;
-		// size_t max_x = 0;
-		// size_t y = 0;
-		// for (size_t i = 0; i < size; i += 1) {
-		// 	x += 1;
-		// 	if (ctx->level.tiles[i] == '\n') {
-		// 		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-		// 		if (x > max_x) {
-		// 			max_x = x;
-		// 		} else {
-
-		// 		}
-		// 		x = 0;
-		// 		y += 1;
-		// 	} else if (ctx->level.tiles[i] == ' ' || ctx->level.tiles[i] == '0' || ctx->level.tiles[i] == '\r') {
-		// 		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-		// 	} else if (ctx->level.tiles[i] == '1') {
-		// 		ctx->level.tiles[i] = TILE_TYPE_GROUND;
-		// 	}
-		// }
-		// ctx->level.w = max_x;
-		// ctx->level.h = y;
 	}
 
 	reset_game(ctx);
@@ -304,7 +267,7 @@ int main(int argc, char* argv[]) {
 
 		// update_ui
 		{
-			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(50, 50, 500, 220),
+			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(10, 10, 500, 220),
 			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE)) {
 				{
 					float height = 20.0f;
@@ -480,19 +443,6 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-
-/*
-In case the variables.c file gets corrupted:
-
-static int32_t TILE_SIZE = 32;
-static float GRAVITY = 0.5;
-static float PLAYER_ACC = 0.6;
-static float PLAYER_FRIC = 0.3;
-static float PLAYER_MAX_VEL = 6.0;
-static float PLAYER_JUMP = 12.0;
-static float PLAYER_BOUNCE = 0.2;
-static int32_t PLAYER_JUMP_PERIOD = 3;
-*/
 
 	// write_variables
 	{

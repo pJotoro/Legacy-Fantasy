@@ -1,8 +1,8 @@
 static int32_t TILE_SIZE = 30;
 static int32_t PLAYER_JUMP_PERIOD = 3;
-static float GRAVITY = 0.860000f;
+static float GRAVITY = 0.500000f;
 static float PLAYER_ACC = 0.600000f;
 static float PLAYER_FRIC = 0.300000f;
 static float PLAYER_MAX_VEL = 6.000000f;
-static float PLAYER_JUMP = 12.000000f;
+static float PLAYER_JUMP = 17.000000f;
 static float PLAYER_BOUNCE = 0.200000f;
