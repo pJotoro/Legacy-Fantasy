@@ -101,46 +101,15 @@ int main(int argc, char* argv[]) {
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
-	// load_level
+	// init_level
 	{
-		size_t file_size;
-		char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
-
-		ctx->level.h = 1;
-		for (size_t file_i = 0, x = 0; file_i < file_size;) {
-			x += 1;
-			if (file[file_i] == '\r') {
-				file_i += 2;
-				ctx->level.w = max(x, ctx->level.w);
-				x = 0;
-				ctx->level.h += 1;
-			} else {
-				file_i += 1;
-			}
+		if (!load_level(ctx)) {
+			res = -1;
 		}
 
-		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
-		for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
-			ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-		}
-		// memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
-
-		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
-			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-				if (file[file_i] == '\r') {
-					file_i += 2;
-					break;
-				}
-				switch (file[file_i]) {
-				case '1':
-					set_tile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
-					break;
-				}
-				file_i += 1;
-			}
-		}
-
-		SDL_free(file);
+		SDL_PathInfo info;
+		SDL_CHECK(SDL_GetPathInfo("level", &info));
+		ctx->level.modify_time = info.modify_time;
 	}
 
 	reset_game(ctx);
@@ -262,6 +231,17 @@ int main(int argc, char* argv[]) {
 			SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
 			if (joystick_count != 0) {
 				ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
+			}
+		}
+
+		// update_level
+		{
+			SDL_PathInfo info;
+			SDL_CHECK(SDL_GetPathInfo("level", &info));
+			if (info.modify_time != ctx->level.modify_time) {
+				if (load_level(ctx)) {
+					ctx->level.modify_time = info.modify_time;
+				}
 			}
 		}
 
@@ -565,4 +545,51 @@ TileType get_tile(Level* level, size_t tile_x, size_t tile_y) {
 void set_tile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
 	assert(tile_x < level->w && tile_y < level->h, "out of bounds");
 	level->tiles[tile_y*level->w + tile_x] = tile;
+}
+
+bool load_level(Context* ctx) {
+	bool ok = true;
+	size_t file_size;
+	char* file = (char*)SDL_LoadFile("level", &file_size);
+	if (!file) {
+		SDL_Log("SDL: %s", SDL_GetError());
+		ok = false;
+	} else {
+		ctx->level.h = 1;
+		for (size_t file_i = 0, x = 0; file_i < file_size;) {
+			x += 1;
+			if (file[file_i] == '\r') {
+				file_i += 2;
+				ctx->level.w = max(x, ctx->level.w);
+				x = 0;
+				ctx->level.h += 1;
+			} else {
+				file_i += 1;
+			}
+		}
+
+		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
+		for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
+			ctx->level.tiles[i] = TILE_TYPE_EMPTY;
+		}
+		// memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
+
+		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+				if (file[file_i] == '\r') {
+					file_i += 2;
+					break;
+				}
+				switch (file[file_i]) {
+				case '1':
+					set_tile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
+					break;
+				}
+				file_i += 1;
+			}
+		}
+
+		SDL_free(file);
+	}
+	return ok;
 }

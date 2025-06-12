@@ -74,6 +74,7 @@ typedef struct Level {
 	TileType* tiles;
 	size_t w;
 	size_t h;
+	SDL_Time modify_time;
 } Level;
 
 TileType get_tile(Level* level, size_t tile_x, size_t tile_y);
@@ -109,6 +110,7 @@ typedef struct Context {
 } Context;
 
 void reset_game(Context* ctx);
+bool load_level(Context* ctx);
 void draw_circle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 void draw_circle_filled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
