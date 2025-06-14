@@ -10,12 +10,13 @@
         {
             "name": "debug",
             "working_dir": "$project_path/build/ninja/debug",
-            "shell_cmd": "ninja"
+            "shell_cmd": "ninja",
+            "file_regex": "^(.*)\\((\\d+),(\\d+)\\): (.*)$",
         },
         {
             "name": "release",
             "working_dir": "$project_path/build/ninja/release",
-            "shell_cmd": "ninja"
+            "shell_cmd": "ninja",
         }
     ]
 }
