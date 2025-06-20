@@ -104,9 +104,6 @@ typedef struct Context {
 
 	Nuklear nk;
 
-	// VarF* float_vars;
-	// VarI* int_vars;
-	
 	bool running;
 } Context;
 
