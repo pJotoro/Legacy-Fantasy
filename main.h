@@ -54,16 +54,6 @@ typedef struct Nuklear {
 	struct nk_user_font font;
 } Nuklear;
 
-typedef struct VarF {
-	char* key;
-	double value;
-} VarF;
-
-typedef struct VarI {
-	char* key;
-	int32_t value;
-} VarI;
-
 typedef uint8_t TileType;
 enum {
 	TILE_TYPE_EMPTY,
