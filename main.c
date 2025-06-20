@@ -23,7 +23,7 @@
 
 void reset_game(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
-	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .w = ctx->txtr_player_idle->w, .h = ctx->txtr_player_idle->h};
+	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .w = ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT, .h = ctx->txtr_player_idle->h};
 }
 
 #ifdef SDL_CHECK
@@ -280,6 +280,18 @@ int main(int argc, char* argv[]) {
 			nk_end(&ctx->nk.ctx);
 		}
 
+		// player_animation
+		{
+			ctx->player.frame_tick += 1;
+			if (ctx->player.frame_tick > PLAYER_FRAME_TICK) {
+				ctx->player.frame_tick = 0;
+				ctx->player.frame += 1;
+				if (ctx->player.frame >= PLAYER_FRAME_COUNT) {
+					ctx->player.frame = 0;
+				}
+			}
+		}
+
 		// player_movement 
 		{
 			if (ctx->player.can_jump) {
@@ -407,8 +419,9 @@ int main(int argc, char* argv[]) {
 			// SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
 			// SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 
-			SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)ctx->txtr_player_idle->w, (float)ctx->txtr_player_idle->h };
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, NULL, &rect));
+			SDL_FRect src = { (float)(ctx->player.frame*PLAYER_FRAME_WIDTH), 0.0f, (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
+			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, &src, &dst));
 		}
 
 		// render_level

@@ -43,11 +43,17 @@
 
 typedef int64_t ssize_t;
 
+#define PLAYER_FRAME_COUNT 4
+#define PLAYER_FRAME_WIDTH 64
+#define PLAYER_FRAME_TICK 20
+
 typedef struct Entity {
 	vec2s pos;
 	vec2s vel;
 	int32_t w, h;
-	int can_jump;
+	int32_t frame;
+	int32_t frame_tick;
+	int32_t can_jump;
 } Entity;
 
 typedef struct Nuklear {
