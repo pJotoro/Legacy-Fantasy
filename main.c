@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
 	// load_font
 	{
 		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
-		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "fonts/Roboto-Regular.ttf");
+		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "assets/fonts/Roboto-Regular.ttf");
 		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 15.0f);
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
@@ -110,6 +110,11 @@ int main(int argc, char* argv[]) {
 		SDL_PathInfo info;
 		SDL_CHECK(SDL_GetPathInfo("level", &info));
 		ctx->level.modify_time = info.modify_time;
+	}
+
+	// load_textures
+	{
+		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "Assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
 
 	reset_game(ctx);
@@ -398,9 +403,12 @@ int main(int argc, char* argv[]) {
 		// render_player
 		{
 			
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
-			SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
-			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
+			// SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
+			// SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
+			// SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
+
+			SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)ctx->txtr_player_idle->w, (float)ctx->txtr_player_idle->h };
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, NULL, &rect));
 		}
 
 		// render_level

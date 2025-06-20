@@ -1,6 +1,6 @@
 vendor/*
 build/*
-fonts/*
+assets/*
 *.sublime-workspace
 *.txt
 pJotoro

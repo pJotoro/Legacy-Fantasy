@@ -100,6 +100,8 @@ typedef struct Context {
 	Entity player;
 	Level level;
 
+	SDL_Texture* txtr_player_idle;
+
 	Nuklear nk;
 
 	// VarF* float_vars;
