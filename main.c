@@ -23,7 +23,7 @@
 
 void reset_game(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
-	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f};
+	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .w = ctx->txtr_player_idle->w, .h = ctx->txtr_player_idle->h};
 }
 
 #ifdef SDL_CHECK
@@ -301,7 +301,7 @@ int main(int argc, char* argv[]) {
 				side.pos.x = ctx->player.pos.x + ctx->player.vel.x;
 				side.pos.y = ctx->player.pos.y + 1.0f;
 				side.area.x = 1.0f;
-				side.area.y = TILE_SIZE - 2.0f;
+				side.area.y = ctx->player.h - 2.0f;
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
@@ -311,7 +311,7 @@ int main(int argc, char* argv[]) {
 							t.y = (int)tile_y;
 							Rect tile = rect_from_tile(t);
 							if (rects_intersect(&ctx->level, side, tile)) {
-								ctx->player.pos.x = tile.pos.x + TILE_SIZE;
+								ctx->player.pos.x = tile.pos.x + ctx->player.w;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
 							}
@@ -320,17 +320,17 @@ int main(int argc, char* argv[]) {
 				}
 			} else if (ctx->player.vel.x > 0.0f) {
 				Rect side;
-				side.pos.x = (ctx->player.pos.x + TILE_SIZE - 1.0f) + ctx->player.vel.x;
+				side.pos.x = (ctx->player.pos.x + ctx->player.w - 1.0f) + ctx->player.vel.x;
 				side.pos.y = ctx->player.pos.y + 1.0f;
 				side.area.x = 1.0f;
-				side.area.y = TILE_SIZE - 2.0f;
+				side.area.y = ctx->player.h - 2.0f;
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
-								ctx->player.pos.x = tile.pos.x - TILE_SIZE;
+								ctx->player.pos.x = tile.pos.x - ctx->player.w;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
 							}
@@ -344,7 +344,7 @@ int main(int argc, char* argv[]) {
 				Rect side;
 				side.pos.x = ctx->player.pos.x + 1.0f; 
 				side.pos.y = ctx->player.pos.y + ctx->player.vel.y;
-				side.area.x = TILE_SIZE - 2.0f;
+				side.area.x = ctx->player.w - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
@@ -352,7 +352,7 @@ int main(int argc, char* argv[]) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
-								ctx->player.pos.y = tile.pos.y + TILE_SIZE;
+								ctx->player.pos.y = tile.pos.y + ctx->player.h;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
 							}
@@ -362,8 +362,8 @@ int main(int argc, char* argv[]) {
 			} else if (ctx->player.vel.y > 0.0f) {
 				Rect side;
 				side.pos.x = ctx->player.pos.x + 1.0f; 
-				side.pos.y = (ctx->player.pos.y + TILE_SIZE - 1.0f) + ctx->player.vel.y;
-				side.area.x = TILE_SIZE - 2.0f;
+				side.pos.y = (ctx->player.pos.y + ctx->player.h - 1.0f) + ctx->player.vel.y;
+				side.area.x = ctx->player.w - 2.0f;
 				side.area.y = 1.0f;
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
@@ -371,7 +371,7 @@ int main(int argc, char* argv[]) {
 						if (get_tile(&ctx->level, tile_x, tile_y)) {
 							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
 							if (rects_intersect(&ctx->level, side, tile)) {
-								ctx->player.pos.y = tile.pos.y - TILE_SIZE;
+								ctx->player.pos.y = tile.pos.y - ctx->player.h;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								ctx->player.can_jump = PLAYER_JUMP_PERIOD;
 								break_loop = true;
@@ -386,7 +386,7 @@ int main(int argc, char* argv[]) {
 			// ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
 			ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 
-			if (ctx->player.pos.y > (float)((ctx->level.h+5)*TILE_SIZE)) {
+			if (ctx->player.pos.y > (float)((ctx->level.h+5)*ctx->player.h)) {
 				reset_game(ctx);
 			}
 		}

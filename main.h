@@ -46,6 +46,7 @@ typedef int64_t ssize_t;
 typedef struct Entity {
 	vec2s pos;
 	vec2s vel;
+	int32_t w, h;
 	int can_jump;
 } Entity;
 
