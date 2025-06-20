@@ -99,7 +99,6 @@ typedef struct Context {
 	
 	Entity player;
 	Level level;
-	vec2s camera;
 
 	Nuklear nk;
 
