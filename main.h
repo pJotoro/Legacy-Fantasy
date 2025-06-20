@@ -98,10 +98,10 @@ typedef struct Context {
 	float dt;
 	
 	Entity player;
-	
-	Nuklear nk;
-
 	Level level;
+	vec2s camera;
+
+	Nuklear nk;
 
 	// VarF* float_vars;
 	// VarI* int_vars;

@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
 		ctx->display_mode = (SDL_DisplayMode *)SDL_GetDesktopDisplayMode(display); SDL_CHECK(ctx->display_mode);
 		SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
-		int w = ctx->display_mode->w / 2;
-		int h = ctx->display_mode->h / 2;
+		int32_t w = ctx->display_mode->w / 2;
+		int32_t h = ctx->display_mode->h / 2;
 
 #ifndef _DEBUG
 		flags |= SDL_WINDOW_FULLSCREEN;
@@ -279,12 +279,14 @@ int main(int argc, char* argv[]) {
 		{
 			if (ctx->player.can_jump) {
 				float acc = ctx->axis.x * PLAYER_ACC;
-				ctx->player.vel.x += acc*ctx->dt;
+				// ctx->player.vel.x += acc*ctx->dt;
+				ctx->player.vel.x += acc;
 				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 				ctx->player.vel.x = clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 			}
-			ctx->player.vel.y += GRAVITY*ctx->dt;
+			// ctx->player.vel.y += GRAVITY*ctx->dt;
+			ctx->player.vel.y += GRAVITY;
 		}	
 
 		// player_collision
@@ -374,12 +376,12 @@ int main(int argc, char* argv[]) {
 				}
 			}
 
-			vec2s vel_dt;
-			vel_dt = glms_vec2_scale(ctx->player.vel, ctx->dt);
-			ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
+			// vec2s vel_dt;
+			// vel_dt = glms_vec2_scale(ctx->player.vel, ctx->dt);
+			// ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
+			ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 
-			Rect player_rect = (Rect){ctx->player.pos, (vec2s){(float)TILE_SIZE, (float)TILE_SIZE}};
-			if (!rect_is_valid(&ctx->level, player_rect)) {
+			if (ctx->player.pos.y > (float)((ctx->level.h+5)*TILE_SIZE)) {
 				reset_game(ctx);
 			}
 		}
@@ -390,10 +392,14 @@ int main(int argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
 
+		int32_t rw, rh;
+		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &rw, &rh));
+
 		// render_player
 		{
+			
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
-			SDL_FRect rect = { ctx->player.pos.x, ctx->player.pos.y, (float)TILE_SIZE, (float)TILE_SIZE };
+			SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		}
 
@@ -403,7 +409,7 @@ int main(int argc, char* argv[]) {
 			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
 					if (get_tile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
-						SDL_FRect rect = { (float)(tile_x * TILE_SIZE), (float)(tile_y * TILE_SIZE), (float)TILE_SIZE, (float)TILE_SIZE };
+						SDL_FRect rect = { (float)(tile_x * TILE_SIZE) - ctx->player.pos.x + (float)(rw/2), (float)(tile_y * TILE_SIZE) - ctx->player.pos.y + (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
