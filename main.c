@@ -5,15 +5,14 @@
 
 #include <cglm/struct.h>
 
-#define STBDS_NO_SHORT_NAMES
-#include <stb_ds.h>
-
 #include "nuklear_defines.h"
 #pragma warning(push, 0)
 #include <nuklear.h>
 #pragma warning(pop)
 
 #include <raddbg_markup.h>
+
+#include "aseprite.h"
 
 #include "main.h"
 
@@ -50,7 +49,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	// init_time
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
-		stbds_rand_seed((size_t)ctx->time);
 	}
 
 	// create_window_and_renderer
