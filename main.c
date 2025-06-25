@@ -46,12 +46,12 @@ int32_t main(int32_t argc, char* argv[]) {
 	Context* ctx = new(Context); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
 
-	// init_time
+	// InitTime
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
 	}
 
-	// create_window_and_renderer
+	// CreateWindowAndRenderer
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
 		ctx->display_mode = (SDL_DisplayMode *)SDL_GetDesktopDisplayMode(display); SDL_CHECK(ctx->display_mode);
@@ -75,12 +75,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
 	}
 
-	// text_engine_init
+	// InitTextEngine
 	{
 		ctx->text_engine = TTF_CreateRendererTextEngine(ctx->renderer); SDL_CHECK(ctx->text_engine);
 	}
 
-	// load_font
+	// LoadFont
 	{
 		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
 		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "assets/fonts/Roboto-Regular.ttf");
@@ -91,7 +91,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_DestroyProperties(props);
 	}
 
-	// nuklear_init
+	// InitNuklear
 	{
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
@@ -99,7 +99,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
-	// init_level
+	// InitLevel
 	{
 		if (!LoadLevel(ctx)) {
 			res = -1;
@@ -110,7 +110,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->level.modify_time = info.modify_time;
 	}
 
-	// load_textures
+	// LoadTextures
 	{
 		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
@@ -237,7 +237,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// update_level
+		// UpdateLevel
 		{
 			SDL_PathInfo info;
 			SDL_CHECK(SDL_GetPathInfo("level", &info));
@@ -248,7 +248,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// update_ui
+		// UpdateUI
 		{
 			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(10, 10, 500, 220),
 			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE)) {
@@ -278,7 +278,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			nk_end(&ctx->nk.ctx);
 		}
 
-		// player_animation
+		// PlayerAnimation
 		{
 			ctx->player.frame_tick += 1;
 			if (ctx->player.frame_tick > PLAYER_FRAME_TICK) {
@@ -290,7 +290,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// player_movement 
+		// PlayerMovement 
 		{
 			if (ctx->player.can_jump) {
 				float acc = ctx->axis.x * PLAYER_ACC;
@@ -304,7 +304,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->player.vel.y += GRAVITY;
 		}	
 
-		// player_collision
+		// PlayerCollision
 		{
 			if (ctx->player.vel.x < 0.0f) {
 				Rect side;
@@ -401,7 +401,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// render_begin
+		// RenderBegin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
@@ -410,7 +410,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t rw, rh;
 		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &rw, &rh));
 
-		// render_player
+		// RenderPlayer
 		{
 			
 			// SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
@@ -422,7 +422,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, &src, &dst));
 		}
 
-		// render_level
+		// RenderLevel
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
 			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
@@ -435,7 +435,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// render_end
+		// RenderEnd
 		{
 			CHECK(NK_Render(ctx));
 
@@ -449,7 +449,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
-	// write_variables
+	// WriteVariables
 	{
 		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
 		#define SDL_IOWriteVarI(fs, var) STMT( \
