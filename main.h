@@ -13,6 +13,10 @@
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 
+#define malloc SDL_malloc
+#define realloc SDL_realloc
+#define free SDL_free
+
 #define new(T) SDL_aligned_alloc(_Alignof(T), sizeof(T))
 #define new_arr(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
 #define delete(P) SDL_free(P)
@@ -20,7 +24,7 @@
 #ifdef assert
 #undef assert
 #endif
-#define assert(COND, MSG) SDL_assert(COND && MSG)
+#define assert(COND) SDL_assert(COND)
 
 #define arraysize(A) SDL_arraysize(A)
 #define strlen(STR) SDL_strlen(STR)
@@ -40,6 +44,8 @@
 #define min(A, B) SDL_min(A, B)
 #define signf(X) glm_signf(X)
 #define clamp(X, A, B) SDL_clamp(X, A, B)
+
+#define snprintf SDL_snprintf
 
 typedef int64_t ssize_t;
 

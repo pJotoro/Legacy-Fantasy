@@ -115,6 +115,120 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
 
+	#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
+
+	{
+		int32_t glob_count;
+		char** files = SDL_GlobDirectory("assets/legacy_fantasy_high_forest/Assets", "*.aseprite", 0, &glob_count); SDL_CHECK(files);
+		for (size_t glob_idx = 0; glob_idx < (size_t)glob_count; glob_idx += 1) {
+			char filename[1024];
+			snprintf(filename, 1024, "assets/legacy_fantasy_high_forest/Assets/%s", files[glob_idx]);
+			SDL_IOStream* fs = SDL_IOFromFile(filename, "r"); SDL_CHECK(fs);
+
+			ASE_Header header;
+			SDL_ReadStruct(fs, header);
+			assert(header.magic_number == 0xA5E0);
+
+			for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+				ASE_Frame frame;
+				SDL_ReadStruct(fs, frame);
+				assert(frame.magic_number == 0xF1FA);
+
+				// Would mean this aseprite file is very old.
+				assert(frame.n_chunks != 0);
+
+				for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+					ASE_ChunkHeader chunk_header;
+					SDL_ReadStruct(fs, chunk_header);
+					switch (chunk_header.type) {
+					case ASE_CHUNK_TYPE_OLD_PALETTE: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_LAYER: {
+						ASE_LayerChunk chunk;
+						SDL_ReadStruct(fs, chunk);
+						
+						if (chunk.layer_name.len > 0) {
+							uint8_t* layer_name = malloc(chunk.layer_name.len);
+							SDL_ReadIO(fs, layer_name, chunk.layer_name.len);
+							free(layer_name);
+						}
+						if (chunk.layer_type == ASE_LAYER_TYPE_TILEMAP) {
+							uint32_t tileset_idx;
+							SDL_ReadU32LE(fs, &tileset_idx);
+						}
+						if (HAS_FLAG(header.flags, ASE_FLAG_LAYERS_HAVE_UUID)) {
+							uint8_t uuid[16];
+							SDL_ReadIO(fs, uuid, 16);
+						}
+
+					} break;
+					case ASE_CHUNK_TYPE_CELL: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_CELL_EXTRA: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+						ASE_ColorProfileChunk chunk;
+						SDL_ReadStruct(fs, chunk);
+						switch (chunk.type) {
+						case ASE_COLOR_PROFILE_TYPE_NONE: {
+
+						} break;
+						case ASE_COLOR_PROFILE_TYPE_SRGB: {
+
+						} break;
+						case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+							uint8_t* embedded_icc = malloc(chunk.icc_profile_data_len);
+							SDL_ReadIO(fs, embedded_icc, chunk.icc_profile_data_len);
+							SDL_Log("Done");
+							free(embedded_icc);
+						} break;
+						default: {
+							assert(false);
+						} break;
+						}
+					} break;
+					case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_PATH: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_TAGS: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_PALETTE: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_USER_DATA: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_SLICE: {
+						assert(false);
+					} break;
+					case ASE_CHUNK_TYPE_TILESET: {
+						assert(false);
+					} break;
+					default: {
+						assert(false);
+					} break;
+					}
+				}
+			}
+
+			SDL_CloseIO(fs);
+		}
+		SDL_free(files);
+	}
+
 	ResetGame(ctx);
 
 	ctx->running = true;
@@ -572,7 +686,7 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
 }
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
-	assert(tile_x < level->w && tile_y < level->h, "out of bounds");
+	assert(tile_x < level->w && tile_y < level->h);
 	level->tiles[tile_y*level->w + tile_x] = tile;
 }
 

@@ -33,7 +33,7 @@ bool NK_Render(Context* ctx) {
 	        	const struct nk_command_scissor* c = (const struct nk_command_scissor*)cmd;
 	        	const SDL_Rect clip = {c->x, c->y, c->w, c->h};
 	        	SDL_CHECK(SDL_SetRenderClipRect(ctx->renderer, &clip));
-	        	assert(SDL_RenderClipEnabled(ctx->renderer), "not enabled");
+	        	assert(SDL_RenderClipEnabled(ctx->renderer));
 		    } break;
 		    case NK_COMMAND_LINE: {
 	        	SDL_Log("LINE");

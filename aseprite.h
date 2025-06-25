@@ -1,8 +1,14 @@
+// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#color-profile-chunk-0x2007
+
 #pragma pack(push, 1)
+
+typedef struct ASE_Fixed {
+	uint16_t val[2];
+} ASE_Fixed;
 
 typedef struct ASE_String {
 	uint16_t len;
-	uint8_t buf[];
+	// uint8_t buf[];
 } ASE_String;
 
 typedef struct ASE_Point {
@@ -33,7 +39,6 @@ enum {
 };
 typedef uint32_t ASE_Flags;
 
-// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#header
 typedef struct ASE_Header {
 	uint32_t file_size;
 	uint16_t magic_number;
@@ -42,11 +47,11 @@ typedef struct ASE_Header {
 	uint16_t h;
 	uint16_t color_depth;
 	ASE_Flags flags;
-	uint16_t deprecated_speed;
-	uint32_t __ignore0;
-	uint32_t __ignore1;
+	uint16_t __reserved0;
+	uint32_t __reserved1;
+	uint32_t __reserved2;
 	uint8_t transparent_color_entry;
-	uint8_t __ignore2[3];
+	uint8_t __reserved3[3];
 	uint16_t n_colors;
 	uint8_t pixel_w;
 	uint8_t pixel_h;
@@ -54,21 +59,43 @@ typedef struct ASE_Header {
 	int16_t grid_y_pos;
 	uint16_t grid_w;
 	uint16_t grid_h;
-	uint8_t __ignore3[84];
+	uint8_t __reserved4[84];
 
 } ASE_Header;
 static_assert(sizeof(ASE_Header) == 128);
 
-// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#frames
 typedef struct ASE_Frame {
-	uint32_t bytes;
+	uint32_t n_bytes;
 	uint16_t magic_number;
-	uint16_t old_n_chunks;
+	uint16_t __reserved0;
 	uint16_t frame_dur;
-	uint8_t __ignore0[2];
+	uint8_t __reserved1[2];
 	uint32_t n_chunks;
 } ASE_Frame;
 static_assert(sizeof(ASE_Frame) == 16);
+
+enum {
+	ASE_CHUNK_TYPE_OLD_PALETTE = 0x0004u,
+	ASE_CHUNK_TYPE_OLD_PALETTE2 = 0x0011u,
+	ASE_CHUNK_TYPE_LAYER = 0x2004u,
+	ASE_CHUNK_TYPE_CELL = 0x2005u,
+	ASE_CHUNK_TYPE_CELL_EXTRA = 0x2006u,
+	ASE_CHUNK_TYPE_COLOR_PROFILE = 0x2007u,
+	ASE_CHUNK_TYPE_EXTERNAL_FILES = 0x2008u,
+	ASE_CHUNK_TYPE_DEPRECATED_MASK = 0x2016u,
+	ASE_CHUNK_TYPE_PATH = 0x2017u,
+	ASE_CHUNK_TYPE_TAGS = 0x2018u,
+	ASE_CHUNK_TYPE_PALETTE = 0x2019u,
+	ASE_CHUNK_TYPE_USER_DATA = 0x2020u,
+	ASE_CHUNK_TYPE_SLICE = 0x2022u,
+	ASE_CHUNK_TYPE_TILESET = 0x2023u,
+};
+typedef uint16_t ASE_ChunkType;
+
+typedef struct ASE_ChunkHeader {
+	uint32_t size;
+	ASE_ChunkType type;
+} ASE_ChunkHeader;
 
 #if 0
 typedef struct ASE_OldPaletteChunk {
@@ -126,7 +153,6 @@ enum {
 };
 typedef uint16_t ASE_BlendMode;
 
-// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
 typedef struct ASE_LayerChunk {
 	ASE_LayerChunkFlags flags;
 	ASE_LayerType layer_type;
@@ -135,7 +161,7 @@ typedef struct ASE_LayerChunk {
 	uint16_t ignored_default_layer_h;
 	ASE_BlendMode blend_mode;
 	uint8_t opacity;
-	uint8_t __ignored0[3];
+	uint8_t __reserved0[3];
 	ASE_String layer_name;
 	#if 0
 	uint32_t tileset_idx;
@@ -143,9 +169,29 @@ typedef struct ASE_LayerChunk {
 	#endif
 } ASE_LayerChunk;
 
-// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#cel-chunk-0x2005
 // typedef struct ASE_CellChunk {
 	
 // } ASE_CellChunk;
+
+enum {
+	ASE_COLOR_PROFILE_TYPE_NONE = 0u,
+	ASE_COLOR_PROFILE_TYPE_SRGB = 1u,
+	ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC = 2u,
+};
+typedef uint16_t ASE_ColorProfileType;
+
+enum {
+	COLOR_PROFILE_FLAG_SPECIAL_FIXED_GAMMA = 1u,
+};
+typedef uint16_t ASE_ColorProfileFlags;
+
+typedef struct ASE_ColorProfileChunk {
+	ASE_ColorProfileType type;
+	ASE_ColorProfileFlags flags;
+	ASE_Fixed fixed_gamma;
+	uint8_t __reserved0[8];
+	uint32_t icc_profile_data_len;
+	// uint8_t icc_profile_data[];
+} ASE_ColorProfileChunk;
 
 #pragma pack(pop)
