@@ -35,7 +35,7 @@ void reset_game(Context* ctx) {
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = -1; })
 #define CHECK(E) STMT(if (!E) { res = -1; })
 
-int main(int argc, char* argv[]) {
+int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
 
