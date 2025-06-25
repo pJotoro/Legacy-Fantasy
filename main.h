@@ -47,13 +47,30 @@ typedef int64_t ssize_t;
 #define PLAYER_FRAME_WIDTH 64
 #define PLAYER_FRAME_TICK 20
 
+typedef uint32_t EntityFlags;
+enum {
+	ENTITY_FLAG_STATIC = FLAG(0),
+	ENTITY_FLAG_SUB_PIXEL_PRECISION,
+};
+
 typedef struct Entity {
-	vec2s pos;
-	vec2s vel;
-	int32_t w, h;
+	union {
+		struct {
+			vec2s pos;
+			vec2s size;
+			vec2s vel;
+		};
+		struct {
+			ivec2s ipos;
+			ivec2s isize;
+			ivec2s ivel;
+		};
+	};
 	int32_t frame;
 	int32_t frame_tick;
-	int32_t can_jump;
+	bool is_static : 1;
+	bool sub_pixel_precision : 1;
+	int32_t can_jump : 6;
 } Entity;
 
 typedef struct Nuklear {
