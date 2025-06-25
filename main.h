@@ -91,8 +91,9 @@ typedef struct Level {
 	SDL_Time modify_time;
 } Level;
 
-TileType get_tile(Level* level, size_t tile_x, size_t tile_y);
-void set_tile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
+TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
+
+void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 
 typedef struct Context {
 	SDL_Window* window;
@@ -121,11 +122,11 @@ typedef struct Context {
 	bool running;
 } Context;
 
-void reset_game(Context* ctx);
-bool load_level(Context* ctx);
-void draw_circle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
-void draw_circle_filled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
+void ResetGame(Context* ctx);
+bool LoadLevel(Context* ctx);
+void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
+void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
-bool nk_handle_event(Context* ctx, SDL_Event* event);
-bool nk_render(Context* ctx);
-float nk_cb_text_width(nk_handle handle, float height, const char *text, int len);
+bool NK_HandleEvent(Context* ctx, SDL_Event* event);
+bool NK_Render(Context* ctx);
+float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);

@@ -7,7 +7,7 @@
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = false; })
 #define CHECK(E) STMT(if (!E) { res = false; })
 
-float nk_cb_text_width(nk_handle handle, float height, const char* text, int32_t len) {
+float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int32_t len) {
 	(void)height;
 	TTF_Font* font = handle.ptr;
 	const int32_t MAX_WIDTH = 256;
@@ -20,7 +20,7 @@ float nk_cb_text_width(nk_handle handle, float height, const char* text, int32_t
 	return res;
 }
 
-bool nk_render(Context* ctx) {
+bool NK_Render(Context* ctx) {
 	bool res = true;
 
 	const struct nk_command* cmd = NULL;
@@ -59,12 +59,12 @@ bool nk_render(Context* ctx) {
 		    case NK_COMMAND_CIRCLE: {
 	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	draw_circle(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);
+	        	DrawCircle(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);
 		    } break;
 		    case NK_COMMAND_CIRCLE_FILLED: {
 	        	const struct nk_command_circle_filled* c = (const struct nk_command_circle_filled*)cmd;
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	draw_circle_filled(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);	        	
+	        	DrawCircleFilled(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);	        	
 		    } break;
 		    case NK_COMMAND_ARC: {
 	        	SDL_Log("ARC");
@@ -138,7 +138,7 @@ bool nk_render(Context* ctx) {
 	else return true;
 }
 
-bool nk_handle_event(Context* ctx, SDL_Event* event)
+bool NK_HandleEvent(Context* ctx, SDL_Event* event)
 {
     int ctrl_down = SDL_GetModState() & (SDL_KMOD_LCTRL | SDL_KMOD_RCTRL);
 

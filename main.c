@@ -20,7 +20,7 @@
 #include "util.c"
 #include "nuklear_util.c"
 
-void reset_game(Context* ctx) {
+void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), .size.y = (float)ctx->txtr_player_idle->h};
 }
@@ -95,13 +95,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
-		ctx->nk.font.width = nk_cb_text_width;
+		ctx->nk.font.width = NK_TextWidthCallback;
 		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
 	}
 
 	// init_level
 	{
-		if (!load_level(ctx)) {
+		if (!LoadLevel(ctx)) {
 			res = -1;
 		}
 
@@ -112,10 +112,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// load_textures
 	{
-		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "Assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
+		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
 
-	reset_game(ctx);
+	ResetGame(ctx);
 
 	ctx->running = true;
 	while (ctx->running && res == 0) {
@@ -123,7 +123,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
-			nk_handle_event(ctx, &event);
+			NK_HandleEvent(ctx, &event);
 
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
@@ -152,7 +152,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				case SDLK_DOWN:
 					break;
 				case SDLK_R:
-					reset_game(ctx);
+					ResetGame(ctx);
 					break;
 				}
 				break;
@@ -242,7 +242,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_PathInfo info;
 			SDL_CHECK(SDL_GetPathInfo("level", &info));
 			if (info.modify_time != ctx->level.modify_time) {
-				if (load_level(ctx)) {
+				if (LoadLevel(ctx)) {
 					ctx->level.modify_time = info.modify_time;
 				}
 			}
@@ -315,12 +315,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (get_tile(&ctx->level, tile_x, tile_y)) {
+						if (GetTile(&ctx->level, tile_x, tile_y)) {
 							Tile t;
 							t.x = (int)tile_x;
 							t.y = (int)tile_y;
-							Rect tile = rect_from_tile(t);
-							if (rects_intersect(&ctx->level, side, tile)) {
+							Rect tile = RectFromTile(t);
+							if (RectsIntersect(&ctx->level, side, tile)) {
 								ctx->player.pos.x = tile.pos.x + ctx->player.size.x;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -337,9 +337,9 @@ int32_t main(int32_t argc, char* argv[]) {
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (get_tile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(&ctx->level, side, tile)) {
+						if (GetTile(&ctx->level, tile_x, tile_y)) {
+							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+							if (RectsIntersect(&ctx->level, side, tile)) {
 								ctx->player.pos.x = tile.pos.x - ctx->player.size.x;
 								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -359,9 +359,9 @@ int32_t main(int32_t argc, char* argv[]) {
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (get_tile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(&ctx->level, side, tile)) {
+						if (GetTile(&ctx->level, tile_x, tile_y)) {
+							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+							if (RectsIntersect(&ctx->level, side, tile)) {
 								ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								break_loop = true;
@@ -378,9 +378,9 @@ int32_t main(int32_t argc, char* argv[]) {
 				bool break_loop = false;
 				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
 					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (get_tile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = rect_from_tile((Tile){(int)tile_x, (int)tile_y});
-							if (rects_intersect(&ctx->level, side, tile)) {
+						if (GetTile(&ctx->level, tile_x, tile_y)) {
+							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+							if (RectsIntersect(&ctx->level, side, tile)) {
 								ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
 								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 								ctx->player.can_jump = PLAYER_JUMP_PERIOD;
@@ -397,7 +397,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 
 			if (ctx->player.pos.y > (float)((ctx->level.h+5)*ctx->player.size.y)) {
-				reset_game(ctx);
+				ResetGame(ctx);
 			}
 		}
 
@@ -427,7 +427,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
 			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-					if (get_tile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
+					if (GetTile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
 						SDL_FRect rect = { (float)(tile_x * TILE_SIZE) - ctx->player.pos.x + (float)(rw/2), (float)(tile_y * TILE_SIZE) - ctx->player.pos.y + (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
@@ -437,7 +437,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// render_end
 		{
-			CHECK(nk_render(ctx));
+			CHECK(NK_Render(ctx));
 
 			SDL_CHECK(SDL_RenderPresent(ctx->renderer));
 
@@ -472,7 +472,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	return res; 
 }
 
-void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
 	int32_t x = r;
 	int32_t y = 0;
     
@@ -520,7 +520,7 @@ void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, con
 
 }
 
-void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
 	int32_t x = r;
 	int32_t y = 0;
     
@@ -567,16 +567,16 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
     }	
 }
 
-TileType get_tile(Level* level, size_t tile_x, size_t tile_y) {
+TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
 	return level->tiles[tile_y*level->w + tile_x];
 }
 
-void set_tile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
+void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
 	assert(tile_x < level->w && tile_y < level->h, "out of bounds");
 	level->tiles[tile_y*level->w + tile_x] = tile;
 }
 
-bool load_level(Context* ctx) {
+bool LoadLevel(Context* ctx) {
 	bool ok = true;
 	size_t file_size;
 	char* file = (char*)SDL_LoadFile("level", &file_size);
@@ -611,7 +611,7 @@ bool load_level(Context* ctx) {
 				}
 				switch (file[file_i]) {
 				case '1':
-					set_tile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
+					SetTile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
 					break;
 				}
 				file_i += 1;
