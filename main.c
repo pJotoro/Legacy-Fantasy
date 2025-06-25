@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
 
-	int res = 0;
+	int32_t res = 0;
 
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());
@@ -260,14 +260,14 @@ int main(int argc, char* argv[]) {
 				    nk_layout_row_dynamic(&ctx->nk.ctx, height, cols);
 				}
 
-#define nk_varf(ctx, var, min, max, incr) STMT( \
+				#define nk_varf(ctx, var, min, max, incr) STMT( \
 					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
 					nk_slider_float(ctx, min, &var, max, incr); \
-					)
-#define nk_vari(ctx, var, min, max, incr) STMT( \
+				)
+				#define nk_vari(ctx, var, min, max, incr) STMT( \
 					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %d), var); \
 					nk_slider_int(ctx, min, &var, max, incr); \
-					)
+				)
 				nk_varf(&ctx->nk.ctx, GRAVITY, 0.0f, 1.0f, 0.01f);
 				nk_varf(&ctx->nk.ctx, PLAYER_ACC, 0.0f, 1.0f, 0.01f);
 				nk_varf(&ctx->nk.ctx, PLAYER_FRIC, 0.0f, 1.0f, 0.01f);
@@ -454,8 +454,12 @@ int main(int argc, char* argv[]) {
 	// write_variables
 	{
 		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
-		#define SDL_IOWriteVarI(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var);)
-		#define SDL_IOWriteVarF(fs, var) STMT(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var);)
+		#define SDL_IOWriteVarI(fs, var) STMT( \
+			SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var); \
+		)
+		#define SDL_IOWriteVarF(fs, var) STMT( \
+			SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var); \
+		)
 		SDL_IOWriteVarI(fs, TILE_SIZE);
 		SDL_IOWriteVarI(fs, PLAYER_JUMP_PERIOD);
 		SDL_IOWriteVarF(fs, GRAVITY);
@@ -484,7 +488,7 @@ void draw_circle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, con
     SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x));
     SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x));
 
-    int point = 1 - r;
+    int32_t point = 1 - r;
     while (x > y)
     { 
         y += 1;
@@ -532,7 +536,7 @@ void draw_circle_filled(SDL_Renderer* renderer, const int32_t cx, const int32_t 
     SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
     SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));
 
-    int point = 1 - r;
+    int32_t point = 1 - r;
     while (x > y)
     { 
         y += 1;

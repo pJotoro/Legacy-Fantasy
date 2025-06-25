@@ -7,11 +7,11 @@
 #define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = false; })
 #define CHECK(E) STMT(if (!E) { res = false; })
 
-float nk_cb_text_width(nk_handle handle, float height, const char *text, int len) {
+float nk_cb_text_width(nk_handle handle, float height, const char* text, int32_t len) {
 	(void)height;
 	TTF_Font* font = handle.ptr;
-	const int MAX_WIDTH = 256;
-	int measured_width;
+	const int32_t MAX_WIDTH = 256;
+	int32_t measured_width;
 	size_t measured_length;
 	float res = 0.0f;
 	if (TTF_MeasureString(font, text, (size_t)len, MAX_WIDTH, &measured_width, &measured_length)) {
