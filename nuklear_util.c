@@ -4,7 +4,7 @@
 #ifdef CHECK
 #undef CHECK
 #endif
-#define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = false; })
+#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, false)
 #define CHECK(E) STMT(if (!E) { res = false; })
 
 float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int32_t len) {

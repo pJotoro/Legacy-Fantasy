@@ -13,6 +13,16 @@
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 
+#define SDL_LOG_ERROR() STMT( \
+	SDL_Log("%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
+)
+#define SDL_CHECK_EXPLICIT(E, VAR, VAL) STMT( \
+	if ((E)) { \
+		SDL_LOG_ERROR(); \
+		VAR = (VAL); \
+	} \
+)
+
 #define malloc SDL_malloc
 #define realloc SDL_realloc
 #define free SDL_free

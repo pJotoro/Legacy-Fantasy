@@ -31,12 +31,12 @@ void ResetGame(Context* ctx) {
 #ifdef CHECK
 #undef CHECK
 #endif
-#define SDL_CHECK(E) STMT(if (!E) { SDL_Log("SDL: %s.", SDL_GetError()); res = -1; })
+#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, -1)
 #define CHECK(E) STMT(if (!E) { res = -1; })
 
 bool LoadAseprite(Context* ctx, char* path) {
 	(void)ctx;
-	(void)path;
+	SDL_Log("aseprite path: %s", path);
 	return true;
 }
 
@@ -46,28 +46,30 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 	char path[1024];
 	snprintf(path, 1024, "%s%s", dirname, fname);
+	SDL_Log("path: %s", path);
 
 	SDL_PathInfo path_info;
 	if (!SDL_GetPathInfo(path, &path_info)) {
-		SDL_Log("SDL: %s", SDL_GetError());
+		SDL_LOG_ERROR();
 		res = SDL_ENUM_FAILURE;
-	} else if (path_info.type == SDL_PATHTYPE_FILE) {
+	} else if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
 		int32_t count;
 		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &count);
 		if (!files) {
-			SDL_Log("SDL: %s", SDL_GetError());
-			res = SDL_ENUM_FAILURE;
-		} else {
-			if (!LoadAseprite(ctx, path)) {
-				SDL_Log("SDL: %s", SDL_GetError());
+			if (!SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx)) {
+				SDL_LOG_ERROR();
 				res = SDL_ENUM_FAILURE;
 			}
+		} else {
+			for (size_t file_idx = 0; file_idx < (size_t)count; file_idx += 1) {
+				char aseprite_filepath[2048];
+				snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
+				if (!LoadAseprite(ctx, aseprite_filepath)) {
+					res = SDL_ENUM_FAILURE;
+				}
+			}
+
 			SDL_free(files);
-		}
-	} else if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
-		if (!SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx)) {
-			SDL_Log("SDL: %s", SDL_GetError());
-			res = SDL_ENUM_FAILURE;
 		}
 	}
 		
