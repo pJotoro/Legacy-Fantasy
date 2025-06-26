@@ -8,7 +8,7 @@ typedef struct ASE_Fixed {
 
 typedef struct ASE_String {
 	uint16_t len;
-	// uint8_t buf[];
+	uint8_t buf[];
 } ASE_String;
 
 typedef struct ASE_Point {
@@ -47,11 +47,11 @@ typedef struct ASE_Header {
 	uint16_t h;
 	uint16_t color_depth;
 	ASE_Flags flags;
-	uint16_t __reserved0;
-	uint32_t __reserved1;
-	uint32_t __reserved2;
+	uint16_t reserved0;
+	uint32_t reserved1;
+	uint32_t reserved2;
 	uint8_t transparent_color_entry;
-	uint8_t __reserved3[3];
+	uint8_t reserved3[3];
 	uint16_t n_colors;
 	uint8_t pixel_w;
 	uint8_t pixel_h;
@@ -59,7 +59,7 @@ typedef struct ASE_Header {
 	int16_t grid_y_pos;
 	uint16_t grid_w;
 	uint16_t grid_h;
-	uint8_t __reserved4[84];
+	uint8_t reserved4[84];
 
 } ASE_Header;
 static_assert(sizeof(ASE_Header) == 128);
@@ -67,9 +67,9 @@ static_assert(sizeof(ASE_Header) == 128);
 typedef struct ASE_Frame {
 	uint32_t n_bytes;
 	uint16_t magic_number;
-	uint16_t __reserved0;
+	uint16_t reserved0;
 	uint16_t frame_dur;
-	uint8_t __reserved1[2];
+	uint8_t reserved1[2];
 	uint32_t n_chunks;
 } ASE_Frame;
 static_assert(sizeof(ASE_Frame) == 16);
@@ -161,7 +161,7 @@ typedef struct ASE_LayerChunk {
 	uint16_t ignored_default_layer_h;
 	ASE_BlendMode blend_mode;
 	uint8_t opacity;
-	uint8_t __reserved0[3];
+	uint8_t reserved0[3];
 	ASE_String layer_name;
 	#if 0
 	uint32_t tileset_idx;
@@ -169,9 +169,63 @@ typedef struct ASE_LayerChunk {
 	#endif
 } ASE_LayerChunk;
 
-// typedef struct ASE_CellChunk {
-	
-// } ASE_CellChunk;
+enum {
+	ASE_CELL_TYPE_RAW = 0u,
+	ASE_CELL_TYPE_LINKED = 1u,
+	ASE_CELL_TYPE_COMPRESSED_IMAGE = 2u,
+	ASE_CELL_TYPE_COMPRESSED_TILEMAP = 3u,
+};
+typedef uint16_t ASE_CellType;
+
+typedef struct ASE_CellChunk {
+	uint16_t layer_idx;
+	int16_t x;
+	int16_t y;
+	uint8_t opacity;
+	ASE_CellType cell_type;
+	int16_t z_idx;
+	uint8_t reserved0[5];
+	union {
+		struct {
+			uint16_t w;
+			uint16_t h;
+			ASE_Pixel pixels[];
+		} raw;
+		struct {
+			uint16_t frame_pos;
+		} linked;
+		struct {
+			uint16_t w;
+			uint16_t h;
+			ASE_Pixel pixels[];
+		} compressed_image;
+		struct {
+			uint16_t w;
+			uint16_t h;
+			uint16_t bits_per_tile;
+			uint32_t tile_id_bitmask;
+			uint32_t x_flip_bitmask;
+			uint32_t y_flip_bitmask;
+			uint32_t diagonal_flip_bitmask;
+			uint8_t reserved1[10];
+			uint32_t tiles[];
+		} compressed_tilemap;
+	};
+} ASE_CellChunk;
+
+enum {
+	ASE_CELL_CHUNK_EXTRA_FLAG_PRECISE_BOUNDS = 1u,
+};
+typedef uint32_t ASE_CellChunkExtraFlags;
+
+typedef struct ASE_CellChunkExtra {
+	ASE_CellChunkExtraFlags flags;
+	ASE_Fixed x;
+	ASE_Fixed y;
+	ASE_Fixed w;
+	ASE_Fixed h;
+	uint8_t reserved0[16];
+} ASE_CellChunkExtra;
 
 enum {
 	ASE_COLOR_PROFILE_TYPE_NONE = 0u,
@@ -189,9 +243,9 @@ typedef struct ASE_ColorProfileChunk {
 	ASE_ColorProfileType type;
 	ASE_ColorProfileFlags flags;
 	ASE_Fixed fixed_gamma;
-	uint8_t __reserved0[8];
+	uint8_t reserved0[8];
 	uint32_t icc_profile_data_len;
-	// uint8_t icc_profile_data[];
+	uint8_t icc_profile_data[];
 } ASE_ColorProfileChunk;
 
 #pragma pack(pop)
