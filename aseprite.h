@@ -235,7 +235,7 @@ enum {
 typedef uint16_t ASE_ColorProfileType;
 
 enum {
-	COLOR_PROFILE_FLAG_SPECIAL_FIXED_GAMMA = 1u,
+	ASE_COLOR_PROFILE_FLAG_SPECIAL_FIXED_GAMMA = 1u,
 };
 typedef uint16_t ASE_ColorProfileFlags;
 
