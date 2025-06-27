@@ -10,7 +10,7 @@
         {
             "name": "debug",
             "working_dir": "$project_path/build/ninja/debug",
-            "shell_cmd": "ninja && raddbg --auto_run --quit_after_success",
+            "shell_cmd": "ninja && raddbg --kill-all --auto_run --quit_after_success",
             "file_regex": "^(.*)\\((\\d+),(\\d+)\\): (.*)$",
         },
         {

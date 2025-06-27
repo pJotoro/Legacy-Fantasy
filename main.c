@@ -34,10 +34,93 @@ void ResetGame(Context* ctx) {
 #define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, -1)
 #define CHECK(E) STMT(if (!E) { res = -1; })
 
-bool LoadAseprite(Context* ctx, char* path) {
+#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
+
+void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
 	(void)ctx;
-	SDL_Log("aseprite path: %s", path);
-	return true;
+
+	ASE_Header header;
+	SDL_ReadStruct(fs, header);
+	assert(header.magic_number == 0xA5E0);
+
+	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
+	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE);
+
+	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+		ASE_Frame frame;
+		SDL_ReadStruct(fs, frame);
+		assert(frame.magic_number == 0xF1FA);
+
+		// Would mean this aseprite file is very old.
+		assert(frame.n_chunks != 0);
+
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+			ASE_ChunkHeader chunk_header;
+			SDL_ReadStruct(fs, chunk_header);
+			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+			assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
+			SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+
+			switch (chunk_header.type) {
+			case ASE_CHUNK_TYPE_OLD_PALETTE: {
+			} break;
+			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+			} break;
+			case ASE_CHUNK_TYPE_LAYER: {
+				// TODO: tileset_idx and uuid
+				ASE_LayerChunk* chunk = raw_chunk;
+				(void)chunk;
+			} break;
+			case ASE_CHUNK_TYPE_CELL: {
+				ASE_CellChunk* chunk = raw_chunk;
+				(void)chunk;
+			} break;
+			case ASE_CHUNK_TYPE_CELL_EXTRA: {
+				ASE_CellChunk* chunk = raw_chunk;
+				(void)chunk;
+				ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
+				(void)chunk_extra;
+			} break;
+			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+				ASE_ColorProfileChunk* chunk = raw_chunk;
+				switch (chunk->type) {
+				case ASE_COLOR_PROFILE_TYPE_NONE: {
+
+				} break;
+				case ASE_COLOR_PROFILE_TYPE_SRGB: {
+
+				} break;
+				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+
+				} break;
+				default: {
+					assert(false);
+				} break;
+				}
+			} break;
+			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+			} break;
+			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+			} break;
+			case ASE_CHUNK_TYPE_PATH: {
+			} break;
+			case ASE_CHUNK_TYPE_TAGS: {
+			} break;
+			case ASE_CHUNK_TYPE_PALETTE: {
+			} break;
+			case ASE_CHUNK_TYPE_USER_DATA: {
+			} break;
+			case ASE_CHUNK_TYPE_SLICE: {
+			} break;
+			case ASE_CHUNK_TYPE_TILESET: {
+			} break;
+			default: {
+				assert(false);
+			} break;
+			}
+		}
+	}
 }
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
@@ -46,7 +129,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 	char path[1024];
 	snprintf(path, 1024, "%s%s", dirname, fname);
-	SDL_Log("path: %s", path);
 
 	SDL_PathInfo path_info;
 	if (!SDL_GetPathInfo(path, &path_info)) {
@@ -63,9 +145,21 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)count; file_idx += 1) {
 				char aseprite_filepath[2048];
-				snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
-				if (!LoadAseprite(ctx, aseprite_filepath)) {
+				SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
+				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r");
+				const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
+				void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE);
+				SDL_IOStream* raw_chunk_stream = SDL_IOFromMem(raw_chunk, RAW_CHUNK_MAX_SIZE);
+				if (!fs || !raw_chunk || !raw_chunk_stream) {
 					res = SDL_ENUM_FAILURE;
+					if (raw_chunk_stream) SDL_CloseIO(raw_chunk_stream);
+					if (raw_chunk) SDL_free(raw_chunk);
+					if (fs) SDL_CloseIO(fs);
+				} else {
+					LoadAsepriteFile(ctx, fs);
+					SDL_CloseIO(raw_chunk_stream);
+					SDL_free(raw_chunk);
+					SDL_CloseIO(fs);
 				}
 			}
 
@@ -85,7 +179,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());
 
-	Context* ctx = new(Context); SDL_CHECK(ctx);
+	Context* ctx = SDL_aligned_alloc(_Alignof(Context), sizeof(Context)); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
 
 	// InitTime
@@ -157,100 +251,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
 
-	#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
-
-	{
-		SDL_CHECK(SDL_EnumerateDirectory("assets/legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
-		// for (size_t glob_idx = 0; glob_idx < (size_t)glob_count; glob_idx += 1) {
-		// 	char filename[1024];
-		// 	snprintf(filename, 1024, "assets/legacy_fantasy_high_forest/Assets/%s", files[glob_idx]);
-		// 	SDL_IOStream* fs = SDL_IOFromFile(filename, "r"); SDL_CHECK(fs);
-
-		// 	ASE_Header header;
-		// 	SDL_ReadStruct(fs, header);
-		// 	assert(header.magic_number == 0xA5E0);
-
-		// 	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
-		// 		ASE_Frame frame;
-		// 		SDL_ReadStruct(fs, frame);
-		// 		assert(frame.magic_number == 0xF1FA);
-
-		// 		// Would mean this aseprite file is very old.
-		// 		assert(frame.n_chunks != 0);
-
-		// 		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
-		// 			ASE_ChunkHeader chunk_header;
-		// 			SDL_ReadStruct(fs, chunk_header);
-		// 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-		// 			void* raw_chunk = malloc(chunk_header.size - sizeof(ASE_ChunkHeader));
-		// 			SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
-
-		// 			switch (chunk_header.type) {
-		// 			case ASE_CHUNK_TYPE_OLD_PALETTE: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_LAYER: {
-		// 				ASE_LayerChunk* chunk = raw_chunk;
-		// 				(void)chunk;
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_CELL: {
-		// 				ASE_CellChunk* chunk = raw_chunk;
-		// 				(void)chunk;
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_CELL_EXTRA: {
-		// 				ASE_CellChunk* chunk = raw_chunk;
-		// 				(void)chunk;
-		// 				ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
-		// 				(void)chunk_extra;
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
-		// 				ASE_ColorProfileChunk* chunk = raw_chunk;
-		// 				switch (chunk->type) {
-		// 				case ASE_COLOR_PROFILE_TYPE_NONE: {
-
-		// 				} break;
-		// 				case ASE_COLOR_PROFILE_TYPE_SRGB: {
-
-		// 				} break;
-		// 				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
-
-		// 				} break;
-		// 				default: {
-		// 					assert(false);
-		// 				} break;
-		// 				}
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_PATH: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_TAGS: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_PALETTE: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_USER_DATA: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_SLICE: {
-		// 			} break;
-		// 			case ASE_CHUNK_TYPE_TILESET: {
-		// 			} break;
-		// 			default: {
-		// 				assert(false);
-		// 			} break;
-		// 			}
-
-		// 			free(raw_chunk);
-		// 		}
-		// 	}
-
-		// 	SDL_CloseIO(fs);
-		// }
-		// SDL_free(files);
-	}
+	SDL_CHECK(SDL_EnumerateDirectory("assets/legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 
 	ResetGame(ctx);
 
@@ -435,7 +436,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				ctx->player.vel.x += acc;
 				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-				ctx->player.vel.x = clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+				ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 			}
 			// ctx->player.vel.y += GRAVITY*ctx->dt;
 			ctx->player.vel.y += GRAVITY;
@@ -734,7 +735,7 @@ bool LoadLevel(Context* ctx) {
 			}
 		}
 
-		ctx->level.tiles = new_arr(TileType, ctx->level.w * ctx->level.h);
+		ctx->level.tiles = SDL_malloc(sizeof(TileType) * ctx->level.w * ctx->level.h);
 		for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
 			ctx->level.tiles[i] = TILE_TYPE_EMPTY;
 		}

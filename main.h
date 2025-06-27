@@ -23,10 +23,7 @@
 	} \
 )
 
-#define malloc SDL_malloc
-#define realloc SDL_realloc
-#define free SDL_free
-
+#if 0
 #define new(T) SDL_aligned_alloc(_Alignof(T), sizeof(T))
 #define new_arr(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
 #define delete(P) SDL_free(P)
@@ -56,6 +53,7 @@
 #define clamp(X, A, B) SDL_clamp(X, A, B)
 
 #define snprintf SDL_snprintf
+#endif
 
 typedef int64_t ssize_t;
 
