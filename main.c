@@ -148,19 +148,13 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			for (size_t file_idx = 0; file_idx < (size_t)count; file_idx += 1) {
 				char aseprite_filepath[2048];
 				SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
+
 				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r");
-				const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
-				void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE);
-				SDL_IOStream* raw_chunk_stream = SDL_IOFromMem(raw_chunk, RAW_CHUNK_MAX_SIZE);
-				if (!fs || !raw_chunk || !raw_chunk_stream) {
+				if (!fs) {
+					SDL_LOG_ERROR();
 					res = SDL_ENUM_FAILURE;
-					if (raw_chunk_stream) SDL_CloseIO(raw_chunk_stream);
-					if (raw_chunk) SDL_free(raw_chunk);
-					if (fs) SDL_CloseIO(fs);
 				} else {
 					LoadAsepriteFile(ctx, fs);
-					SDL_CloseIO(raw_chunk_stream);
-					SDL_free(raw_chunk);
 					SDL_CloseIO(fs);
 				}
 			}
@@ -761,4 +755,11 @@ bool LoadLevel(Context* ctx) {
 		SDL_free(file);
 	}
 	return ok;
+}
+
+size_t HashString(const char* key, size_t len, size_t seed) {
+	if (len == 0) {
+		len = SDL_strlen(key);
+	}
+	return (size_t)nk_murmur_hash((const void*)key, (int32_t)len, (uint32_t)seed);
 }

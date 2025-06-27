@@ -143,3 +143,5 @@ void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r)
 bool NK_HandleEvent(Context* ctx, SDL_Event* event);
 bool NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
+
+size_t HashString(const char* key, size_t len, size_t seed);
