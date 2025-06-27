@@ -128,7 +128,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	SDL_EnumerationResult res = SDL_ENUM_CONTINUE;
 
 	char path[1024];
-	snprintf(path, 1024, "%s%s", dirname, fname);
+	SDL_snprintf(path, 1024, "%s%s", dirname, fname);
 
 	SDL_PathInfo path_info;
 	if (!SDL_GetPathInfo(path, &path_info)) {
@@ -179,7 +179,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());
 
-	Context* ctx = SDL_aligned_alloc(_Alignof(Context), sizeof(Context)); SDL_CHECK(ctx);
+	Context* ctx = SDL_malloc(sizeof(Context)); SDL_CHECK(ctx);
 	memset(ctx, 0, sizeof(Context));
 
 	// InitTime
@@ -271,12 +271,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					break;
 				case SDLK_LEFT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = max(ctx->axis.x - 1.0f, -1.0f);
+						ctx->axis.x = SDL_max(ctx->axis.x - 1.0f, -1.0f);
 					}
 					break;
 				case SDLK_RIGHT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = min(ctx->axis.x + 1.0f, +1.0f);
+						ctx->axis.x = SDL_min(ctx->axis.x + 1.0f, +1.0f);
 					}
 					break;
 				case SDLK_UP:
@@ -298,17 +298,17 @@ int32_t main(int32_t argc, char* argv[]) {
 				switch (event.key.key) {
 				case SDLK_LEFT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = min(ctx->axis.x + 1.0f, +1.0f);
+						ctx->axis.x = SDL_min(ctx->axis.x + 1.0f, +1.0f);
 					}	
 					break;
 				case SDLK_RIGHT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = max(ctx->axis.x - 1.0f, -1.0f);
+						ctx->axis.x = SDL_max(ctx->axis.x - 1.0f, -1.0f);
 					}
 					break;
 				case SDLK_UP:
 					if (!ctx->gamepad) {
-						ctx->player.vel.y = max(ctx->player.vel.y, ctx->player.vel.y*GRAVITY);
+						ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y*GRAVITY);
 					}
 					break;
 				case SDLK_DOWN:
@@ -334,7 +334,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				break;
 			case SDL_EVENT_GAMEPAD_BUTTON_UP:
 				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					ctx->player.vel.y = max(ctx->player.vel.y, ctx->player.vel.y/2.0f);
+					ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y/2.0f);
 				}
 				break;
 			case SDL_EVENT_QUIT:
