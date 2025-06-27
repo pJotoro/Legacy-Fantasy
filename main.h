@@ -61,11 +61,11 @@ typedef int64_t ssize_t;
 #define PLAYER_FRAME_WIDTH 64
 #define PLAYER_FRAME_TICK 20
 
-typedef uint32_t EntityFlags;
 enum {
 	ENTITY_FLAG_STATIC = FLAG(0),
-	ENTITY_FLAG_SUB_PIXEL_PRECISION,
+	ENTITY_FLAG_SUB_PIXEL_PRECISION = FLAG(1),
 };
+typedef uint32_t EntityFlags;
 
 typedef struct Entity {
 	union {
@@ -82,9 +82,8 @@ typedef struct Entity {
 	};
 	int32_t frame;
 	int32_t frame_tick;
-	bool is_static : 1;
-	bool sub_pixel_precision : 1;
-	int32_t can_jump : 6;
+	int32_t can_jump;
+	EntityFlags flags;
 } Entity;
 
 typedef struct Nuklear {

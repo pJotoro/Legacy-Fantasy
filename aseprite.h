@@ -97,8 +97,6 @@ typedef struct ASE_ChunkHeader {
 	ASE_ChunkType type;
 } ASE_ChunkHeader;
 
-
-
 #if 0
 typedef struct ASE_OldPaletteChunk {
 	uint16_t n_packets;

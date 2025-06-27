@@ -121,6 +121,8 @@ void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
 			}
 		}
 	}
+
+	SDL_free(raw_chunk);
 }
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
