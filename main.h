@@ -132,6 +132,8 @@ typedef struct Context {
 
 	Nuklear nk;
 
+	uint32_t seed;
+
 	bool running;
 } Context;
 
@@ -144,4 +146,14 @@ bool NK_HandleEvent(Context* ctx, SDL_Event* event);
 bool NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
 
-size_t HashString(const char* key, size_t len, size_t seed);
+uint32_t HashString(char* key, int32_t len, uint32_t seed);
+
+// TODO: Actually implement this.
+typedef struct SpriteNode {
+	char* key; // The same as the path, except with assets/ cut from the beginning and .aseprite cut from the end. The path doesn't have to be used again since the file has already been loaded, so this doesn't incur any cost.
+	uint16_t w;
+	uint16_t h;
+	uint16_t n_frames;
+	struct SpriteNode* prev;
+	struct SpriteNode* next;
+} SpriteNode;

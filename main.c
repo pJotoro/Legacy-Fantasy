@@ -36,12 +36,12 @@ void ResetGame(Context* ctx) {
 
 #define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
 
-void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
+void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	(void)ctx;
 
 	ASE_Header header;
 	SDL_ReadStruct(fs, header);
-	assert(header.magic_number == 0xA5E0);
+	SDL_assert(header.magic_number == 0xA5E0);
 
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
 	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE);
@@ -49,17 +49,17 @@ void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
 	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
 		ASE_Frame frame;
 		SDL_ReadStruct(fs, frame);
-		assert(frame.magic_number == 0xF1FA);
+		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
-		assert(frame.n_chunks != 0);
+		SDL_assert(frame.n_chunks != 0);
 
 		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
 			SDL_ReadStruct(fs, chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-			assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
+			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
 			SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
 			switch (chunk_header.type) {
@@ -95,7 +95,7 @@ void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
 
 				} break;
 				default: {
-					assert(false);
+					SDL_assert(false);
 				} break;
 				}
 			} break;
@@ -116,7 +116,7 @@ void LoadAsepriteFile(Context* ctx, SDL_IOStream* fs) {
 			case ASE_CHUNK_TYPE_TILESET: {
 			} break;
 			default: {
-				assert(false);
+				SDL_assert(false);
 			} break;
 			}
 		}
@@ -137,24 +137,27 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 		SDL_LOG_ERROR();
 		res = SDL_ENUM_FAILURE;
 	} else if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
-		int32_t count;
-		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &count);
+		int32_t n_files;
+		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
 		if (!files) {
 			if (!SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx)) {
 				SDL_LOG_ERROR();
 				res = SDL_ENUM_FAILURE;
 			}
 		} else {
-			for (size_t file_idx = 0; file_idx < (size_t)count; file_idx += 1) {
+			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 				char aseprite_filepath[2048];
 				SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
+
+				uint32_t hash = HashString(aseprite_filepath, 0, ctx->seed);
+				SDL_Log("%s => %u", aseprite_filepath, hash);
 
 				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r");
 				if (!fs) {
 					SDL_LOG_ERROR();
 					res = SDL_ENUM_FAILURE;
 				} else {
-					LoadAsepriteFile(ctx, fs);
+					LoadSprite(ctx, fs);
 					SDL_CloseIO(fs);
 				}
 			}
@@ -181,6 +184,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// InitTime
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
+		ctx->seed = (uint32_t)ctx->time;
 	}
 
 	// CreateWindowAndRenderer
@@ -706,7 +710,7 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
 }
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
-	assert(tile_x < level->w && tile_y < level->h);
+	SDL_assert(tile_x < level->w && tile_y < level->h);
 	level->tiles[tile_y*level->w + tile_x] = tile;
 }
 
@@ -715,7 +719,7 @@ bool LoadLevel(Context* ctx) {
 	size_t file_size;
 	char* file = (char*)SDL_LoadFile("level", &file_size);
 	if (!file) {
-		SDL_Log("SDL: %s", SDL_GetError());
+		SDL_LOG_ERROR();
 		ok = false;
 	} else {
 		ctx->level.h = 1;
@@ -757,9 +761,9 @@ bool LoadLevel(Context* ctx) {
 	return ok;
 }
 
-size_t HashString(const char* key, size_t len, size_t seed) {
+uint32_t HashString(char* key, int32_t len, uint32_t seed) {
 	if (len == 0) {
-		len = SDL_strlen(key);
+		len = (int32_t)SDL_strlen(key);
 	}
-	return (size_t)nk_murmur_hash((const void*)key, (int32_t)len, (uint32_t)seed);
+	return nk_murmur_hash((const void*)key, len, seed);
 }
