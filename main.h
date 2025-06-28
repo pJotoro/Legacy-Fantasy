@@ -78,6 +78,21 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 
+typedef struct SpriteNode {
+	struct SpriteNode* prev;
+	struct SpriteNode* next;
+
+	char* path;
+	size_t path_len;
+
+	uint32_t hash;
+
+	uint32_t w;
+	uint32_t h;
+	uint32_t n_frames;
+	
+} SpriteNode;
+
 typedef struct Context {
 	SDL_Window* window;
 
@@ -105,6 +120,9 @@ typedef struct Context {
 	uint32_t seed;
 
 	bool running;
+
+	SpriteNode* sprite_head;
+	SpriteNode* sprite_tail;
 } Context;
 
 void ResetGame(Context* ctx);
@@ -112,7 +130,7 @@ void LoadLevel(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
-void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash);
+void LoadSprite(Context* ctx, char* path, size_t path_len);
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
@@ -120,14 +138,3 @@ void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
 
 uint32_t HashString(char* key, int32_t len, uint32_t seed);
-
-typedef struct SpriteNode {
-	char* key; // The same as the path, except with assets/ cut from the beginning and .aseprite cut from the end. The path doesn't have to be used again since the file has already been loaded, so this doesn't incur any cost.
-	uint32_t hash;
-
-	uint32_t w;
-	uint32_t h;
-	uint32_t n_frames;
-	struct SpriteNode* prev;
-	struct SpriteNode* next;
-} SpriteNode;

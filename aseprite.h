@@ -182,7 +182,7 @@ typedef struct ASE_CellChunk {
 	int16_t x;
 	int16_t y;
 	uint8_t opacity;
-	ASE_CellType cell_type;
+	ASE_CellType type;
 	int16_t z_idx;
 	uint8_t reserved0[5];
 	union {

@@ -164,7 +164,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// LoadFont
 	{
 		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
-		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "assets/fonts/Roboto-Regular.ttf");
+		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "assets\\fonts\\Roboto-Regular.ttf");
 		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 15.0f);
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
 		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
@@ -193,10 +193,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// LoadTextures
 	{
-		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets/legacy_fantasy_high_forest/Character/Idle/Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
+		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
 	}
 
-	SDL_CHECK(SDL_EnumerateDirectory("assets/legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
+	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 
 	ResetGame(ctx);
 
@@ -605,13 +605,58 @@ uint32_t HashString(char* key, int32_t len, uint32_t seed) {
 	return nk_murmur_hash((const void*)key, len, seed);
 }
 
-void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash) {
+void LoadSprite(Context* ctx, char* path, size_t path_len) {
 	(void)ctx;
-	(void)hash;
+	
+	uint32_t hash = HashString(path, (int32_t)path_len, ctx->seed);
+	SDL_Log("%s => %u", path, hash);
+
+	SpriteNode* sprite_node = SDL_calloc(1, sizeof(SpriteNode)); SDL_CHECK(sprite_node);
+	sprite_node->path = path;
+	sprite_node->path_len = path_len;
+	sprite_node->hash = hash;
+
+	SDL_assert((!ctx->sprite_head && !ctx->sprite_tail) || (ctx->sprite_head && ctx->sprite_tail));
+	if (!ctx->sprite_head) {
+		ctx->sprite_head = sprite_node;
+		ctx->sprite_tail = sprite_node;
+	} else if (ctx->sprite_head == ctx->sprite_tail) {
+		SDL_assert(sprite_node->hash != ctx->sprite_head->hash);
+		if (sprite_node->hash > ctx->sprite_head->hash) {
+			ctx->sprite_tail = sprite_node;
+		} else {
+			ctx->sprite_head = sprite_node;
+		}
+		ctx->sprite_tail->prev = ctx->sprite_head;
+		ctx->sprite_head->next = ctx->sprite_tail;
+	} else if (sprite_node->hash < ctx->sprite_head->hash) {
+		sprite_node->next = ctx->sprite_head;
+		ctx->sprite_head->prev = sprite_node;
+		ctx->sprite_head = sprite_node;
+	} else if (sprite_node->hash > ctx->sprite_tail->hash) {
+		sprite_node->prev = ctx->sprite_tail;
+		ctx->sprite_tail->next = sprite_node;
+		ctx->sprite_tail = sprite_node;
+	} else {
+		for (SpriteNode* cur = ctx->sprite_head; cur; cur = cur->next) {
+			SDL_assert(sprite_node->hash != cur->hash);
+			if (sprite_node->hash < cur->hash) {
+				sprite_node->prev = cur->prev;
+				sprite_node->next = cur;
+				sprite_node->prev->next = sprite_node;
+				cur->prev = sprite_node;
+				break;
+			}
+		}
+	}
+
+	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); SDL_CHECK(fs);
 
 	ASE_Header header;
 	SDL_ReadStructChecked(fs, &header);
 	SDL_assert(header.magic_number == 0xA5E0);
+
+	sprite_node->n_frames = header.n_frames;
 
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
 	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk); // TODO: use an arena.
@@ -644,7 +689,23 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash) {
 			} break;
 			case ASE_CHUNK_TYPE_CELL: {
 				ASE_CellChunk* chunk = raw_chunk;
-				(void)chunk;
+				switch (chunk->type) {
+				case ASE_CELL_TYPE_RAW: {
+					sprite_node->w = chunk->raw.w;
+					sprite_node->h = chunk->raw.h;
+				} break;
+				case ASE_CELL_TYPE_LINKED: {
+
+				} break;
+				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
+					sprite_node->w = chunk->compressed_image.w;
+					sprite_node->h = chunk->compressed_image.h;
+				} break;
+				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
+					sprite_node->w = chunk->compressed_image.w;
+					sprite_node->h = chunk->compressed_image.h;					
+				} break;
+				}
 			} break;
 			case ASE_CHUNK_TYPE_CELL_EXTRA: {
 				ASE_CellChunk* chunk = raw_chunk;
@@ -693,38 +754,36 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash) {
 	}
 
 	SDL_free(raw_chunk);
+	SDL_CloseIO(fs);
 }
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 
-	char path[1024];
-	SDL_CHECK(SDL_snprintf(path, 1024, "%s%s", dirname, fname) >= 0);
+	char dir_path[1024];
+	SDL_CHECK(SDL_snprintf(dir_path, 1024, "%s%s", dirname, fname) >= 0);
 
 	SDL_PathInfo path_info;
-	SDL_CHECK(SDL_GetPathInfo(path, &path_info));
+	SDL_CHECK(SDL_GetPathInfo(dir_path, &path_info));
 	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
 		int32_t n_files;
-		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
+		char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files);
 		if (n_files == 0) {
-			SDL_CHECK(SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx));
+			SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
-				char aseprite_filepath[2048];
-				SDL_CHECK(SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]) >= 0);
-
-				uint32_t hash;
+				char* sprite_path;
+				size_t sprite_path_len;
 				{
-					char prefix[] = "assets/"; size_t prefix_len = SDL_arraysize(prefix);
-					char suffix[] = ".aseprite"; size_t suffix_len = SDL_arraysize(suffix);
-					char* key = &aseprite_filepath[prefix_len-1]; int32_t key_len = (int32_t)(SDL_strlen(aseprite_filepath) - prefix_len - suffix_len + 1);
-					hash = HashString(key, key_len, ctx->seed);
+					char buf[2048];
+					SDL_CHECK(SDL_snprintf(buf, 2048, "%s\\%s", dir_path, files[file_idx]) >= 0);
+					sprite_path_len = SDL_strlen(buf);
+					sprite_path = SDL_malloc(sprite_path_len + 1); SDL_CHECK(sprite_path);
+					SDL_strlcpy(sprite_path, buf, sprite_path_len + 1);
 				}
-				SDL_Log("%s => %u", aseprite_filepath, hash);
 
-				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r"); SDL_CHECK(fs);
-				LoadSprite(ctx, fs, hash);
-				SDL_CloseIO(fs);
+				LoadSprite(ctx, sprite_path, sprite_path_len);
+				
 			}
 
 			SDL_free(files);
