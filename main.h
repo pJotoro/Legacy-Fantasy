@@ -122,6 +122,7 @@ uint32_t HashString(char* key, int32_t len, uint32_t seed);
 typedef struct SpriteNode {
 	char* key; // The same as the path, except with assets/ cut from the beginning and .aseprite cut from the end. The path doesn't have to be used again since the file has already been loaded, so this doesn't incur any cost.
 	uint32_t hash;
+	
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;

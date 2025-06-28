@@ -498,8 +498,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				float acc = ctx->axis.x * PLAYER_ACC;
 				// ctx->player.vel.x += acc*ctx->dt;
 				ctx->player.vel.x += acc;
-				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 				ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 			}
 			// ctx->player.vel.y += GRAVITY*ctx->dt;
@@ -551,7 +551,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
-			ctx->player.can_jump = max(0, ctx->player.can_jump - 1);
+			ctx->player.can_jump = SDL_max(0, ctx->player.can_jump - 1);
 			if (ctx->player.vel.y < 0.0f) {
 				Rect side;
 				side.pos.x = ctx->player.pos.x + 1.0f; 
