@@ -217,7 +217,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
 		int32_t n_files;
 		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
-		if (!files) {
+		if (n_files == 0) {
 			SDL_CHECK(SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx));
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
