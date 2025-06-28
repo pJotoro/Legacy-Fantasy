@@ -31,36 +31,35 @@ void ResetGame(Context* ctx) {
 #ifdef CHECK
 #undef CHECK
 #endif
-#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, -1)
-#define CHECK(E) STMT(if (!E) { res = -1; })
+#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, false)
+#define CHECK(E) STMT(if (!E) { res = false; SDL_TriggerBreakpoint(); })
 
-#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
-
-void LoadSprite(Context* ctx, SDL_IOStream* fs) {
+bool LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	(void)ctx;
+	bool res = true;
 
 	ASE_Header header;
-	SDL_ReadStruct(fs, header);
+	SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, header) == sizeof(header), res, false);
 	SDL_assert(header.magic_number == 0xA5E0);
 
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
-	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE);
+	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk);
 
-	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; res && frame_idx < (size_t)header.n_frames; frame_idx += 1) {
 		ASE_Frame frame;
-		SDL_ReadStruct(fs, frame);
+		SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, frame) == sizeof(frame), res, false);
 		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.n_chunks != 0);
 
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; res && chunk_idx < frame.n_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
-			SDL_ReadStruct(fs, chunk_header);
+			SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, chunk_header) == sizeof(chunk_header), res, false);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-			SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+			SDL_CHECK_EXPLICIT(SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader)) == chunk_header.size - sizeof(ASE_ChunkHeader), res, false);
 
 			switch (chunk_header.type) {
 			case ASE_CHUNK_TYPE_OLD_PALETTE: {
@@ -123,27 +122,131 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	}
 
 	SDL_free(raw_chunk);
+	return res;
 }
+
+void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+	int32_t x = r;
+	int32_t y = 0;
+    
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
+
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
+    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));
+
+    int32_t point = 1 - r;
+    while (x > y)
+    { 
+        y += 1;
+        
+        if (point <= 0) {
+			point = point + 2*y + 1;
+        }
+        else
+        {
+            x -= 1;
+            point = point + 2*y - 2*x + 1;
+        }
+        
+        if (x < y) {
+            break;
+        }
+
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
+        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
+        
+        if (x != y)
+        {
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
+	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));   
+        }
+    }	
+}
+
+TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
+	return level->tiles[tile_y*level->w + tile_x];
+}
+
+void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
+	SDL_assert(tile_x < level->w && tile_y < level->h);
+	level->tiles[tile_y*level->w + tile_x] = tile;
+}
+
+bool LoadLevel(Context* ctx) {
+	bool res = true;
+
+	size_t file_size;
+	char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
+	ctx->level.h = 1;
+	for (size_t file_i = 0, x = 0; file_i < file_size;) {
+		x += 1;
+		if (file[file_i] == '\r') {
+			file_i += 2;
+			ctx->level.w = SDL_max(x, ctx->level.w);
+			x = 0;
+			ctx->level.h += 1;
+		} else {
+			file_i += 1;
+		}
+	}
+
+	ctx->level.tiles = SDL_malloc(sizeof(TileType) * ctx->level.w * ctx->level.h); SDL_CHECK(ctx->level.tiles);
+	for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
+		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
+	}
+	// SDL_memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
+
+	for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
+		for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
+			if (file[file_i] == '\r') {
+				file_i += 2;
+				break;
+			}
+			switch (file[file_i]) {
+			case '1':
+				SetTile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
+				break;
+			}
+			file_i += 1;
+		}
+	}
+
+	SDL_free(file);
+	return res;
+}
+
+#ifdef SDL_CHECK
+#undef SDL_CHECK
+#endif
+#ifdef CHECK
+#undef CHECK
+#endif
+#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, SDL_ENUM_FAILURE)
+#define CHECK(E) STMT(if (!E) { res = SDL_ENUM_FAILURE; SDL_TriggerBreakpoint(); })
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 	SDL_EnumerationResult res = SDL_ENUM_CONTINUE;
 
 	char path[1024];
-	SDL_snprintf(path, 1024, "%s%s", dirname, fname);
+	SDL_CHECK_EXPLICIT(SDL_snprintf(path, 1024, "%s%s", dirname, fname) < 0, res, SDL_ENUM_FAILURE);
 
 	SDL_PathInfo path_info;
-	if (!SDL_GetPathInfo(path, &path_info)) {
-		SDL_LOG_ERROR();
-		res = SDL_ENUM_FAILURE;
-	} else if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
+	SDL_CHECK(SDL_GetPathInfo(path, &path_info));
+	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
 		int32_t n_files;
 		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
 		if (!files) {
-			if (!SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx)) {
-				SDL_LOG_ERROR();
-				res = SDL_ENUM_FAILURE;
-			}
+			SDL_CHECK(SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx));
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 				char aseprite_filepath[2048];
@@ -168,6 +271,15 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 		
 	return res;
 }
+
+#ifdef SDL_CHECK
+#undef SDL_CHECK
+#endif
+#ifdef CHECK
+#undef CHECK
+#endif
+#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, -1)
+#define CHECK(E) STMT(if (!E) { res = -1; SDL_TriggerBreakpoint(); })
 
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
@@ -656,109 +768,6 @@ void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, cons
         }
     }	
 
-}
-
-void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
-	int32_t x = r;
-	int32_t y = 0;
-    
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
-
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));
-
-    int32_t point = 1 - r;
-    while (x > y)
-    { 
-        y += 1;
-        
-        if (point <= 0) {
-			point = point + 2*y + 1;
-        }
-        else
-        {
-            x -= 1;
-            point = point + 2*y - 2*x + 1;
-        }
-        
-        if (x < y) {
-            break;
-        }
-
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
-        
-        if (x != y)
-        {
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));   
-        }
-    }	
-}
-
-TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
-	return level->tiles[tile_y*level->w + tile_x];
-}
-
-void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
-	SDL_assert(tile_x < level->w && tile_y < level->h);
-	level->tiles[tile_y*level->w + tile_x] = tile;
-}
-
-bool LoadLevel(Context* ctx) {
-	bool ok = true;
-	size_t file_size;
-	char* file = (char*)SDL_LoadFile("level", &file_size);
-	if (!file) {
-		SDL_LOG_ERROR();
-		ok = false;
-	} else {
-		ctx->level.h = 1;
-		for (size_t file_i = 0, x = 0; file_i < file_size;) {
-			x += 1;
-			if (file[file_i] == '\r') {
-				file_i += 2;
-				ctx->level.w = max(x, ctx->level.w);
-				x = 0;
-				ctx->level.h += 1;
-			} else {
-				file_i += 1;
-			}
-		}
-
-		ctx->level.tiles = SDL_malloc(sizeof(TileType) * ctx->level.w * ctx->level.h);
-		for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
-			ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-		}
-		// memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
-
-		for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
-			for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-				if (file[file_i] == '\r') {
-					file_i += 2;
-					break;
-				}
-				switch (file[file_i]) {
-				case '1':
-					SetTile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
-					break;
-				}
-				file_i += 1;
-			}
-		}
-
-		SDL_free(file);
-	}
-	return ok;
 }
 
 uint32_t HashString(char* key, int32_t len, uint32_t seed) {

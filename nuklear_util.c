@@ -5,7 +5,7 @@
 #undef CHECK
 #endif
 #define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, false)
-#define CHECK(E) STMT(if (!E) { res = false; })
+#define CHECK(E) STMT(if (!E) { res = false; SDL_TriggerBreakpoint(); })
 
 float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int32_t len) {
 	(void)height;

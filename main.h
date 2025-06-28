@@ -16,44 +16,16 @@
 #define SDL_LOG_ERROR() STMT( \
 	SDL_Log("%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
 )
+
 #define SDL_CHECK_EXPLICIT(E, VAR, VAL) STMT( \
 	if ((E)) { \
 		SDL_LOG_ERROR(); \
 		VAR = (VAL); \
+		SDL_TriggerBreakpoint(); \
 	} \
 )
 
-#if 0
-#define new(T) SDL_aligned_alloc(_Alignof(T), sizeof(T))
-#define new_arr(T, COUNT) SDL_aligned_alloc(_Alignof(T), sizeof(T) * COUNT)
-#define delete(P) SDL_free(P)
-
-#ifdef assert
-#undef assert
-#endif
-#define assert(COND) SDL_assert(COND)
-
-#define arraysize(A) SDL_arraysize(A)
-#define strlen(STR) SDL_strlen(STR)
-#define memset(DEST, CH, COUNT) SDL_memset(DEST, CH, COUNT)
-#define memcmp(LHS, RHS, COUNT) SDL_memcmp(LHS, RHS, COUNT)
-
-#define floorf(X) SDL_floorf(X)
-#define ceilf(X) SDL_ceilf(X)
-#define roundf(X) SDL_roundf(X)
-#ifdef max
-#undef max
-#endif
-#ifdef min
-#undef min
-#endif
-#define max(A, B) SDL_max(A, B)
-#define min(A, B) SDL_min(A, B)
-#define signf(X) glm_signf(X)
-#define clamp(X, A, B) SDL_clamp(X, A, B)
-
-#define snprintf SDL_snprintf
-#endif
+#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
 
 typedef int64_t ssize_t;
 
@@ -148,7 +120,6 @@ float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int
 
 uint32_t HashString(char* key, int32_t len, uint32_t seed);
 
-// TODO: Actually implement this.
 typedef struct SpriteNode {
 	char* key; // The same as the path, except with assets/ cut from the beginning and .aseprite cut from the end. The path doesn't have to be used again since the file has already been loaded, so this doesn't incur any cost.
 	uint16_t w;
