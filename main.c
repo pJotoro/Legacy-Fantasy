@@ -654,12 +654,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	// WriteVariables
 	{
 		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
-		#define SDL_IOWriteVarI(fs, var) STMT( \
-			SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var); \
-		)
-		#define SDL_IOWriteVarF(fs, var) STMT( \
-			SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var); \
-		)
+		#define SDL_IOWriteVarI(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var) != 0)
+		#define SDL_IOWriteVarF(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var) != 0)
 		SDL_IOWriteVarI(fs, TILE_SIZE);
 		SDL_IOWriteVarI(fs, PLAYER_JUMP_PERIOD);
 		SDL_IOWriteVarF(fs, GRAVITY);
