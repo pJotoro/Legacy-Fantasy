@@ -20,7 +20,7 @@
 	} \
 )
 
-#define SDL_ReadStruct(FS, STRUCT) SDL_ReadIO(FS, &STRUCT, sizeof(STRUCT))
+#define SDL_ReadStruct(S, STRUCT) SDL_ReadIO(S, (STRUCT), sizeof(*(STRUCT)))
 
 typedef int64_t ssize_t;
 
