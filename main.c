@@ -25,95 +25,6 @@ void ResetGame(Context* ctx) {
 	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), .size.y = (float)ctx->txtr_player_idle->h};
 }
 
-void LoadSprite(Context* ctx, SDL_IOStream* fs) {
-	(void)ctx;
-
-	ASE_Header header;
-	SDL_ReadStructChecked(fs, &header);
-	SDL_assert(header.magic_number == 0xA5E0);
-
-	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
-	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk); // TODO: use an area.
-
-	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
-		ASE_Frame frame;
-		SDL_ReadStructChecked(fs, &frame);
-		SDL_assert(frame.magic_number == 0xF1FA);
-
-		// Would mean this aseprite file is very old.
-		SDL_assert(frame.n_chunks != 0);
-
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
-			ASE_ChunkHeader chunk_header;
-			SDL_ReadStructChecked(fs, &chunk_header);
-			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
-
-			switch (chunk_header.type) {
-			case ASE_CHUNK_TYPE_OLD_PALETTE: {
-			} break;
-			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
-			} break;
-			case ASE_CHUNK_TYPE_LAYER: {
-				// TODO: tileset_idx and uuid
-				ASE_LayerChunk* chunk = raw_chunk;
-				(void)chunk;
-			} break;
-			case ASE_CHUNK_TYPE_CELL: {
-				ASE_CellChunk* chunk = raw_chunk;
-				(void)chunk;
-			} break;
-			case ASE_CHUNK_TYPE_CELL_EXTRA: {
-				ASE_CellChunk* chunk = raw_chunk;
-				(void)chunk;
-				ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
-				(void)chunk_extra;
-			} break;
-			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
-				ASE_ColorProfileChunk* chunk = raw_chunk;
-				switch (chunk->type) {
-				case ASE_COLOR_PROFILE_TYPE_NONE: {
-
-				} break;
-				case ASE_COLOR_PROFILE_TYPE_SRGB: {
-
-				} break;
-				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
-
-				} break;
-				default: {
-					SDL_assert(false);
-				} break;
-				}
-			} break;
-			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
-			} break;
-			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
-			} break;
-			case ASE_CHUNK_TYPE_PATH: {
-			} break;
-			case ASE_CHUNK_TYPE_TAGS: {
-			} break;
-			case ASE_CHUNK_TYPE_PALETTE: {
-			} break;
-			case ASE_CHUNK_TYPE_USER_DATA: {
-			} break;
-			case ASE_CHUNK_TYPE_SLICE: {
-			} break;
-			case ASE_CHUNK_TYPE_TILESET: {
-			} break;
-			default: {
-				SDL_assert(false);
-			} break;
-			}
-		}
-	}
-
-	SDL_free(raw_chunk);
-}
-
 void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
 	int32_t x = r;
 	int32_t y = 0;
@@ -206,39 +117,6 @@ void LoadLevel(Context* ctx) {
 	SDL_free(file);
 }
 
-SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
-	Context* ctx = userdata;
-
-	char path[1024];
-	SDL_CHECK(SDL_snprintf(path, 1024, "%s%s", dirname, fname) >= 0);
-
-	SDL_PathInfo path_info;
-	SDL_CHECK(SDL_GetPathInfo(path, &path_info));
-	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
-		int32_t n_files;
-		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
-		if (n_files == 0) {
-			SDL_CHECK(SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx));
-		} else {
-			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
-				char aseprite_filepath[2048];
-				SDL_CHECK(SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]) >= 0);
-
-				uint32_t hash = HashString(aseprite_filepath, 0, ctx->seed);
-				SDL_Log("%s => %u", aseprite_filepath, hash);
-
-				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r"); SDL_CHECK(fs);
-				LoadSprite(ctx, fs);
-				SDL_CloseIO(fs);
-			}
-
-			SDL_free(files);
-		}
-	}
-		
-	return SDL_ENUM_CONTINUE;
-}
-
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
@@ -299,7 +177,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
 		ctx->nk.font.width = NK_TextWidthCallback;
-		bool ok = nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font); SDL_assert(ok);
+		const size_t MEM_SIZE = MEGABYTE(64);
+		void* mem = SDL_malloc(MEM_SIZE); SDL_CHECK(mem);
+		bool ok = nk_init_fixed(&ctx->nk.ctx, mem, MEM_SIZE, &ctx->nk.font); SDL_assert(ok);
 	}
 
 	// InitLevel
@@ -723,4 +603,133 @@ uint32_t HashString(char* key, int32_t len, uint32_t seed) {
 		len = (int32_t)SDL_strlen(key);
 	}
 	return nk_murmur_hash((const void*)key, len, seed);
+}
+
+void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash) {
+	(void)ctx;
+	(void)hash;
+
+	ASE_Header header;
+	SDL_ReadStructChecked(fs, &header);
+	SDL_assert(header.magic_number == 0xA5E0);
+
+	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
+	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk); // TODO: use an arena.
+
+	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+		ASE_Frame frame;
+		SDL_ReadStructChecked(fs, &frame);
+		SDL_assert(frame.magic_number == 0xF1FA);
+
+		// Would mean this aseprite file is very old.
+		SDL_assert(frame.n_chunks != 0);
+
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+			ASE_ChunkHeader chunk_header;
+			SDL_ReadStructChecked(fs, &chunk_header);
+			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
+			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+
+			switch (chunk_header.type) {
+			case ASE_CHUNK_TYPE_OLD_PALETTE: {
+			} break;
+			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+			} break;
+			case ASE_CHUNK_TYPE_LAYER: {
+				// TODO: tileset_idx and uuid
+				ASE_LayerChunk* chunk = raw_chunk;
+				(void)chunk;
+			} break;
+			case ASE_CHUNK_TYPE_CELL: {
+				ASE_CellChunk* chunk = raw_chunk;
+				(void)chunk;
+			} break;
+			case ASE_CHUNK_TYPE_CELL_EXTRA: {
+				ASE_CellChunk* chunk = raw_chunk;
+				(void)chunk;
+				ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
+				(void)chunk_extra;
+			} break;
+			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+				ASE_ColorProfileChunk* chunk = raw_chunk;
+				switch (chunk->type) {
+				case ASE_COLOR_PROFILE_TYPE_NONE: {
+
+				} break;
+				case ASE_COLOR_PROFILE_TYPE_SRGB: {
+
+				} break;
+				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+
+				} break;
+				default: {
+					SDL_assert(false);
+				} break;
+				}
+			} break;
+			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+			} break;
+			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+			} break;
+			case ASE_CHUNK_TYPE_PATH: {
+			} break;
+			case ASE_CHUNK_TYPE_TAGS: {
+			} break;
+			case ASE_CHUNK_TYPE_PALETTE: {
+			} break;
+			case ASE_CHUNK_TYPE_USER_DATA: {
+			} break;
+			case ASE_CHUNK_TYPE_SLICE: {
+			} break;
+			case ASE_CHUNK_TYPE_TILESET: {
+			} break;
+			default: {
+				SDL_assert(false);
+			} break;
+			}
+		}
+	}
+
+	SDL_free(raw_chunk);
+}
+
+SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
+	Context* ctx = userdata;
+
+	char path[1024];
+	SDL_CHECK(SDL_snprintf(path, 1024, "%s%s", dirname, fname) >= 0);
+
+	SDL_PathInfo path_info;
+	SDL_CHECK(SDL_GetPathInfo(path, &path_info));
+	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
+		int32_t n_files;
+		char** files = SDL_GlobDirectory(path, "*.aseprite", 0, &n_files);
+		if (n_files == 0) {
+			SDL_CHECK(SDL_EnumerateDirectory(path, EnumerateDirectoryCallback, ctx));
+		} else {
+			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
+				char aseprite_filepath[2048];
+				SDL_CHECK(SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]) >= 0);
+
+				uint32_t hash;
+				{
+					char prefix[] = "assets/"; size_t prefix_len = SDL_arraysize(prefix);
+					char suffix[] = ".aseprite"; size_t suffix_len = SDL_arraysize(suffix);
+					char* key = &aseprite_filepath[prefix_len-1]; int32_t key_len = (int32_t)(SDL_strlen(aseprite_filepath) - prefix_len - suffix_len + 1);
+					hash = HashString(key, key_len, ctx->seed);
+				}
+				SDL_Log("%s => %u", aseprite_filepath, hash);
+
+				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r"); SDL_CHECK(fs);
+				LoadSprite(ctx, fs, hash);
+				SDL_CloseIO(fs);
+			}
+
+			SDL_free(files);
+		}
+	}
+		
+	return SDL_ENUM_CONTINUE;
 }

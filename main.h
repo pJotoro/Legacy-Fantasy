@@ -112,6 +112,9 @@ void LoadLevel(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
+void LoadSprite(Context* ctx, SDL_IOStream* fs, uint32_t hash);
+SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
+
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
