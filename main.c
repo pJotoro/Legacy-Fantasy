@@ -49,7 +49,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-			SDL_CHECK(SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader)) == chunk_header.size - sizeof(ASE_ChunkHeader));
+			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
 			switch (chunk_header.type) {
 			case ASE_CHUNK_TYPE_OLD_PALETTE: {

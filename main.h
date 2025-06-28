@@ -22,6 +22,8 @@
 
 #define SDL_ReadStruct(S, STRUCT) SDL_ReadIO(S, (STRUCT), sizeof(*(STRUCT)))
 
+#define SDL_ReadIOChecked(S, P, SZ) SDL_CHECK(SDL_ReadIO(S, P, SZ) == SZ)
+
 typedef int64_t ssize_t;
 
 #define PLAYER_FRAME_COUNT 4
