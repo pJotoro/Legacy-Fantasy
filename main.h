@@ -13,13 +13,9 @@
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 
-#define SDL_LOG_ERROR() STMT( \
-	SDL_LogMessage(SDL_LOG_CATEGORY_ASSERT, SDL_LOG_PRIORITY_CRITICAL, "%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
-)
-
 #define SDL_CHECK(E) STMT( \
 	if (!(E)) { \
-		SDL_LOG_ERROR(); \
+		SDL_LogMessage(SDL_LOG_CATEGORY_ASSERT, SDL_LOG_PRIORITY_CRITICAL, "%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
 		SDL_TriggerBreakpoint(); \
 	} \
 )
@@ -122,7 +118,7 @@ uint32_t HashString(char* key, int32_t len, uint32_t seed);
 typedef struct SpriteNode {
 	char* key; // The same as the path, except with assets/ cut from the beginning and .aseprite cut from the end. The path doesn't have to be used again since the file has already been loaded, so this doesn't incur any cost.
 	uint32_t hash;
-	
+
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;
