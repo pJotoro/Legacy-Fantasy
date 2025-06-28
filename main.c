@@ -29,7 +29,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	(void)ctx;
 
 	ASE_Header header;
-	SDL_CHECK(SDL_ReadStruct(fs, &header) == sizeof(header));
+	SDL_ReadStructChecked(fs, &header);
 	SDL_assert(header.magic_number == 0xA5E0);
 
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
@@ -37,7 +37,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 
 	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
 		ASE_Frame frame;
-		SDL_CHECK(SDL_ReadStruct(fs, &frame) == sizeof(frame));
+		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
@@ -45,7 +45,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 
 		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
-			SDL_CHECK(SDL_ReadStruct(fs, &chunk_header) == sizeof(chunk_header));
+			SDL_ReadStructChecked(fs, &chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
