@@ -25,41 +25,31 @@ void ResetGame(Context* ctx) {
 	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), .size.y = (float)ctx->txtr_player_idle->h};
 }
 
-#ifdef SDL_CHECK
-#undef SDL_CHECK
-#endif
-#ifdef CHECK
-#undef CHECK
-#endif
-#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, false)
-#define CHECK(E) STMT(if (!E) { res = false; SDL_TriggerBreakpoint(); })
-
-bool LoadSprite(Context* ctx, SDL_IOStream* fs) {
+void LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	(void)ctx;
-	bool res = true;
 
 	ASE_Header header;
-	SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, header) == sizeof(header), res, false);
+	SDL_CHECK(SDL_ReadStruct(fs, header) == sizeof(header));
 	SDL_assert(header.magic_number == 0xA5E0);
 
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
-	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk);
+	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk); // TODO: use an area.
 
-	for (size_t frame_idx = 0; res && frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
 		ASE_Frame frame;
-		SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, frame) == sizeof(frame), res, false);
+		SDL_CHECK(SDL_ReadStruct(fs, frame) == sizeof(frame));
 		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.n_chunks != 0);
 
-		for (size_t chunk_idx = 0; res && chunk_idx < frame.n_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
-			SDL_CHECK_EXPLICIT(SDL_ReadStruct(fs, chunk_header) == sizeof(chunk_header), res, false);
+			SDL_CHECK(SDL_ReadStruct(fs, chunk_header) == sizeof(chunk_header));
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-			SDL_CHECK_EXPLICIT(SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader)) == chunk_header.size - sizeof(ASE_ChunkHeader), res, false);
+			SDL_CHECK(SDL_ReadIO(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader)) == chunk_header.size - sizeof(ASE_ChunkHeader));
 
 			switch (chunk_header.type) {
 			case ASE_CHUNK_TYPE_OLD_PALETTE: {
@@ -122,33 +112,29 @@ bool LoadSprite(Context* ctx, SDL_IOStream* fs) {
 	}
 
 	SDL_free(raw_chunk);
-	return res;
 }
 
 void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
 	int32_t x = r;
 	int32_t y = 0;
     
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
 
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
-    SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));
 
     int32_t point = 1 - r;
-    while (x > y)
-    { 
+    while (x > y) { 
         y += 1;
         
         if (point <= 0) {
 			point = point + 2*y + 1;
-        }
-        else
-        {
+        } else {
             x -= 1;
             point = point + 2*y - 2*x + 1;
         }
@@ -157,17 +143,16 @@ void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy
             break;
         }
 
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y));
-        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
         
-        if (x != y)
-        {
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x));
-	        SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x));   
+        if (x != y) {
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));   
         }
     }	
 }
@@ -181,9 +166,7 @@ void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
 	level->tiles[tile_y*level->w + tile_x] = tile;
 }
 
-bool LoadLevel(Context* ctx) {
-	bool res = true;
-
+void LoadLevel(Context* ctx) {
 	size_t file_size;
 	char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
 	ctx->level.h = 1;
@@ -221,24 +204,13 @@ bool LoadLevel(Context* ctx) {
 	}
 
 	SDL_free(file);
-	return res;
 }
-
-#ifdef SDL_CHECK
-#undef SDL_CHECK
-#endif
-#ifdef CHECK
-#undef CHECK
-#endif
-#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, SDL_ENUM_FAILURE)
-#define CHECK(E) STMT(if (!E) { res = SDL_ENUM_FAILURE; SDL_TriggerBreakpoint(); })
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
-	SDL_EnumerationResult res = SDL_ENUM_CONTINUE;
 
 	char path[1024];
-	SDL_CHECK_EXPLICIT(SDL_snprintf(path, 1024, "%s%s", dirname, fname) < 0, res, SDL_ENUM_FAILURE);
+	SDL_CHECK(SDL_snprintf(path, 1024, "%s%s", dirname, fname) >= 0);
 
 	SDL_PathInfo path_info;
 	SDL_CHECK(SDL_GetPathInfo(path, &path_info));
@@ -250,48 +222,31 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 				char aseprite_filepath[2048];
-				SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]);
+				SDL_CHECK(SDL_snprintf(aseprite_filepath, 2048, "%s\\%s", path, files[file_idx]) >= 0);
 
 				uint32_t hash = HashString(aseprite_filepath, 0, ctx->seed);
 				SDL_Log("%s => %u", aseprite_filepath, hash);
 
-				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r");
-				if (!fs) {
-					SDL_LOG_ERROR();
-					res = SDL_ENUM_FAILURE;
-				} else {
-					LoadSprite(ctx, fs);
-					SDL_CloseIO(fs);
-				}
+				SDL_IOStream* fs = SDL_IOFromFile(aseprite_filepath, "r"); SDL_CHECK(fs);
+				LoadSprite(ctx, fs);
+				SDL_CloseIO(fs);
 			}
 
 			SDL_free(files);
 		}
 	}
 		
-	return res;
+	return SDL_ENUM_CONTINUE;
 }
-
-#ifdef SDL_CHECK
-#undef SDL_CHECK
-#endif
-#ifdef CHECK
-#undef CHECK
-#endif
-#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, -1)
-#define CHECK(E) STMT(if (!E) { res = -1; SDL_TriggerBreakpoint(); })
 
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
 
-	int32_t res = 0;
-
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());
 
-	Context* ctx = SDL_malloc(sizeof(Context)); SDL_CHECK(ctx);
-	memset(ctx, 0, sizeof(Context));
+	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
 	// InitTime
 	{
@@ -344,14 +299,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
 		ctx->nk.font.width = NK_TextWidthCallback;
-		CHECK(nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font));
+		bool ok = nk_init_fixed(&ctx->nk.ctx, SDL_malloc(MEGABYTE(64)), MEGABYTE(64), &ctx->nk.font); SDL_assert(ok);
 	}
 
 	// InitLevel
 	{
-		if (!LoadLevel(ctx)) {
-			res = -1;
-		}
+		LoadLevel(ctx);
 
 		SDL_PathInfo info;
 		SDL_CHECK(SDL_GetPathInfo("level", &info));
@@ -368,7 +321,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	ResetGame(ctx);
 
 	ctx->running = true;
-	while (ctx->running && res == 0) {
+	while (ctx->running) {
 		nk_input_begin(&ctx->nk.ctx);
 
 		SDL_Event event;
@@ -492,9 +445,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_PathInfo info;
 			SDL_CHECK(SDL_GetPathInfo("level", &info));
 			if (info.modify_time != ctx->level.modify_time) {
-				if (LoadLevel(ctx)) {
-					ctx->level.modify_time = info.modify_time;
-				}
+				LoadLevel(ctx);
+				ctx->level.modify_time = info.modify_time;
 			}
 		}
 
@@ -687,9 +639,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderEnd
 		{
-			CHECK(NK_Render(ctx));
+			NK_Render(ctx);
 
-			SDL_CHECK(SDL_RenderPresent(ctx->renderer));
+			SDL_RenderPresent(ctx->renderer);
 
 			nk_clear(&ctx->nk.ctx);
 
@@ -719,7 +671,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CloseIO(fs);
 	}
 	
-	return res; 
+	return 0;
 }
 
 void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {

@@ -1,12 +1,3 @@
-#ifdef SDL_CHECK
-#undef SDL_CHECK
-#endif
-#ifdef CHECK
-#undef CHECK
-#endif
-#define SDL_CHECK(E) SDL_CHECK_EXPLICIT(!E, res, false)
-#define CHECK(E) STMT(if (!E) { res = false; SDL_TriggerBreakpoint(); })
-
 float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int32_t len) {
 	(void)height;
 	TTF_Font* font = handle.ptr;
@@ -20,14 +11,12 @@ float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int
 	return res;
 }
 
-bool NK_Render(Context* ctx) {
-	bool res = true;
-
+void NK_Render(Context* ctx) {
 	const struct nk_command* cmd = NULL;
 	nk_foreach(cmd, &ctx->nk.ctx) {
 		switch (cmd->type) {
 	        case NK_COMMAND_NOP: {
-	        	SDL_Log("NOP");
+	        	SDL_assert(false);
 	        } break;
 		    case NK_COMMAND_SCISSOR: {
 	        	const struct nk_command_scissor* c = (const struct nk_command_scissor*)cmd;
@@ -35,10 +24,10 @@ bool NK_Render(Context* ctx) {
 	        	SDL_CHECK(SDL_SetRenderClipRect(ctx->renderer, &clip));
 		    } break;
 		    case NK_COMMAND_LINE: {
-	        	SDL_Log("LINE");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_CURVE: {
-	        	SDL_Log("CURVE");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_RECT: {
 	        	const struct nk_command_rect* c = (const struct nk_command_rect*)cmd;
@@ -53,7 +42,7 @@ bool NK_Render(Context* ctx) {
 	        	SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		    } break;
 		    case NK_COMMAND_RECT_MULTI_COLOR: {
-	        	SDL_Log("RECT_MULTI_COLOR");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_CIRCLE: {
 	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
@@ -66,10 +55,10 @@ bool NK_Render(Context* ctx) {
 	        	DrawCircleFilled(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);	        	
 		    } break;
 		    case NK_COMMAND_ARC: {
-	        	SDL_Log("ARC");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_ARC_FILLED: {
-	        	SDL_Log("ARC_FILLED");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_TRIANGLE: {
 	        	const struct nk_command_triangle* c = (const struct nk_command_triangle*)cmd;
@@ -109,13 +98,13 @@ bool NK_Render(Context* ctx) {
 	        	SDL_CHECK(SDL_RenderGeometry(ctx->renderer, NULL, vertices, 3, NULL, 0));
 		    } break;
 		    case NK_COMMAND_POLYGON: {
-	        	SDL_Log("POLYGON");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_POLYGON_FILLED: {
-	        	SDL_Log("POLYGON_FILLED");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_POLYLINE: {
-	        	SDL_Log("POLYLINE");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_TEXT: {
 	        	const struct nk_command_text* c = (const struct nk_command_text*)cmd;
@@ -125,19 +114,16 @@ bool NK_Render(Context* ctx) {
 	        	TTF_DestroyText(text);
 		    } break;
 		    case NK_COMMAND_IMAGE: {
-	        	SDL_Log("IMAGE");
+	        	SDL_assert(false);
 		    } break;
 		    case NK_COMMAND_CUSTOM: {
-	        	SDL_Log("CUSTOM");
+	        	SDL_assert(false);
 		    } break;
 		}
 	}
-
-	if (res == SDL_APP_FAILURE) return false;
-	else return true;
 }
 
-bool NK_HandleEvent(Context* ctx, SDL_Event* event)
+void NK_HandleEvent(Context* ctx, SDL_Event* event)
 {
     int ctrl_down = SDL_GetModState() & (SDL_KMOD_LCTRL | SDL_KMOD_RCTRL);
 
@@ -187,9 +173,11 @@ bool NK_HandleEvent(Context* ctx, SDL_Event* event)
                             nk_input_key(&ctx->nk.ctx, NK_KEY_TEXT_WORD_RIGHT, down);
                         else nk_input_key(&ctx->nk.ctx, NK_KEY_RIGHT, down);
                         break;
+                    default:
+                    	SDL_assert(false);
                 }
             }
-            return true;
+            break;
 
         case SDL_EVENT_MOUSE_BUTTON_UP: /* MOUSEBUTTONUP & MOUSEBUTTONDOWN share same routine */
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
@@ -206,11 +194,11 @@ bool NK_HandleEvent(Context* ctx, SDL_Event* event)
                     case SDL_BUTTON_RIGHT:  nk_input_button(&ctx->nk.ctx, NK_BUTTON_RIGHT, x, y, down); break;
                 }
             }
-            return true;
+            break;
 
         case SDL_EVENT_MOUSE_MOTION:
             nk_input_motion(&ctx->nk.ctx, (int32_t)event->motion.x, (int32_t)event->motion.y);
-            return true;
+            break;
 
         case SDL_EVENT_TEXT_INPUT:
             {
@@ -218,11 +206,13 @@ bool NK_HandleEvent(Context* ctx, SDL_Event* event)
                 memcpy(glyph, event->text.text, NK_UTF_SIZE);
                 nk_input_glyph(&ctx->nk.ctx, glyph);
             }
-            return true;
+            break;
 
         case SDL_EVENT_MOUSE_WHEEL:
             nk_input_scroll(&ctx->nk.ctx,nk_vec2(event->wheel.x, event->wheel.y));
-            return true;
-    }
-    return false;
+            break;
+
+        default:
+        	SDL_assert(false);
+    }  
 }

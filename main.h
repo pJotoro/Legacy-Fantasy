@@ -14,13 +14,12 @@
 #define FLAG(X) (1u << X##u)
 
 #define SDL_LOG_ERROR() STMT( \
-	SDL_Log("%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
+	SDL_LogMessage(SDL_LOG_CATEGORY_ASSERT, SDL_LOG_PRIORITY_CRITICAL, "%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
 )
 
-#define SDL_CHECK_EXPLICIT(E, VAR, VAL) STMT( \
-	if ((E)) { \
+#define SDL_CHECK(E) STMT( \
+	if (!(E)) { \
 		SDL_LOG_ERROR(); \
-		VAR = (VAL); \
 		SDL_TriggerBreakpoint(); \
 	} \
 )
@@ -110,12 +109,12 @@ typedef struct Context {
 } Context;
 
 void ResetGame(Context* ctx);
-bool LoadLevel(Context* ctx);
+void LoadLevel(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
-bool NK_HandleEvent(Context* ctx, SDL_Event* event);
-bool NK_Render(Context* ctx);
+void NK_HandleEvent(Context* ctx, SDL_Event* event);
+void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
 
 uint32_t HashString(char* key, int32_t len, uint32_t seed);
