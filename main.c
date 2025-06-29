@@ -554,15 +554,15 @@ void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, cons
 	int32_t x = r;
 	int32_t y = 0;
     
-    SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y));
-    SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y));
-    SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y));
-    SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
 
-    SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x));
-    SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x));
-    SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x));
-    SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));
 
     int32_t point = 1 - r;
     while (x > y)
@@ -582,17 +582,17 @@ void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, cons
             break;
         }
 
-        SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y));
-        SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y));
-        SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y));
-        SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
         
         if (x != y)
         {
-	        SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x));
-	        SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x));
-	        SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x));
-	        SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x));   
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));   
         }
     }	
 
