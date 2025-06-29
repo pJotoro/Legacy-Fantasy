@@ -609,7 +609,6 @@ void LoadSprite(Context* ctx, char* path, size_t path_len) {
 	(void)ctx;
 	
 	uint32_t hash = HashString(path, (int32_t)path_len, ctx->seed);
-	SDL_Log("%s => %u", path, hash);
 
 	SpriteNode* sprite_node = SDL_calloc(1, sizeof(SpriteNode)); SDL_CHECK(sprite_node);
 	sprite_node->path = path;
