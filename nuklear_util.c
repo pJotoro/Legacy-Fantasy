@@ -174,7 +174,7 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
                         else nk_input_key(&ctx->nk.ctx, NK_KEY_RIGHT, down);
                         break;
                     default:
-                    	SDL_assert(false);
+                    	break;
                 }
             }
             break;
@@ -213,6 +213,6 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
             break;
 
         default:
-        	SDL_assert(false);
+        	break;
     }  
 }

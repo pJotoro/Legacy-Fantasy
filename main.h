@@ -90,7 +90,6 @@ typedef struct SpriteNode {
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;
-	
 } SpriteNode;
 
 typedef struct Context {
