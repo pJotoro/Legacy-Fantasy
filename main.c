@@ -332,8 +332,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// UpdateUI
 		{
-			if (nk_begin(&ctx->nk.ctx, "Show", nk_rect(10, 10, 500, 220),
-			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE)) {
+			if (nk_begin(&ctx->nk.ctx, "Variables", nk_rect(10, 10, 500, 220),
+			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_TITLE)) {
 				{
 					float height = 20.0f;
 					int cols = 2;
