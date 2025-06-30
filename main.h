@@ -83,9 +83,10 @@ typedef struct Sprite {
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;
+	bool initialized;
 } Sprite;
 
-#define MAX_SPRITES 1024
+#define MAX_SPRITES 256
 
 typedef struct Context {
 	SDL_Window* window;
@@ -117,6 +118,9 @@ typedef struct Context {
 
 	Sprite sprites[MAX_SPRITES];
 	size_t sprite_idx;
+
+	size_t n_collisions;
+	size_t n_sprites;
 } Context;
 
 void ResetGame(Context* ctx);

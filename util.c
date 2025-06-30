@@ -38,3 +38,92 @@ FORCEINLINE bool RectsIntersect(Level* level, Rect a, Rect b) {
 	return ((a.pos.x < (b.pos.x + b.area.x) && (a.pos.x + a.area.x) > b.pos.x) && (a.pos.y < (b.pos.y + b.area.y) && (a.pos.y + a.area.y) > b.pos.y));
 }
 
+void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+	int32_t x = r;
+	int32_t y = 0;
+    
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
+
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
+    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));
+
+    int32_t point = 1 - r;
+    while (x > y)
+    { 
+        y += 1;
+        
+        if (point <= 0) {
+			point = point + 2*y + 1;
+        }
+        else
+        {
+            x -= 1;
+            point = point + 2*y - 2*x + 1;
+        }
+        
+        if (x < y) {
+            break;
+        }
+
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
+        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
+        
+        if (x != y)
+        {
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
+	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));   
+        }
+    }	
+}
+
+void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
+	int32_t x = r;
+	int32_t y = 0;
+    
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
+
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
+    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));
+
+    int32_t point = 1 - r;
+    while (x > y) { 
+        y += 1;
+        
+        if (point <= 0) {
+			point = point + 2*y + 1;
+        } else {
+            x -= 1;
+            point = point + 2*y - 2*x + 1;
+        }
+        
+        if (x < y) {
+            break;
+        }
+
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
+        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
+        
+        if (x != y) {
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
+	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));   
+        }
+    }	
+}

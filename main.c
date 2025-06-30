@@ -18,103 +18,12 @@
 
 #include "variables.c"
 #include "util.c"
+#include "level.c"
 #include "nuklear_util.c"
 
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), .size.y = (float)ctx->txtr_player_idle->h};
-}
-
-void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
-	int32_t x = r;
-	int32_t y = 0;
-    
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
-
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
-    SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));
-
-    int32_t point = 1 - r;
-    while (x > y) { 
-        y += 1;
-        
-        if (point <= 0) {
-			point = point + 2*y + 1;
-        } else {
-            x -= 1;
-            point = point + 2*y - 2*x + 1;
-        }
-        
-        if (x < y) {
-            break;
-        }
-
-        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy + y)));
-        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy + y)));
-        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + x), (float)(cy - y)));
-        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - x), (float)(cy - y)));
-        
-        if (x != y) {
-	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy + x)));
-	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy + x)));
-	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx + y), (float)(cy - x)));
-	        SDL_CHECK(SDL_RenderLine(renderer, (float)cx, (float)cy, (float)(cx - y), (float)(cy - x)));   
-        }
-    }	
-}
-
-TileType GetTile(Level* level, size_t tile_x, size_t tile_y) {
-	return level->tiles[tile_y*level->w + tile_x];
-}
-
-void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile) {
-	SDL_assert(tile_x < level->w && tile_y < level->h);
-	level->tiles[tile_y*level->w + tile_x] = tile;
-}
-
-void LoadLevel(Context* ctx) {
-	size_t file_size;
-	char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
-	ctx->level.h = 1;
-	for (size_t file_i = 0, x = 0; file_i < file_size;) {
-		x += 1;
-		if (file[file_i] == '\r') {
-			file_i += 2;
-			ctx->level.w = SDL_max(x, ctx->level.w);
-			x = 0;
-			ctx->level.h += 1;
-		} else {
-			file_i += 1;
-		}
-	}
-
-	ctx->level.tiles = SDL_malloc(sizeof(TileType) * ctx->level.w * ctx->level.h); SDL_CHECK(ctx->level.tiles);
-	for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
-		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-	}
-	// SDL_memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
-
-	for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
-		for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-			if (file[file_i] == '\r') {
-				file_i += 2;
-				break;
-			}
-			switch (file[file_i]) {
-			case '1':
-				SetTile(&ctx->level, tile_x, tile_y, TILE_TYPE_GROUND);
-				break;
-			}
-			file_i += 1;
-		}
-	}
-
-	SDL_free(file);
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -562,54 +471,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	return 0;
 }
 
-void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
-	int32_t x = r;
-	int32_t y = 0;
-    
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
-
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
-    SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));
-
-    int32_t point = 1 - r;
-    while (x > y)
-    { 
-        y += 1;
-        
-        if (point <= 0) {
-			point = point + 2*y + 1;
-        }
-        else
-        {
-            x -= 1;
-            point = point + 2*y - 2*x + 1;
-        }
-        
-        if (x < y) {
-            break;
-        }
-
-        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy + y)));
-        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy + y)));
-        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + x), (float)(cy - y)));
-        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - x), (float)(cy - y)));
-        
-        if (x != y)
-        {
-	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy + x)));
-	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy + x)));
-	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx + y), (float)(cy - x)));
-	        SDL_CHECK(SDL_RenderPoint(renderer, (float)(cx - y), (float)(cy - x)));   
-        }
-    }	
-
-}
-
 uint32_t HashString(char* key, int32_t len, uint32_t seed) {
 	if (len == 0) {
 		len = (int32_t)SDL_strlen(key);
@@ -647,8 +508,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					sprite_idx = (size_t)(hash & (MAX_SPRITES - 1));
 				}
 				Sprite* sprite = &ctx->sprites[sprite_idx];
-				if (sprite->texture) {
+				if (sprite->initialized) {
 					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
+					ctx->n_collisions += 1;
 					continue;
 				}
 
@@ -788,6 +650,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 						}
 					}
 				}
+
+				ctx->n_sprites += 1;
+				sprite->initialized = true;
 
 				SDL_CloseIO(fs);
 			}
