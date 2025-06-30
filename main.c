@@ -117,6 +117,30 @@ void LoadLevel(Context* ctx) {
 	SDL_free(file);
 }
 
+void NextSprite(Context* ctx, SpriteNode* sprite_node) {
+	ctx->render_sprite_node = sprite_node;
+	if (!ctx->render_sprite_node) {
+		ctx->render_sprite_node = ctx->sprite_head;
+	}
+	char path[2048];
+	char ext[] = ".aseprite"; size_t ext_len = SDL_arraysize(ext);
+	SDL_memcpy(path, ctx->render_sprite_node->path, ctx->render_sprite_node->path_len - ext_len + 1);
+	if (ctx->render_sprite_node->n_frames > 1) {
+		SDL_strlcpy(&path[ctx->render_sprite_node->path_len - ext_len + 1], "-Sheet.png", sizeof(path));
+	} else {
+		SDL_strlcpy(&path[ctx->render_sprite_node->path_len - ext_len + 1], ".png", sizeof(path));
+	}
+	SDL_Log("%s", path);
+
+	if (ctx->render_sprite_texture) {
+		SDL_DestroyTexture(ctx->render_sprite_texture);
+	}
+	ctx->render_sprite_texture = IMG_LoadTexture(ctx->renderer, path);
+	if (!ctx->render_sprite_texture) {
+		NextSprite(ctx, ctx->render_sprite_node->next); // TODO: This is a crazy workaround. Fix this!
+	}
+}
+
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
@@ -197,6 +221,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
+	NextSprite(ctx, ctx->sprite_head);
 
 	ResetGame(ctx);
 
@@ -211,6 +236,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key) {
+				case SDLK_SPACE:
+					NextSprite(ctx, ctx->render_sprite_node->next);
+					break;
 				case SDLK_ESCAPE:
 					ctx->running = false;
 					break;
@@ -494,11 +522,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			
-			// SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
-			// SDL_FRect rect = { (float)(rw/2), (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
-			// SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
-
 			SDL_FRect src = { (float)(ctx->player.frame*PLAYER_FRAME_WIDTH), 0.0f, (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
 			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, &src, &dst));
@@ -515,6 +538,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 				}
 			}
+		}
+
+		// RenderSelectedTexture
+		{
+			SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->render_sprite_node->w, (float)ctx->render_sprite_node->h };
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->render_sprite_texture, NULL, &dst));
 		}
 
 		// RenderEnd

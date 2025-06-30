@@ -122,6 +122,9 @@ typedef struct Context {
 
 	SpriteNode* sprite_head;
 	SpriteNode* sprite_tail;
+
+	SpriteNode* render_sprite_node;
+	SDL_Texture* render_sprite_texture;
 } Context;
 
 void ResetGame(Context* ctx);
