@@ -78,19 +78,14 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 
-typedef struct SpriteNode {
-	struct SpriteNode* prev;
-	struct SpriteNode* next;
-
-	char* path;
-	size_t path_len;
-
-	uint32_t hash;
-
+typedef struct Sprite {
+	SDL_Texture* texture;
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;
-} SpriteNode;
+} Sprite;
+
+#define MAX_SPRITES 1024
 
 typedef struct Context {
 	SDL_Window* window;
@@ -120,11 +115,8 @@ typedef struct Context {
 
 	bool running;
 
-	SpriteNode* sprite_head;
-	SpriteNode* sprite_tail;
-
-	SpriteNode* render_sprite_node;
-	SDL_Texture* render_sprite_texture;
+	Sprite sprites[MAX_SPRITES];
+	size_t sprite_idx;
 } Context;
 
 void ResetGame(Context* ctx);

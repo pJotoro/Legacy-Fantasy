@@ -117,30 +117,6 @@ void LoadLevel(Context* ctx) {
 	SDL_free(file);
 }
 
-void NextSprite(Context* ctx, SpriteNode* sprite_node) {
-	ctx->render_sprite_node = sprite_node;
-	if (!ctx->render_sprite_node) {
-		ctx->render_sprite_node = ctx->sprite_head;
-	}
-	char path[2048];
-	char ext[] = ".aseprite"; size_t ext_len = SDL_arraysize(ext);
-	SDL_memcpy(path, ctx->render_sprite_node->path, ctx->render_sprite_node->path_len - ext_len + 1);
-	if (ctx->render_sprite_node->n_frames > 1) {
-		SDL_strlcpy(&path[ctx->render_sprite_node->path_len - ext_len + 1], "-Sheet.png", sizeof(path));
-	} else {
-		SDL_strlcpy(&path[ctx->render_sprite_node->path_len - ext_len + 1], ".png", sizeof(path));
-	}
-	SDL_Log("%s", path);
-
-	if (ctx->render_sprite_texture) {
-		SDL_DestroyTexture(ctx->render_sprite_texture);
-	}
-	ctx->render_sprite_texture = IMG_LoadTexture(ctx->renderer, path);
-	if (!ctx->render_sprite_texture) {
-		NextSprite(ctx, ctx->render_sprite_node->next); // TODO: This is a crazy workaround. Fix this!
-	}
-}
-
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
@@ -221,7 +197,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
-	NextSprite(ctx, ctx->sprite_head);
+	while (!ctx->sprites[ctx->sprite_idx].texture) {
+		ctx->sprite_idx += 1;
+	}
 
 	ResetGame(ctx);
 
@@ -237,7 +215,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key) {
 				case SDLK_SPACE:
-					NextSprite(ctx, ctx->render_sprite_node->next);
+					do {
+						ctx->sprite_idx += 1;
+						if (ctx->sprite_idx >= MAX_SPRITES) {
+							ctx->sprite_idx = 0;
+						}
+					} while (!ctx->sprites[ctx->sprite_idx].texture);
 					break;
 				case SDLK_ESCAPE:
 					ctx->running = false;
@@ -542,8 +525,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderSelectedTexture
 		{
-			SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->render_sprite_node->w, (float)ctx->render_sprite_node->h };
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->render_sprite_texture, NULL, &dst));
+			SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->sprites[ctx->sprite_idx].w, (float)ctx->sprites[ctx->sprite_idx].h };
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
 		}
 
 		// RenderEnd
@@ -634,159 +617,11 @@ uint32_t HashString(char* key, int32_t len, uint32_t seed) {
 	return nk_murmur_hash((const void*)key, len, seed);
 }
 
-void LoadSprite(Context* ctx, char* path, size_t path_len) {
-	(void)ctx;
-	
-	uint32_t hash = HashString(path, (int32_t)path_len, ctx->seed);
-
-	SpriteNode* sprite_node = SDL_calloc(1, sizeof(SpriteNode)); SDL_CHECK(sprite_node);
-	sprite_node->path = path;
-	sprite_node->path_len = path_len;
-	sprite_node->hash = hash;
-
-	SDL_assert((!ctx->sprite_head && !ctx->sprite_tail) || (ctx->sprite_head && ctx->sprite_tail));
-	if (!ctx->sprite_head) {
-		ctx->sprite_head = sprite_node;
-		ctx->sprite_tail = sprite_node;
-	} else if (ctx->sprite_head == ctx->sprite_tail) {
-		SDL_assert(sprite_node->hash != ctx->sprite_head->hash);
-		if (sprite_node->hash > ctx->sprite_head->hash) {
-			ctx->sprite_tail = sprite_node;
-		} else {
-			ctx->sprite_head = sprite_node;
-		}
-		ctx->sprite_tail->prev = ctx->sprite_head;
-		ctx->sprite_head->next = ctx->sprite_tail;
-	} else if (sprite_node->hash < ctx->sprite_head->hash) {
-		sprite_node->next = ctx->sprite_head;
-		ctx->sprite_head->prev = sprite_node;
-		ctx->sprite_head = sprite_node;
-	} else if (sprite_node->hash > ctx->sprite_tail->hash) {
-		sprite_node->prev = ctx->sprite_tail;
-		ctx->sprite_tail->next = sprite_node;
-		ctx->sprite_tail = sprite_node;
-	} else {
-		for (SpriteNode* cur = ctx->sprite_head; cur; cur = cur->next) {
-			SDL_assert(sprite_node->hash != cur->hash);
-			if (sprite_node->hash < cur->hash) {
-				sprite_node->prev = cur->prev;
-				sprite_node->next = cur;
-				sprite_node->prev->next = sprite_node;
-				cur->prev = sprite_node;
-				break;
-			}
-		}
-	}
-
-	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); SDL_CHECK(fs);
-
-	ASE_Header header;
-	SDL_ReadStructChecked(fs, &header);
-	SDL_assert(header.magic_number == 0xA5E0);
-
-	sprite_node->n_frames = header.n_frames;
-
-	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
-	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk); // TODO: use an arena.
-
-	for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
-		ASE_Frame frame;
-		SDL_ReadStructChecked(fs, &frame);
-		SDL_assert(frame.magic_number == 0xF1FA);
-
-		// Would mean this aseprite file is very old.
-		SDL_assert(frame.n_chunks != 0);
-
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
-			ASE_ChunkHeader chunk_header;
-			SDL_ReadStructChecked(fs, &chunk_header);
-			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-			SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
-
-			switch (chunk_header.type) {
-			case ASE_CHUNK_TYPE_OLD_PALETTE: {
-			} break;
-			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
-			} break;
-			case ASE_CHUNK_TYPE_LAYER: {
-				// TODO: tileset_idx and uuid
-				ASE_LayerChunk* chunk = raw_chunk;
-				(void)chunk;
-			} break;
-			case ASE_CHUNK_TYPE_CELL: {
-				ASE_CellChunk* chunk = raw_chunk;
-				switch (chunk->type) {
-				case ASE_CELL_TYPE_RAW: {
-					sprite_node->w = chunk->raw.w;
-					sprite_node->h = chunk->raw.h;
-				} break;
-				case ASE_CELL_TYPE_LINKED: {
-
-				} break;
-				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-					sprite_node->w = chunk->compressed_image.w;
-					sprite_node->h = chunk->compressed_image.h;
-				} break;
-				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
-					sprite_node->w = chunk->compressed_image.w;
-					sprite_node->h = chunk->compressed_image.h;					
-				} break;
-				}
-			} break;
-			case ASE_CHUNK_TYPE_CELL_EXTRA: {
-				ASE_CellChunk* chunk = raw_chunk;
-				(void)chunk;
-				ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
-				(void)chunk_extra;
-			} break;
-			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
-				ASE_ColorProfileChunk* chunk = raw_chunk;
-				switch (chunk->type) {
-				case ASE_COLOR_PROFILE_TYPE_NONE: {
-
-				} break;
-				case ASE_COLOR_PROFILE_TYPE_SRGB: {
-
-				} break;
-				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
-
-				} break;
-				default: {
-					SDL_assert(false);
-				} break;
-				}
-			} break;
-			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
-			} break;
-			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
-			} break;
-			case ASE_CHUNK_TYPE_PATH: {
-			} break;
-			case ASE_CHUNK_TYPE_TAGS: {
-			} break;
-			case ASE_CHUNK_TYPE_PALETTE: {
-			} break;
-			case ASE_CHUNK_TYPE_USER_DATA: {
-			} break;
-			case ASE_CHUNK_TYPE_SLICE: {
-			} break;
-			case ASE_CHUNK_TYPE_TILESET: {
-			} break;
-			default: {
-				SDL_assert(false);
-			} break;
-			}
-		}
-	}
-
-	SDL_free(raw_chunk);
-	SDL_CloseIO(fs);
-}
-
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
+
+	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
+	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk);
 
 	char dir_path[1024];
 	SDL_CHECK(SDL_snprintf(dir_path, 1024, "%s%s", dirname, fname) >= 0);
@@ -800,23 +635,167 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
 		} else {
 			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
-				char* sprite_path;
-				size_t sprite_path_len;
+				char* file = files[file_idx];
+
+				const char begin[] = "assets\\"; size_t begin_len = SDL_arraysize(begin);
+				const char end[] = ".aseprite"; size_t end_len = SDL_arraysize(end);
+
+				size_t sprite_idx;
 				{
-					char buf[2048];
-					SDL_CHECK(SDL_snprintf(buf, 2048, "%s\\%s", dir_path, files[file_idx]) >= 0);
-					sprite_path_len = SDL_strlen(buf);
-					sprite_path = SDL_malloc(sprite_path_len + 1); SDL_CHECK(sprite_path);
-					SDL_strlcpy(sprite_path, buf, sprite_path_len + 1);
+					char* key = &file[begin_len]; size_t key_len = SDL_strlen(file) - end_len;
+					uint32_t hash = HashString(key, (int32_t)key_len, ctx->seed);
+					sprite_idx = (size_t)(hash & (MAX_SPRITES - 1));
+				}
+				Sprite* sprite = &ctx->sprites[sprite_idx];
+				if (sprite->texture) {
+					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
+					continue;
 				}
 
-				LoadSprite(ctx, sprite_path, sprite_path_len);
-				
+				SDL_IOStream* fs;
+				ASE_Header header;
+				{
+					char sprite_path[2048];
+					SDL_CHECK(SDL_snprintf(sprite_path, 2048, "%s\\%s", dir_path, files[file_idx]) >= 0);
+					fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
+
+					SDL_ReadStructChecked(fs, &header);
+					SDL_assert(header.magic_number == 0xA5E0);
+					sprite->n_frames = header.n_frames;
+
+					size_t sprite_path_len = SDL_strlen(sprite_path);
+					
+					if (sprite->n_frames == 1) {
+						size_t end_idx = sprite_path_len - end_len + 1;
+
+						sprite_path[end_idx+1] = 'p';
+						sprite_path[end_idx+2] = 'n';
+						sprite_path[end_idx+3] = 'g';
+						sprite_path[end_idx+4] = '\0';
+					} else {
+						size_t end_idx = sprite_path_len - end_len;
+
+						sprite_path[end_idx+1] = '-';
+						sprite_path[end_idx+2] = 'S';
+						sprite_path[end_idx+3] = 'h';
+						sprite_path[end_idx+4] = 'e';						
+						sprite_path[end_idx+5] = 'e';						
+						sprite_path[end_idx+6] = 't';						
+						sprite_path[end_idx+7] = '.';						
+						sprite_path[end_idx+8] = 'p';						
+						sprite_path[end_idx+9] = 'n';						
+						sprite_path[end_idx+10] = 'g';						
+						sprite_path[end_idx+11] = '\0';						
+					}
+
+					sprite->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
+					if (!sprite->texture) {
+						SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
+						SDL_CloseIO(fs);
+						*sprite = (Sprite){0};
+						continue;
+					}
+				}
+
+				for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+					ASE_Frame frame;
+					SDL_ReadStructChecked(fs, &frame);
+					SDL_assert(frame.magic_number == 0xF1FA);
+
+					// Would mean this aseprite file is very old.
+					SDL_assert(frame.n_chunks != 0);
+
+					for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+						ASE_ChunkHeader chunk_header;
+						SDL_ReadStructChecked(fs, &chunk_header);
+						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+						SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
+						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+
+						switch (chunk_header.type) {
+						case ASE_CHUNK_TYPE_OLD_PALETTE: {
+						} break;
+						case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+						} break;
+						case ASE_CHUNK_TYPE_LAYER: {
+							// TODO: tileset_idx and uuid
+							ASE_LayerChunk* chunk = raw_chunk;
+							(void)chunk;
+						} break;
+						case ASE_CHUNK_TYPE_CELL: {
+							ASE_CellChunk* chunk = raw_chunk;
+							switch (chunk->type) {
+							case ASE_CELL_TYPE_RAW: {
+								sprite->w = chunk->raw.w;
+								sprite->h = chunk->raw.h;
+							} break;
+							case ASE_CELL_TYPE_LINKED: {
+
+							} break;
+							case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
+								sprite->w = chunk->compressed_image.w;
+								sprite->h = chunk->compressed_image.h;
+							} break;
+							case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
+								sprite->w = chunk->compressed_image.w;
+								sprite->h = chunk->compressed_image.h;					
+							} break;
+							}
+						} break;
+						case ASE_CHUNK_TYPE_CELL_EXTRA: {
+							ASE_CellChunk* chunk = raw_chunk;
+							(void)chunk;
+							ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
+							(void)chunk_extra;
+						} break;
+						case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+							ASE_ColorProfileChunk* chunk = raw_chunk;
+							switch (chunk->type) {
+							case ASE_COLOR_PROFILE_TYPE_NONE: {
+
+							} break;
+							case ASE_COLOR_PROFILE_TYPE_SRGB: {
+
+							} break;
+							case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+
+							} break;
+							default: {
+								SDL_assert(false);
+							} break;
+							}
+						} break;
+						case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+						} break;
+						case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+						} break;
+						case ASE_CHUNK_TYPE_PATH: {
+						} break;
+						case ASE_CHUNK_TYPE_TAGS: {
+						} break;
+						case ASE_CHUNK_TYPE_PALETTE: {
+						} break;
+						case ASE_CHUNK_TYPE_USER_DATA: {
+						} break;
+						case ASE_CHUNK_TYPE_SLICE: {
+						} break;
+						case ASE_CHUNK_TYPE_TILESET: {
+						} break;
+						default: {
+							SDL_assert(false);
+						} break;
+						}
+					}
+				}
+
+				SDL_CloseIO(fs);
 			}
 
 			SDL_free(files);
 		}
 	}
 		
+	SDL_free(raw_chunk);
 	return SDL_ENUM_CONTINUE;
 }
