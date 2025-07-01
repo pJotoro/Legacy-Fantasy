@@ -121,6 +121,8 @@ typedef struct Context {
 
 	size_t n_collisions;
 	size_t n_sprites;
+
+	bool show_ui;
 } Context;
 
 void ResetGame(Context* ctx);
@@ -134,5 +136,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
+void NK_UpdateUI(struct nk_context* ctx);
 
 size_t HashString(char* key, size_t len, size_t seed);

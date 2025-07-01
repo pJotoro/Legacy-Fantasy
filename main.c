@@ -127,6 +127,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key) {
+				case SDLK_0:
+					ctx->show_ui = !ctx->show_ui;
+					break;
 				case SDLK_SPACE:
 					do {
 						ctx->sprite_idx += 1;
@@ -254,35 +257,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// UpdateUI
-		{
-			if (nk_begin(&ctx->nk.ctx, "Variables", nk_rect(10, 10, 500, 220),
-			    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_TITLE)) {
-				{
-					float height = 20.0f;
-					int cols = 2;
-				    nk_layout_row_dynamic(&ctx->nk.ctx, height, cols);
-				}
-
-				#define nk_varf(ctx, var, min, max, incr) STMT( \
-					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
-					nk_slider_float(ctx, min, &var, max, incr); \
-				)
-				#define nk_vari(ctx, var, min, max, incr) STMT( \
-					nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %d), var); \
-					nk_slider_int(ctx, min, &var, max, incr); \
-				)
-				nk_varf(&ctx->nk.ctx, GRAVITY, 0.0f, 1.0f, 0.01f);
-				nk_varf(&ctx->nk.ctx, PLAYER_ACC, 0.0f, 1.0f, 0.01f);
-				nk_varf(&ctx->nk.ctx, PLAYER_FRIC, 0.0f, 1.0f, 0.01f);
-				nk_varf(&ctx->nk.ctx, PLAYER_MAX_VEL, 0.0f, 10.0f, 0.1f);
-				nk_varf(&ctx->nk.ctx, PLAYER_JUMP, 0.0f, 30.0f, 0.5f);
-				nk_varf(&ctx->nk.ctx, PLAYER_BOUNCE, 0.0f, 1.0f, 0.01f);
-				nk_vari(&ctx->nk.ctx, TILE_SIZE, 0, 256, 2);
-				nk_vari(&ctx->nk.ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
-			}
-			nk_end(&ctx->nk.ctx);
-		}
+		//if (ctx->show_ui) {
+			NK_UpdateUI(&ctx->nk.ctx);
+		//}
 
 		// PlayerAnimation
 		{
@@ -509,7 +486,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 				ctx->n_collisions += 1;
 				continue;
 			} else {
-				SDL_Log("No collision: %s", file);
+				// SDL_Log("No collision: %s", file);
 			}
 
 			SDL_IOStream* fs;

@@ -216,3 +216,41 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
         	break;
     }  
 }
+
+void NK_UpdateUI(struct nk_context* ctx) {
+	if (nk_begin(ctx, "UI", nk_rect(10, 10, 500, 220),
+	    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_MINIMIZABLE)) {
+		float group_height = 200.0f;
+		int group_cols = 1;
+	    nk_layout_row_dynamic(ctx, group_height, group_cols);
+
+		if (nk_group_begin(ctx, "Variables", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
+			{
+				float height = 20.0f;
+				int cols = 2;
+			    nk_layout_row_dynamic(ctx, height, cols);
+			}
+
+			#define nk_varf(ctx, var, min, max, incr) STMT( \
+				nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
+				nk_slider_float(ctx, min, &var, max, incr); \
+			)
+			#define nk_vari(ctx, var, min, max, incr) STMT( \
+				nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %d), var); \
+				nk_slider_int(ctx, min, &var, max, incr); \
+			)
+			nk_varf(ctx, GRAVITY, 0.0f, 1.0f, 0.01f);
+			nk_varf(ctx, PLAYER_ACC, 0.0f, 1.0f, 0.01f);
+			nk_varf(ctx, PLAYER_FRIC, 0.0f, 1.0f, 0.01f);
+			nk_varf(ctx, PLAYER_MAX_VEL, 0.0f, 10.0f, 0.1f);
+			nk_varf(ctx, PLAYER_JUMP, 0.0f, 30.0f, 0.5f);
+			nk_varf(ctx, PLAYER_BOUNCE, 0.0f, 1.0f, 0.01f);
+			nk_vari(ctx, TILE_SIZE, 0, 256, 2);
+			nk_vari(ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
+			
+			nk_group_end(ctx);
+		}
+	}
+	nk_end(ctx);
+
+}
