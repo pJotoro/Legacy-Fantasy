@@ -217,19 +217,19 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
     }  
 }
 
-void NK_UpdateUI(struct nk_context* ctx) {
+void NK_UpdateUI(Context* gctx) {
+	struct nk_context* ctx = &gctx->nk.ctx;
+
 	if (nk_begin(ctx, "UI", nk_rect(10, 10, 500, 220),
 	    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_MINIMIZABLE)) {
-		float group_height = 200.0f;
-		int group_cols = 1;
-	    nk_layout_row_dynamic(ctx, group_height, group_cols);
+		float height = 200.0f;
+		int cols = 1;
+	    nk_layout_row_dynamic(ctx, height, cols);
 
 		if (nk_group_begin(ctx, "Variables", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
-			{
-				float height = 20.0f;
-				int cols = 2;
-			    nk_layout_row_dynamic(ctx, height, cols);
-			}
+			float height = 20.0f;
+			int cols = 2;
+		    nk_layout_row_dynamic(ctx, height, cols);
 
 			#define nk_varf(ctx, var, min, max, incr) STMT( \
 				nk_labelf(ctx, NK_TEXT_LEFT, STRINGIFY(var: %f), var); \
@@ -248,6 +248,32 @@ void NK_UpdateUI(struct nk_context* ctx) {
 			nk_vari(ctx, TILE_SIZE, 0, 256, 2);
 			nk_vari(ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
 			
+			nk_group_end(ctx);
+		}
+
+		if (nk_group_begin(ctx, "Sprites", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
+			float height = 70.0f;
+			int cols = 1;
+		    nk_layout_row_dynamic(ctx, height, cols);
+
+			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+				Sprite* sprite = &gctx->sprites[sprite_idx];
+				if (sprite->initialized) {
+					if (nk_group_begin(ctx, sprite->path, NK_WINDOW_TITLE|NK_WINDOW_NO_SCROLLBAR)) {
+						float height = 20.0f;
+						int item_width = 80;
+						int cols = 3;
+						nk_layout_row_static(ctx, height, item_width, cols);
+
+						nk_value_uint(ctx, "w", sprite->w);
+						nk_value_uint(ctx, "h", sprite->h);
+						nk_value_uint(ctx, "frames", sprite->n_frames);
+
+						nk_group_end(ctx);
+					}
+				}
+			}
+
 			nk_group_end(ctx);
 		}
 	}

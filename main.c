@@ -53,7 +53,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#ifndef _DEBUG
+#if 1
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -258,7 +258,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		//if (ctx->show_ui) {
-			NK_UpdateUI(&ctx->nk.ctx);
+			NK_UpdateUI(ctx);
 		//}
 
 		// PlayerAnimation
@@ -415,8 +415,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderSelectedTexture
 		{
-			SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->sprites[ctx->sprite_idx].w, (float)ctx->sprites[ctx->sprite_idx].h };
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
+			// SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->sprites[ctx->sprite_idx].w, (float)ctx->sprites[ctx->sprite_idx].h };
+			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
 		}
 
 		// RenderEnd
@@ -489,6 +489,12 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 				// SDL_Log("No collision: %s", file);
 			}
 
+			{
+				size_t buf_len = SDL_strlen(sprite_path) + 1;
+				sprite->path = SDL_malloc(buf_len);
+				SDL_strlcpy(sprite->path, sprite_path, buf_len);
+			}
+			
 			SDL_IOStream* fs;
 			ASE_Header header;
 			{
