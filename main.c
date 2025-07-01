@@ -489,14 +489,14 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	const size_t RAW_CHUNK_MAX_SIZE = MEGABYTE(1);
 	void* raw_chunk = SDL_malloc(RAW_CHUNK_MAX_SIZE); SDL_CHECK(raw_chunk);
 
+	// dirname\fname\file
+
 	char dir_path[1024];
 	SDL_CHECK(SDL_snprintf(dir_path, 1024, "%s%s", dirname, fname) >= 0);
 
-	SDL_PathInfo path_info;
-	SDL_CHECK(SDL_GetPathInfo(dir_path, &path_info));
-	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
-		int32_t n_files;
-		char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
+	int32_t n_files;
+	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
+	if (n_files > 0) {
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 			char* file = files[file_idx];
 			char sprite_path[2048];
@@ -653,10 +653,12 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			SDL_CloseIO(fs);
 		}
-
-		SDL_free(files);
+	} else if (n_files == 0) {
+		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
 	}
-		
+	
+
+	SDL_free(files);
 	SDL_free(raw_chunk);
 	return SDL_ENUM_CONTINUE;
 }
