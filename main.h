@@ -112,7 +112,7 @@ typedef struct Context {
 
 	Nuklear nk;
 
-	uint32_t seed;
+	size_t seed;
 
 	bool running;
 
@@ -135,4 +135,4 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
 
-uint32_t HashString(char* key, int32_t len, uint32_t seed);
+size_t HashString(char* key, size_t len, size_t seed);

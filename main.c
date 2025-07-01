@@ -12,6 +12,10 @@
 
 #include <raddbg_markup.h>
 
+#define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
+#define XXH_IMPLEMENTATION      /* access definitions */
+#include <xxhash.h>
+
 #include "aseprite.h"
 
 #include "main.h"
@@ -38,7 +42,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// InitTime
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
-		ctx->seed = (uint32_t)ctx->time;
+		ctx->seed = (size_t)ctx->time;
 	}
 
 	// CreateWindowAndRenderer
@@ -471,11 +475,12 @@ int32_t main(int32_t argc, char* argv[]) {
 	return 0;
 }
 
-uint32_t HashString(char* key, int32_t len, uint32_t seed) {
+size_t HashString(char* key, size_t len, size_t seed) {
+	(void)seed;
 	if (len == 0) {
-		len = (int32_t)SDL_strlen(key);
+		len = SDL_strlen(key);
 	}
-	return nk_murmur_hash((const void*)key, len, seed);
+	return XXH3_64bits((const void*)key, len);
 }
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
@@ -491,174 +496,165 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	SDL_CHECK(SDL_GetPathInfo(dir_path, &path_info));
 	if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
 		int32_t n_files;
-		char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files);
-		if (n_files == 0) {
-			SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
-		} else {
-			for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
-				char* file = files[file_idx];
+		char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
+		for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
+			char* file = files[file_idx];
+			char sprite_path[2048];
+			SDL_CHECK(SDL_snprintf(sprite_path, 2048, "%s\\%s", dir_path, file) >= 0);
 
-				const char begin[] = "assets\\"; size_t begin_len = SDL_arraysize(begin);
+			size_t sprite_idx = HashString(sprite_path, 0, ctx->seed) & (MAX_SPRITES - 1);
+			Sprite* sprite = &ctx->sprites[sprite_idx];
+			if (sprite->initialized) {
+				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
+				ctx->n_collisions += 1;
+				continue;
+			} else {
+				SDL_Log("No collision: %s", file);
+			}
+
+			SDL_IOStream* fs;
+			ASE_Header header;
+			{
+				fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
+
+				SDL_ReadStructChecked(fs, &header);
+				SDL_assert(header.magic_number == 0xA5E0);
+				sprite->n_frames = header.n_frames;
+
+				size_t sprite_path_len = SDL_strlen(sprite_path);
+				
 				const char end[] = ".aseprite"; size_t end_len = SDL_arraysize(end);
+				if (sprite->n_frames == 1) {
+					size_t end_idx = sprite_path_len - end_len + 1;
 
-				size_t sprite_idx;
-				{
-					char* key = &file[begin_len]; size_t key_len = SDL_strlen(file) - end_len;
-					uint32_t hash = HashString(key, (int32_t)key_len, ctx->seed);
-					sprite_idx = (size_t)(hash & (MAX_SPRITES - 1));
+					sprite_path[end_idx+1] = 'p';
+					sprite_path[end_idx+2] = 'n';
+					sprite_path[end_idx+3] = 'g';
+					sprite_path[end_idx+4] = '\0';
+				} else {
+					size_t end_idx = sprite_path_len - end_len;
+
+					sprite_path[end_idx+1] = '-';
+					sprite_path[end_idx+2] = 'S';
+					sprite_path[end_idx+3] = 'h';
+					sprite_path[end_idx+4] = 'e';						
+					sprite_path[end_idx+5] = 'e';						
+					sprite_path[end_idx+6] = 't';						
+					sprite_path[end_idx+7] = '.';						
+					sprite_path[end_idx+8] = 'p';						
+					sprite_path[end_idx+9] = 'n';						
+					sprite_path[end_idx+10] = 'g';						
+					sprite_path[end_idx+11] = '\0';						
 				}
-				Sprite* sprite = &ctx->sprites[sprite_idx];
-				if (sprite->initialized) {
-					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
-					ctx->n_collisions += 1;
+
+				sprite->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
+				if (!sprite->texture) {
+					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
+					SDL_CloseIO(fs);
+					*sprite = (Sprite){0};
 					continue;
 				}
+			}
 
-				SDL_IOStream* fs;
-				ASE_Header header;
-				{
-					char sprite_path[2048];
-					SDL_CHECK(SDL_snprintf(sprite_path, 2048, "%s\\%s", dir_path, files[file_idx]) >= 0);
-					fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
+			for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
+				ASE_Frame frame;
+				SDL_ReadStructChecked(fs, &frame);
+				SDL_assert(frame.magic_number == 0xF1FA);
 
-					SDL_ReadStructChecked(fs, &header);
-					SDL_assert(header.magic_number == 0xA5E0);
-					sprite->n_frames = header.n_frames;
+				// Would mean this aseprite file is very old.
+				SDL_assert(frame.n_chunks != 0);
 
-					size_t sprite_path_len = SDL_strlen(sprite_path);
-					
-					if (sprite->n_frames == 1) {
-						size_t end_idx = sprite_path_len - end_len + 1;
+				for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+					ASE_ChunkHeader chunk_header;
+					SDL_ReadStructChecked(fs, &chunk_header);
+					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						sprite_path[end_idx+1] = 'p';
-						sprite_path[end_idx+2] = 'n';
-						sprite_path[end_idx+3] = 'g';
-						sprite_path[end_idx+4] = '\0';
-					} else {
-						size_t end_idx = sprite_path_len - end_len;
+					SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
+					SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
-						sprite_path[end_idx+1] = '-';
-						sprite_path[end_idx+2] = 'S';
-						sprite_path[end_idx+3] = 'h';
-						sprite_path[end_idx+4] = 'e';						
-						sprite_path[end_idx+5] = 'e';						
-						sprite_path[end_idx+6] = 't';						
-						sprite_path[end_idx+7] = '.';						
-						sprite_path[end_idx+8] = 'p';						
-						sprite_path[end_idx+9] = 'n';						
-						sprite_path[end_idx+10] = 'g';						
-						sprite_path[end_idx+11] = '\0';						
-					}
-
-					sprite->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
-					if (!sprite->texture) {
-						SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
-						SDL_CloseIO(fs);
-						*sprite = (Sprite){0};
-						continue;
-					}
-				}
-
-				for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
-					ASE_Frame frame;
-					SDL_ReadStructChecked(fs, &frame);
-					SDL_assert(frame.magic_number == 0xF1FA);
-
-					// Would mean this aseprite file is very old.
-					SDL_assert(frame.n_chunks != 0);
-
-					for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
-						ASE_ChunkHeader chunk_header;
-						SDL_ReadStructChecked(fs, &chunk_header);
-						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-						SDL_assert(chunk_header.size - sizeof(ASE_ChunkHeader) <= RAW_CHUNK_MAX_SIZE);
-						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
-
-						switch (chunk_header.type) {
-						case ASE_CHUNK_TYPE_OLD_PALETTE: {
+					switch (chunk_header.type) {
+					case ASE_CHUNK_TYPE_OLD_PALETTE: {
+					} break;
+					case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+					} break;
+					case ASE_CHUNK_TYPE_LAYER: {
+						// TODO: tileset_idx and uuid
+						ASE_LayerChunk* chunk = raw_chunk;
+						(void)chunk;
+					} break;
+					case ASE_CHUNK_TYPE_CELL: {
+						ASE_CellChunk* chunk = raw_chunk;
+						switch (chunk->type) {
+						case ASE_CELL_TYPE_RAW: {
+							sprite->w = chunk->raw.w;
+							sprite->h = chunk->raw.h;
 						} break;
-						case ASE_CHUNK_TYPE_OLD_PALETTE2: {
-						} break;
-						case ASE_CHUNK_TYPE_LAYER: {
-							// TODO: tileset_idx and uuid
-							ASE_LayerChunk* chunk = raw_chunk;
-							(void)chunk;
-						} break;
-						case ASE_CHUNK_TYPE_CELL: {
-							ASE_CellChunk* chunk = raw_chunk;
-							switch (chunk->type) {
-							case ASE_CELL_TYPE_RAW: {
-								sprite->w = chunk->raw.w;
-								sprite->h = chunk->raw.h;
-							} break;
-							case ASE_CELL_TYPE_LINKED: {
+						case ASE_CELL_TYPE_LINKED: {
 
-							} break;
-							case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-								sprite->w = chunk->compressed_image.w;
-								sprite->h = chunk->compressed_image.h;
-							} break;
-							case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
-								sprite->w = chunk->compressed_image.w;
-								sprite->h = chunk->compressed_image.h;					
-							} break;
-							}
 						} break;
-						case ASE_CHUNK_TYPE_CELL_EXTRA: {
-							ASE_CellChunk* chunk = raw_chunk;
-							(void)chunk;
-							ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
-							(void)chunk_extra;
+						case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
+							sprite->w = chunk->compressed_image.w;
+							sprite->h = chunk->compressed_image.h;
 						} break;
-						case ASE_CHUNK_TYPE_COLOR_PROFILE: {
-							ASE_ColorProfileChunk* chunk = raw_chunk;
-							switch (chunk->type) {
-							case ASE_COLOR_PROFILE_TYPE_NONE: {
+						case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
+							sprite->w = chunk->compressed_image.w;
+							sprite->h = chunk->compressed_image.h;					
+						} break;
+						}
+					} break;
+					case ASE_CHUNK_TYPE_CELL_EXTRA: {
+						ASE_CellChunk* chunk = raw_chunk;
+						(void)chunk;
+						ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
+						(void)chunk_extra;
+					} break;
+					case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+						ASE_ColorProfileChunk* chunk = raw_chunk;
+						switch (chunk->type) {
+						case ASE_COLOR_PROFILE_TYPE_NONE: {
 
-							} break;
-							case ASE_COLOR_PROFILE_TYPE_SRGB: {
+						} break;
+						case ASE_COLOR_PROFILE_TYPE_SRGB: {
 
-							} break;
-							case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+						} break;
+						case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
 
-							} break;
-							default: {
-								SDL_assert(false);
-							} break;
-							}
-						} break;
-						case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
-						} break;
-						case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
-						} break;
-						case ASE_CHUNK_TYPE_PATH: {
-						} break;
-						case ASE_CHUNK_TYPE_TAGS: {
-						} break;
-						case ASE_CHUNK_TYPE_PALETTE: {
-						} break;
-						case ASE_CHUNK_TYPE_USER_DATA: {
-						} break;
-						case ASE_CHUNK_TYPE_SLICE: {
-						} break;
-						case ASE_CHUNK_TYPE_TILESET: {
 						} break;
 						default: {
 							SDL_assert(false);
 						} break;
 						}
+					} break;
+					case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+					} break;
+					case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+					} break;
+					case ASE_CHUNK_TYPE_PATH: {
+					} break;
+					case ASE_CHUNK_TYPE_TAGS: {
+					} break;
+					case ASE_CHUNK_TYPE_PALETTE: {
+					} break;
+					case ASE_CHUNK_TYPE_USER_DATA: {
+					} break;
+					case ASE_CHUNK_TYPE_SLICE: {
+					} break;
+					case ASE_CHUNK_TYPE_TILESET: {
+					} break;
+					default: {
+						SDL_assert(false);
+					} break;
 					}
 				}
-
-				ctx->n_sprites += 1;
-				sprite->initialized = true;
-
-				SDL_CloseIO(fs);
 			}
 
-			SDL_free(files);
+			ctx->n_sprites += 1;
+			sprite->initialized = true;
+
+			SDL_CloseIO(fs);
 		}
+
+		SDL_free(files);
 	}
 		
 	SDL_free(raw_chunk);
