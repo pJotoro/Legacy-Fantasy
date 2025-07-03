@@ -27,7 +27,14 @@
 
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
-	ctx->player = (Entity){.pos.x = TILE_SIZE*1.0f, .pos.y = TILE_SIZE*6.0f, .size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), .size.y = (float)ctx->txtr_player_idle->h};
+	ctx->player = (Entity){
+		.pos.x = TILE_SIZE*1.0f, 
+		.pos.y = TILE_SIZE*6.0f, 
+		.size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), 
+		.size.y = (float)ctx->txtr_player_idle->h,
+		.frame = 0,
+		.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite"),
+	};
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -452,8 +459,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	return 0;
 }
 
-size_t HashString(char* key, size_t len, size_t seed) {
-	(void)seed;
+size_t HashString(char* key, size_t len) {
 	if (len == 0) {
 		len = SDL_strlen(key);
 	}
@@ -479,9 +485,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			char sprite_path[2048];
 			SDL_CHECK(SDL_snprintf(sprite_path, 2048, "%s\\%s", dir_path, file) >= 0);
 
-			size_t sprite_idx = HashString(sprite_path, 0, ctx->seed) & (MAX_SPRITES - 1);
-			Sprite* sprite = &ctx->sprites[sprite_idx];
-			if (sprite->initialized) {
+			Sprite sprite = GetSprite(sprite_path);
+			SpriteDesc* sprite_desc = &ctx->sprites[sprite];
+			if (sprite_desc->initialized) {
 				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
 				ctx->n_collisions += 1;
 				continue;
@@ -491,8 +497,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
-				sprite->path = SDL_malloc(buf_len);
-				SDL_strlcpy(sprite->path, sprite_path, buf_len);
+				sprite_desc->path = SDL_malloc(buf_len);
+				SDL_strlcpy(sprite_desc->path, sprite_path, buf_len);
 			}
 			
 			SDL_IOStream* fs;
@@ -502,12 +508,12 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 				SDL_ReadStructChecked(fs, &header);
 				SDL_assert(header.magic_number == 0xA5E0);
-				sprite->n_frames = header.n_frames;
+				sprite_desc->n_frames = header.n_frames;
 
 				size_t sprite_path_len = SDL_strlen(sprite_path);
 				
 				const char end[] = ".aseprite"; size_t end_len = SDL_arraysize(end);
-				if (sprite->n_frames == 1) {
+				if (sprite_desc->n_frames == 1) {
 					size_t end_idx = sprite_path_len - end_len + 1;
 
 					sprite_path[end_idx+1] = 'p';
@@ -530,11 +536,11 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					sprite_path[end_idx+11] = '\0';						
 				}
 
-				sprite->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
-				if (!sprite->texture) {
+				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
+				if (!sprite_desc->texture) {
 					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
 					SDL_CloseIO(fs);
-					*sprite = (Sprite){0};
+					*sprite_desc = (SpriteDesc){0};
 					continue;
 				}
 			}
@@ -569,19 +575,19 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 						ASE_CellChunk* chunk = raw_chunk;
 						switch (chunk->type) {
 						case ASE_CELL_TYPE_RAW: {
-							sprite->w = chunk->raw.w;
-							sprite->h = chunk->raw.h;
+							sprite_desc->w = chunk->raw.w;
+							sprite_desc->h = chunk->raw.h;
 						} break;
 						case ASE_CELL_TYPE_LINKED: {
 
 						} break;
 						case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-							sprite->w = chunk->compressed_image.w;
-							sprite->h = chunk->compressed_image.h;
+							sprite_desc->w = chunk->compressed_image.w;
+							sprite_desc->h = chunk->compressed_image.h;
 						} break;
 						case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
-							sprite->w = chunk->compressed_image.w;
-							sprite->h = chunk->compressed_image.h;					
+							sprite_desc->w = chunk->compressed_image.w;
+							sprite_desc->h = chunk->compressed_image.h;					
 						} break;
 						}
 					} break;
@@ -632,7 +638,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			}
 
 			ctx->n_sprites += 1;
-			sprite->initialized = true;
+			sprite_desc->initialized = true;
 
 			SDL_CloseIO(fs);
 		}

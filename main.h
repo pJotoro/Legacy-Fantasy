@@ -37,6 +37,10 @@ enum {
 };
 typedef uint32_t EntityFlags;
 
+typedef size_t Sprite;
+
+#define GetSprite(path) (Sprite)(HashString(path, 0) & (MAX_SPRITES - 1))
+
 typedef struct Entity {
 	union {
 		struct {
@@ -53,6 +57,7 @@ typedef struct Entity {
 	int32_t frame;
 	int32_t frame_tick;
 	int32_t can_jump;
+	Sprite sprite;
 	EntityFlags flags;
 } Entity;
 
@@ -78,14 +83,14 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 
-typedef struct Sprite {
+typedef struct SpriteDesc {
 	char* path;
 	SDL_Texture* texture;
 	uint32_t w;
 	uint32_t h;
 	uint32_t n_frames;
 	bool initialized;
-} Sprite;
+} SpriteDesc;
 
 #define MAX_SPRITES 256
 
@@ -117,7 +122,7 @@ typedef struct Context {
 
 	bool running;
 
-	Sprite sprites[MAX_SPRITES];
+	SpriteDesc sprites[MAX_SPRITES];
 	size_t sprite_idx;
 
 	size_t n_collisions;
@@ -138,5 +143,6 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
 void NK_UpdateUI(Context* ctx);
+struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx);
 
-size_t HashString(char* key, size_t len, size_t seed);
+size_t HashString(char* key, size_t len);

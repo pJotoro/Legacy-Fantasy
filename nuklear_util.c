@@ -222,7 +222,7 @@ void NK_UpdateUI(Context* gctx) {
 
 	if (nk_begin(ctx, "UI", nk_rect(10, 10, 500, 220),
 	    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_MINIMIZABLE)) {
-		float height = 200.0f;
+		float height = 300.0f;
 		int cols = 1;
 	    nk_layout_row_dynamic(ctx, height, cols);
 
@@ -257,7 +257,7 @@ void NK_UpdateUI(Context* gctx) {
 		    nk_layout_row_dynamic(ctx, height, cols);
 
 			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-				Sprite* sprite = &gctx->sprites[sprite_idx];
+				SpriteDesc* sprite = &gctx->sprites[sprite_idx];
 				if (sprite->initialized) {
 					if (nk_group_begin(ctx, sprite->path, NK_WINDOW_TITLE|NK_WINDOW_NO_SCROLLBAR)) {
 						float height = 20.0f;
@@ -278,5 +278,13 @@ void NK_UpdateUI(Context* gctx) {
 		}
 	}
 	nk_end(ctx);
+}
 
+struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx) {
+	return (struct nk_image){
+		// .handle = {.ptr = (void*)sprite->texture},
+		.w = (nk_ushort)sprite->w,
+		.h = (nk_ushort)sprite->h,
+		.region = {0, 0, (nk_ushort)(sprite->w*frame_idx), (nk_ushort)sprite->h},
+	};
 }
