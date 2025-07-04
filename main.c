@@ -399,14 +399,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
-		// RenderPlayerHitbox
-		{
-			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
-			// SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 255));
-			// SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dst));
-		}
-
 		// RenderLevel
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
@@ -631,21 +623,22 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			SDL_CloseIO(fs);
 
+		#if 1
 			sprite_desc->w = (uint32_t)sprite_desc->texture->w / sprite_desc->n_frames;
 			sprite_desc->h = (uint32_t)sprite_desc->texture->h;
-
+		#else
 			if (sprite_desc->h != (uint32_t)sprite_desc->texture->h) {
 				char prefix[] = "assets\\legacy_fantasy_high_forest\\"; size_t prefix_len = SDL_arraysize(prefix);
 				char* rel_path = sprite_path + prefix_len - 1;
 				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "%s: aseprite: w=%u, h=%u, SDL_Texture: w=%d, h=%d.", rel_path, sprite_desc->w, sprite_desc->h, sprite_desc->texture->w/(int32_t)sprite_desc->n_frames, sprite_desc->texture->h);
 				ctx->sprite_tests_failed += 1;
 			}
+		#endif
 		}
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
 	}
 	
-
 	SDL_free(files);
 	SDL_free(raw_chunk);
 	return SDL_ENUM_CONTINUE;
