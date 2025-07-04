@@ -402,11 +402,19 @@ int32_t main(int32_t argc, char* argv[]) {
 		// RenderPlayer
 		{
 			SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
-			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
 			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			SDL_FRect dst = { 300.0f, 200.0f, (float)s->w, (float)s->h };
+			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
+			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			// SDL_FRect dst = { 300.0f, 200.0f, (float)s->w, (float)s->h };
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
+		}
+
+		// RenderPlayerHitbox
+		{
+			SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
+			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 255));
+			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dst));
 		}
 
 		// RenderLevel
