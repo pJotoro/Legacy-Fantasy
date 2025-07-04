@@ -484,8 +484,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	if (n_files > 0) {
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 			char* file = files[file_idx];
-			char sprite_path[2048];
-			SDL_CHECK(SDL_snprintf(sprite_path, 2048, "%s\\%s", dir_path, file) >= 0);
+			char sprite_path[2048]; const size_t SPRITE_PATH_SIZE = 2048;
+			SDL_CHECK(SDL_snprintf(sprite_path, SPRITE_PATH_SIZE, "%s\\%s", dir_path, file) >= 0);
 
 			Sprite sprite = GetSprite(sprite_path);
 			SpriteDesc* sprite_desc = &ctx->sprites[sprite];
@@ -517,25 +517,14 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 				const char end[] = ".aseprite"; size_t end_len = SDL_arraysize(end);
 				if (sprite_desc->n_frames == 1) {
 					size_t end_idx = sprite_path_len - end_len + 1;
-
-					sprite_path[end_idx+1] = 'p';
-					sprite_path[end_idx+2] = 'n';
-					sprite_path[end_idx+3] = 'g';
-					sprite_path[end_idx+4] = '\0';
+					const char* png = "png";
+					sprite_path[end_idx+1] = '\0';
+					SDL_strlcat(sprite_path, png, SPRITE_PATH_SIZE);
 				} else {
 					size_t end_idx = sprite_path_len - end_len;
-
-					sprite_path[end_idx+1] = '-';
-					sprite_path[end_idx+2] = 'S';
-					sprite_path[end_idx+3] = 'h';
-					sprite_path[end_idx+4] = 'e';						
-					sprite_path[end_idx+5] = 'e';						
-					sprite_path[end_idx+6] = 't';						
-					sprite_path[end_idx+7] = '.';						
-					sprite_path[end_idx+8] = 'p';						
-					sprite_path[end_idx+9] = 'n';						
-					sprite_path[end_idx+10] = 'g';						
-					sprite_path[end_idx+11] = '\0';						
+					const char* sheet = "-Sheet.png";
+					sprite_path[end_idx+1] = '\0';
+					SDL_strlcat(sprite_path, sheet, SPRITE_PATH_SIZE);				
 				}
 
 				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
