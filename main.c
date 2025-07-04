@@ -246,7 +246,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			NK_UpdateUI(ctx);
 		//}
 
-		bool player_was_moving = ctx->player.vel.x != 0.0f || ctx->player.vel.y != 0.0f;
+
+		const float MOVE_SPEED_MIN = 0.2f;
+		bool player_was_moving = (SDL_fabsf(ctx->player.vel.x) > MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) > MOVE_SPEED_MIN);
 
 		// PlayerMovement
 		{
@@ -359,7 +361,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		bool player_is_moving = ctx->player.vel.x != 0.0f || ctx->player.vel.y != 0.0f;
+		bool player_is_moving = (SDL_fabsf(ctx->player.vel.x) > MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) > MOVE_SPEED_MIN);
 		if (!player_was_moving && player_is_moving) {
 			ResetAnim(&ctx->player);
 			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
