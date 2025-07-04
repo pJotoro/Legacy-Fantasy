@@ -23,11 +23,7 @@ void LoadLevel(Context* ctx) {
 		}
 	}
 
-	ctx->level.tiles = SDL_malloc(sizeof(TileType) * ctx->level.w * ctx->level.h); SDL_CHECK(ctx->level.tiles);
-	for (size_t i = 0; i < ctx->level.w*ctx->level.h; i += 1) {
-		ctx->level.tiles[i] = TILE_TYPE_EMPTY;
-	}
-	// SDL_memset(ctx->level.tiles, (int32_t)(ctx->level.w * ctx->level.h), TILE_TYPE_EMPTY);
+	ctx->level.tiles = SDL_calloc(ctx->level.w * ctx->level.h, sizeof(TileType)); SDL_CHECK(ctx->level.tiles);
 
 	for (size_t tile_y = 0, file_i = 0; tile_y < ctx->level.h; tile_y += 1) {
 		for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
