@@ -39,7 +39,7 @@ typedef uint32_t EntityFlags;
 
 typedef size_t Sprite;
 
-#define GetSprite(path) (Sprite)(HashString(path, 0) & (MAX_SPRITES - 1))
+#define GetSprite(path) ((Sprite)(HashString(path, 0) & (MAX_SPRITES - 1)))
 
 typedef struct Entity {
 	union {
@@ -60,6 +60,8 @@ typedef struct Entity {
 	Sprite sprite;
 	EntityFlags flags;
 } Entity;
+
+void ResetAnim(Entity* entity);
 
 typedef struct Nuklear {
 	struct nk_context ctx;
@@ -114,22 +116,21 @@ typedef struct Context {
 	Entity player;
 	Level level;
 
-	SDL_Texture* txtr_player_idle;
-
 	Nuklear nk;
-
-	size_t seed;
 
 	bool running;
 
 	SpriteDesc sprites[MAX_SPRITES];
-	size_t sprite_idx;
 
 	size_t n_collisions;
 	size_t n_sprites;
 
+	size_t sprite_tests_failed;
+
 	bool show_ui;
 } Context;
+
+SpriteDesc* GetSpriteDesc(Context* ctx, Entity* entity);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);

@@ -29,12 +29,12 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
-		.pos.y = TILE_SIZE*6.0f, 
-		.size.x = (float)(ctx->txtr_player_idle->w/PLAYER_FRAME_COUNT), 
-		.size.y = (float)ctx->txtr_player_idle->h,
-		.frame = 0,
+		.pos.y = TILE_SIZE*6.0f,
 		.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite"),
 	};
+	SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
+	ctx->player.size.x = (float)s->w;
+	ctx->player.size.y = (float)s->h;
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -49,7 +49,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	// InitTime
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
-		ctx->seed = (size_t)ctx->time;
 	}
 
 	// CreateWindowAndRenderer
@@ -60,7 +59,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 1
+#if 0
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -111,14 +110,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->level.modify_time = info.modify_time;
 	}
 
-	// LoadTextures
-	{
-		ctx->txtr_player_idle = IMG_LoadTexture(ctx->renderer, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle-Sheet.png"); SDL_CHECK(ctx->txtr_player_idle);
-	}
-
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
-	while (!ctx->sprites[ctx->sprite_idx].texture) {
-		ctx->sprite_idx += 1;
+	if (ctx->sprite_tests_failed > 0) {
+		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
 	}
 
 	ResetGame(ctx);
@@ -138,12 +132,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->show_ui = !ctx->show_ui;
 					break;
 				case SDLK_SPACE:
-					do {
-						ctx->sprite_idx += 1;
-						if (ctx->sprite_idx >= MAX_SPRITES) {
-							ctx->sprite_idx = 0;
-						}
-					} while (!ctx->sprites[ctx->sprite_idx].texture);
 					break;
 				case SDLK_ESCAPE:
 					ctx->running = false;
@@ -268,19 +256,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			NK_UpdateUI(ctx);
 		//}
 
-		// PlayerAnimation
-		{
-			ctx->player.frame_tick += 1;
-			if (ctx->player.frame_tick > PLAYER_FRAME_TICK) {
-				ctx->player.frame_tick = 0;
-				ctx->player.frame += 1;
-				if (ctx->player.frame >= PLAYER_FRAME_COUNT) {
-					ctx->player.frame = 0;
-				}
-			}
-		}
+		bool player_was_moving = ctx->player.vel.x != 0.0f || ctx->player.vel.y != 0.0f;
 
-		// PlayerMovement 
+		// PlayerMovement
 		{
 			if (ctx->player.can_jump) {
 				float acc = ctx->axis.x * PLAYER_ACC;
@@ -391,6 +369,27 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		bool player_is_moving = ctx->player.vel.x != 0.0f || ctx->player.vel.y != 0.0f;
+		if (!player_was_moving && player_is_moving) {
+			ResetAnim(&ctx->player);
+			ctx->player.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+		} else if (player_was_moving && !player_is_moving) {
+			ResetAnim(&ctx->player);
+			ctx->player.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+		}
+
+		// PlayerAnimation
+		{
+			ctx->player.frame_tick += 1;
+			if (ctx->player.frame_tick > PLAYER_FRAME_TICK) {
+				ctx->player.frame_tick = 0;
+				ctx->player.frame += 1;
+				if (ctx->player.frame >= PLAYER_FRAME_COUNT) {
+					ctx->player.frame = 0;
+				}
+			}
+		}
+
 		// RenderBegin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
@@ -402,9 +401,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			SDL_FRect src = { (float)(ctx->player.frame*PLAYER_FRAME_WIDTH), 0.0f, (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
-			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)PLAYER_FRAME_WIDTH, (float)ctx->txtr_player_idle->h };
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->txtr_player_idle, &src, &dst));
+			SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
+			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
+			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			SDL_FRect dst = { 300.0f, 200.0f, (float)s->w, (float)s->h };
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
 		// RenderLevel
@@ -641,6 +643,11 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			sprite_desc->initialized = true;
 
 			SDL_CloseIO(fs);
+
+			if (sprite_desc->h != (uint32_t)sprite_desc->texture->h) {
+				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "%s: %d != %u.", sprite_path, sprite_desc->h, sprite_desc->texture->h);
+				ctx->sprite_tests_failed += 1;
+			}
 		}
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
@@ -650,4 +657,13 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	SDL_free(files);
 	SDL_free(raw_chunk);
 	return SDL_ENUM_CONTINUE;
+}
+
+void ResetAnim(Entity* entity) {
+	entity->frame = 0;
+	entity->frame_tick = 0;
+}
+
+SpriteDesc* GetSpriteDesc(Context* ctx, Entity* entity) {
+	return &ctx->sprites[entity->sprite];
 }
