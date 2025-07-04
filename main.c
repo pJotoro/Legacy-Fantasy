@@ -364,7 +364,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			// ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
 			ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 
-			if (ctx->player.pos.y > (float)((ctx->level.h+5)*ctx->player.size.y)) {
+			if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
 				ResetGame(ctx);
 			}
 		}
