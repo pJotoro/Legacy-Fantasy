@@ -401,10 +401,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayerHitbox
 		{
-			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 255));
-			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dst));
+			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
+			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
+			// SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 255));
+			// SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dst));
 		}
 
 		// RenderLevel
@@ -631,8 +631,13 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			SDL_CloseIO(fs);
 
+			sprite_desc->w = (uint32_t)sprite_desc->texture->w / sprite_desc->n_frames;
+			sprite_desc->h = (uint32_t)sprite_desc->texture->h;
+
 			if (sprite_desc->h != (uint32_t)sprite_desc->texture->h) {
-				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "%s: %d != %u.", sprite_path, sprite_desc->h, sprite_desc->texture->h);
+				char prefix[] = "assets\\legacy_fantasy_high_forest\\"; size_t prefix_len = SDL_arraysize(prefix);
+				char* rel_path = sprite_path + prefix_len - 1;
+				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "%s: aseprite: w=%u, h=%u, SDL_Texture: w=%d, h=%d.", rel_path, sprite_desc->w, sprite_desc->h, sprite_desc->texture->w/(int32_t)sprite_desc->n_frames, sprite_desc->texture->h);
 				ctx->sprite_tests_failed += 1;
 			}
 		}
