@@ -40,5 +40,9 @@ void LoadLevel(Context* ctx) {
 		}
 	}
 
+	SDL_PathInfo info;
+	SDL_CHECK(SDL_GetPathInfo("level", &info));
+	ctx->level.modify_time = info.modify_time;
+
 	SDL_free(file);
 }

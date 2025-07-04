@@ -98,14 +98,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		bool ok = nk_init_fixed(&ctx->nk.ctx, mem, MEM_SIZE, &ctx->nk.font); SDL_assert(ok);
 	}
 
-	// InitLevel
-	{
-		LoadLevel(ctx);
-
-		SDL_PathInfo info;
-		SDL_CHECK(SDL_GetPathInfo("level", &info));
-		ctx->level.modify_time = info.modify_time;
-	}
+	LoadLevel(ctx);
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 	if (ctx->sprite_tests_failed > 0) {
@@ -504,7 +497,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
-				sprite_desc->path = SDL_malloc(buf_len);
+				sprite_desc->path = SDL_malloc(buf_len); SDL_CHECK(sprite_desc->path);
 				SDL_strlcpy(sprite_desc->path, sprite_path, buf_len);
 			}
 			
