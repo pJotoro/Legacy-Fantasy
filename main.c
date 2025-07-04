@@ -30,11 +30,8 @@ void ResetGame(Context* ctx) {
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
 		.pos.y = TILE_SIZE*6.0f,
-		.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite"),
 	};
-	SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
-	ctx->player.size.x = (float)s->w;
-	ctx->player.size.y = (float)s->h;
+	SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -372,10 +369,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		bool player_is_moving = ctx->player.vel.x != 0.0f || ctx->player.vel.y != 0.0f;
 		if (!player_was_moving && player_is_moving) {
 			ResetAnim(&ctx->player);
-			ctx->player.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 		} else if (player_was_moving && !player_is_moving) {
 			ResetAnim(&ctx->player);
-			ctx->player.sprite = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");			
 		}
 
 		// PlayerAnimation
@@ -401,7 +398,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
+			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
 			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
 			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
@@ -411,7 +408,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayerHitbox
 		{
-			SpriteDesc* s = GetSpriteDesc(ctx, &ctx->player);
+			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 255));
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dst));
@@ -661,6 +658,13 @@ void ResetAnim(Entity* entity) {
 	entity->frame_tick = 0;
 }
 
-SpriteDesc* GetSpriteDesc(Context* ctx, Entity* entity) {
-	return &ctx->sprites[entity->sprite];
+SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
+	return &ctx->sprites[sprite];
+}
+
+void SetSprite(Context* ctx, Entity* entity, const char* path) {
+	entity->sprite = GetSprite((char*)path);
+	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->sprite);
+	entity->size.x = (float)sprite_desc->w;
+	entity->size.y = (float)sprite_desc->h;
 }

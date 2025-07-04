@@ -130,7 +130,9 @@ typedef struct Context {
 	bool show_ui;
 } Context;
 
-SpriteDesc* GetSpriteDesc(Context* ctx, Entity* entity);
+void SetSprite(Context* ctx, Entity* entity, const char* path);
+
+SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);
@@ -147,3 +149,4 @@ void NK_UpdateUI(Context* ctx);
 struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx);
 
 size_t HashString(char* key, size_t len);
+
