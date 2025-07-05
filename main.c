@@ -396,8 +396,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
 			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
-			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			// SDL_FRect dst = { 300.0f, 200.0f, (float)s->w, (float)s->h };
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
@@ -577,8 +575,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					case ASE_CHUNK_TYPE_CELL_EXTRA: {
 						ASE_CellChunk* chunk = raw_chunk;
 						(void)chunk;
-						ASE_CellChunkExtra* chunk_extra = (ASE_CellChunkExtra*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellChunkExtra));
-						(void)chunk_extra;
+						ASE_CellExtraChunk* extra_chunk = (ASE_CellExtraChunk*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellExtraChunk));
+						(void)extra_chunk;
 					} break;
 					case ASE_CHUNK_TYPE_COLOR_PROFILE: {
 						ASE_ColorProfileChunk* chunk = raw_chunk;
@@ -598,20 +596,31 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 						}
 					} break;
 					case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+						ASE_ExternalFilesChunk* chunk = raw_chunk;
+						(void)chunk;
+						SDL_Log("ASE_CHUNK_TYPE_EXTERNAL_FILES");
 					} break;
 					case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
 					} break;
 					case ASE_CHUNK_TYPE_PATH: {
+						SDL_Log("ASE_CHUNK_TYPE_PATH");
 					} break;
 					case ASE_CHUNK_TYPE_TAGS: {
+						ASE_TagsChunk* chunk = raw_chunk;
+						(void)chunk;
 					} break;
 					case ASE_CHUNK_TYPE_PALETTE: {
+						ASE_PaletteChunk* chunk = raw_chunk;
+						(void)chunk;
 					} break;
 					case ASE_CHUNK_TYPE_USER_DATA: {
+						SDL_Log("ASE_CHUNK_TYPE_USER_DATA");
 					} break;
 					case ASE_CHUNK_TYPE_SLICE: {
+						SDL_Log("ASE_CHUNK_TYPE_SLICE");
 					} break;
 					case ASE_CHUNK_TYPE_TILESET: {
+						SDL_Log("ASE_CHUNK_TYPE_TILESET");
 					} break;
 					default: {
 						SDL_assert(false);
@@ -626,9 +635,12 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_CloseIO(fs);
 
 		#if 1
+			
 			sprite_desc->w = (uint32_t)sprite_desc->texture->w / sprite_desc->n_frames;
 			sprite_desc->h = (uint32_t)sprite_desc->texture->h;
 		#else
+			sprite_desc->w = header.grid_x + header.grid_w + sprite_desc->w;
+			sprite_desc->h = header.grid_y + header.grid_h + sprite_desc->h;
 			if (sprite_desc->h != (uint32_t)sprite_desc->texture->h) {
 				char prefix[] = "assets\\legacy_fantasy_high_forest\\"; size_t prefix_len = SDL_arraysize(prefix);
 				char* rel_path = sprite_path + prefix_len - 1;

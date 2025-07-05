@@ -8,7 +8,7 @@ typedef struct ASE_Fixed {
 
 typedef struct ASE_String {
 	uint16_t len;
-	uint8_t buf[];
+	// uint8_t buf[];
 } ASE_String;
 
 typedef struct ASE_Point {
@@ -55,8 +55,8 @@ typedef struct ASE_Header {
 	uint16_t n_colors;
 	uint8_t pixel_w;
 	uint8_t pixel_h;
-	int16_t grid_x_pos;
-	int16_t grid_y_pos;
+	int16_t grid_x;
+	int16_t grid_y;
 	uint16_t grid_w;
 	uint16_t grid_h;
 	uint8_t reserved4[84];
@@ -96,21 +96,6 @@ typedef struct ASE_ChunkHeader {
 	uint32_t size;
 	ASE_ChunkType type;
 } ASE_ChunkHeader;
-
-#if 0
-typedef struct ASE_OldPaletteChunk {
-	uint16_t n_packets;
-	struct {
-		uint8_t n_skip_entries;
-		uint8_t n_colors;
-		struct {
-			uint8_t red;
-			uint8_t green;
-			uint8_t blue;
-		} colors[];
-	} packets[];
-} ASE_OldPaletteChunk;
-#endif
 
 enum {
 	ASE_LAYER_CHUNK_FLAG_VISIBLE = 1u,
@@ -189,7 +174,7 @@ typedef struct ASE_CellChunk {
 		struct {
 			uint16_t w;
 			uint16_t h;
-			ASE_Pixel pixels[];
+			// ASE_Pixel pixels[];
 		} raw;
 		struct {
 			uint16_t frame_pos;
@@ -197,7 +182,7 @@ typedef struct ASE_CellChunk {
 		struct {
 			uint16_t w;
 			uint16_t h;
-			ASE_Pixel pixels[];
+			// ASE_Pixel pixels[];
 		} compressed_image;
 		struct {
 			uint16_t w;
@@ -208,24 +193,24 @@ typedef struct ASE_CellChunk {
 			uint32_t y_flip_bitmask;
 			uint32_t diagonal_flip_bitmask;
 			uint8_t reserved1[10];
-			uint32_t tiles[];
+			// uint32_t tiles[];
 		} compressed_tilemap;
 	};
 } ASE_CellChunk;
 
 enum {
-	ASE_CELL_CHUNK_EXTRA_FLAG_PRECISE_BOUNDS = 1u,
+	ASE_CELL_EXTRA_CHUNK_FLAG_PRECISE_BOUNDS = 1u,
 };
-typedef uint32_t ASE_CellChunkExtraFlags;
+typedef uint32_t ASE_CellExtraChunkFlags;
 
-typedef struct ASE_CellChunkExtra {
-	ASE_CellChunkExtraFlags flags;
+typedef struct ASE_CellExtraChunk {
+	ASE_CellExtraChunkFlags flags;
 	ASE_Fixed x;
 	ASE_Fixed y;
 	ASE_Fixed w;
 	ASE_Fixed h;
 	uint8_t reserved0[16];
-} ASE_CellChunkExtra;
+} ASE_CellExtraChunk;
 
 enum {
 	ASE_COLOR_PROFILE_TYPE_NONE = 0u,
@@ -245,7 +230,77 @@ typedef struct ASE_ColorProfileChunk {
 	ASE_Fixed fixed_gamma;
 	uint8_t reserved0[8];
 	uint32_t icc_profile_data_len;
-	uint8_t icc_profile_data[];
+	// uint8_t icc_profile_data[];
 } ASE_ColorProfileChunk;
+
+enum {
+	ASE_EXTERNAL_FILES_ENTRY_TYPE_EXTERNAL_PALETTE = 0u,
+	ASE_EXTERNAL_FILES_ENTRY_TYPE_EXTERNAL_TILESET = 1u,
+	ASE_EXTERNAL_FILES_ENTRY_TYPE_EXTENSION_NAME_FOR_PROPERTIES = 2u,
+	ASE_EXTERNAL_FILES_ENTRY_TYPE_EXTENSION_NAME_FOR_TILE_MANAGEMENT = 3u,
+};
+typedef uint8_t ASE_ExternalFilesEntryType;
+
+typedef struct ASE_ExternalFilesEntry {
+	uint32_t id;
+	ASE_ExternalFilesEntryType type;
+	uint8_t reserved0[7];
+	union {
+		ASE_String external_file_name;
+		ASE_String extension_id;
+	};
+} ASE_ExternalFilesEntry;
+
+typedef struct ASE_ExternalFilesChunk {
+	uint32_t n_entries;
+	uint8_t reserved0[8];
+	// ASE_ExternalFilesEntry entries[];
+} ASE_ExternalFilesChunk;
+
+enum {
+	ASE_LOOP_ANIM_DIR_FORWARD = 0u,
+	ASE_LOOP_ANIM_DIR_REVERSE = 1u,
+	ASE_LOOP_ANIM_DIR_PING_PONG = 2u,
+	ASE_LOOP_ANIM_DIR_PING_PONG_REVERSE = 3u,
+};
+typedef uint8_t ASE_LoopAnimDir;
+
+typedef struct ASE_Tag {
+	uint16_t from_frame;
+	uint16_t to_frame;
+	ASE_LoopAnimDir loop_anim_dir;
+	uint16_t repeat;
+	uint8_t reserved0[6];
+	uint8_t reserved1[3];
+	uint8_t reserved2;
+	ASE_String name;
+} ASE_Tag;
+
+typedef struct ASE_TagsChunk {
+	uint16_t n_tags;
+	// ASE_Tag tags[];
+} ASE_TagsChunk;
+
+enum {
+	ASE_PALETTE_ENTRY_FLAG_HAS_NAME = 1u,
+};
+typedef uint16_t ASE_PaletteEntryFlags;
+
+typedef struct ASE_PaletteEntry {
+	ASE_PaletteEntryFlags flags;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	// ASE_String color_name;
+} ASE_PaletteEntry;
+
+typedef struct ASE_PaletteChunk {
+	uint32_t n_entries;
+	uint32_t first_color_idx_to_change;
+	uint32_t last_color_idx_to_change;
+	uint8_t reserved0[8];
+	// ASE_PaletteEntry entries[];
+} ASE_PaletteChunk;
 
 #pragma pack(pop)
