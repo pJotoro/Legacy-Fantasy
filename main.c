@@ -30,6 +30,7 @@ void ResetGame(Context* ctx) {
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
 		.pos.y = TILE_SIZE*6.0f,
+		.dir = 1.0f,
 	};
 	SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
@@ -257,6 +258,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 				ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+
+				if (ctx->player.vel.x != 0.0f) {
+					ctx->player.dir = glm_signf(ctx->player.vel.x);
+				}
 			}
 			// ctx->player.vel.y += GRAVITY*ctx->dt;
 			ctx->player.vel.y += GRAVITY;
@@ -396,7 +401,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w, (float)s->h };
+			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
