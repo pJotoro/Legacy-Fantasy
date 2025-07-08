@@ -242,10 +242,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		//if (ctx->show_ui) {
-			NK_UpdateUI(ctx);
-		//}
-
+		NK_UpdateUI(ctx);
 
 		const float MOVE_SPEED_MIN = 1.0f;
 		bool player_was_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
@@ -609,7 +606,11 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					} break;
 					case ASE_CHUNK_TYPE_TAGS: {
 						ASE_TagsChunk* chunk = raw_chunk;
-						(void)chunk;
+						ASE_Tag* tags = (ASE_Tag*)((uint8_t*)chunk + sizeof(*chunk));
+						for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
+							ASE_Tag* tag = &tags[tag_idx];
+							SDL_assert(tag->loop_anim_dir == ASE_LOOP_ANIM_DIR_FORWARD);
+						}
 					} break;
 					case ASE_CHUNK_TYPE_PALETTE: {
 						ASE_PaletteChunk* chunk = raw_chunk;
@@ -668,6 +669,7 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 }
 
 void SetSprite(Context* ctx, Entity* entity, const char* path) {
+	ResetAnim(entity);
 	entity->sprite = GetSprite((char*)path);
 	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->sprite);
 	entity->size.x = (float)sprite_desc->w;
