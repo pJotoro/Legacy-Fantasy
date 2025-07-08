@@ -248,7 +248,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 
 		const float MOVE_SPEED_MIN = 1.0f;
-		bool player_was_moving = (SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN);
+		bool player_was_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
+		bool player_was_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_was_moving_y;
 
 		// PlayerMovement
 		{
@@ -361,11 +362,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		bool player_is_moving = (SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN);
-		if (!player_was_moving && player_is_moving) {
+		bool player_is_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
+		bool player_is_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_is_moving_y;
+		if (!player_was_moving_x && player_is_moving_x) {
 			ResetAnim(&ctx->player);
 			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-		} else if (player_was_moving && !player_is_moving) {
+		} else if (player_was_moving_x && !player_is_moving_x) {
 			ResetAnim(&ctx->player);
 			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");			
 		}
