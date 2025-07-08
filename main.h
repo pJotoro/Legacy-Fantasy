@@ -88,9 +88,10 @@ void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 typedef struct SpriteDesc {
 	char* path;
 	SDL_Texture* texture;
-	uint32_t w;
-	uint32_t h;
-	uint32_t n_frames;
+	uint16_t* frame_dur; // number of game frames per sprite frame, for now
+	uint16_t n_frames;
+	uint16_t w;
+	uint16_t h;
 	bool initialized;
 } SpriteDesc;
 

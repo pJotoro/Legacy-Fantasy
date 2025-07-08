@@ -247,8 +247,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		//}
 
 
-		const float MOVE_SPEED_MIN = 0.2f;
-		bool player_was_moving = (SDL_fabsf(ctx->player.vel.x) > MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) > MOVE_SPEED_MIN);
+		const float MOVE_SPEED_MIN = 1.0f;
+		bool player_was_moving = (SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN);
 
 		// PlayerMovement
 		{
@@ -361,7 +361,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		bool player_is_moving = (SDL_fabsf(ctx->player.vel.x) > MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) > MOVE_SPEED_MIN);
+		bool player_is_moving = (SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN) || (SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN);
 		if (!player_was_moving && player_is_moving) {
 			ResetAnim(&ctx->player);
 			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
@@ -372,11 +372,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// PlayerAnimation
 		{
+			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
+
 			ctx->player.frame_tick += 1;
-			if (ctx->player.frame_tick > PLAYER_FRAME_TICK) {
+			if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
 				ctx->player.frame_tick = 0;
 				ctx->player.frame += 1;
-				if (ctx->player.frame >= PLAYER_FRAME_COUNT) {
+				if (ctx->player.frame >= s->n_frames) {
 					ctx->player.frame = 0;
 				}
 			}
@@ -501,6 +503,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 				SDL_ReadStructChecked(fs, &header);
 				SDL_assert(header.magic_number == 0xA5E0);
 				sprite_desc->n_frames = header.n_frames;
+				sprite_desc->frame_dur = SDL_malloc(sizeof(uint16_t) * sprite_desc->n_frames); SDL_CHECK(sprite_desc->frame_dur);
 
 				size_t sprite_path_len = SDL_strlen(sprite_path);
 				
@@ -520,6 +523,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
 				if (!sprite_desc->texture) {
 					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
+					SDL_free(sprite_desc->frame_dur);
 					SDL_CloseIO(fs);
 					*sprite_desc = (SpriteDesc){0};
 					continue;
@@ -533,6 +537,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 				// Would mean this aseprite file is very old.
 				SDL_assert(frame.n_chunks != 0);
+
+				sprite_desc->frame_dur[frame_idx] = (uint16_t)((float)frame.frame_dur / (1000.0f / 60.0f)); // TODO: delta time
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
@@ -635,9 +641,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_CloseIO(fs);
 
 		#if 1
-			
-			sprite_desc->w = (uint32_t)sprite_desc->texture->w / sprite_desc->n_frames;
-			sprite_desc->h = (uint32_t)sprite_desc->texture->h;
+			sprite_desc->w = (uint16_t)sprite_desc->texture->w / sprite_desc->n_frames;
+			sprite_desc->h = (uint16_t)sprite_desc->texture->h;
 		#else
 			sprite_desc->w = header.grid_x + header.grid_w + sprite_desc->w;
 			sprite_desc->h = header.grid_y + header.grid_h + sprite_desc->h;
