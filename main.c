@@ -611,10 +611,16 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					} break;
 					case ASE_CHUNK_TYPE_TAGS: {
 						ASE_TagsChunk* chunk = raw_chunk;
-						ASE_Tag* tags = (ASE_Tag*)((uint8_t*)chunk + sizeof(*chunk));
+						ASE_Tag* tags = (ASE_Tag*)(chunk+1);
 						for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
 							ASE_Tag* tag = &tags[tag_idx];
-							SDL_assert(tag->loop_anim_dir == ASE_LOOP_ANIM_DIR_FORWARD);
+							#if 0
+							char* name = SDL_malloc(tag->name.len + 1); SDL_CHECK(name);
+							SDL_strlcpy(name, (char*)(tag+1), tag->name.len + 1);
+							SDL_Log("tag = {.from_frame = %u, .to_frame = %u, .loop_anim_dir = %u, .repeat = %u, .name = %s}", 
+								(uint32_t)tag->from_frame, (uint32_t)tag->to_frame, (uint32_t)tag->loop_anim_dir, (uint32_t)tag->repeat, name);
+							SDL_free(name);
+							#endif
 						}
 					} break;
 					case ASE_CHUNK_TYPE_PALETTE: {

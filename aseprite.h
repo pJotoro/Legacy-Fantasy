@@ -142,11 +142,11 @@ typedef struct ASE_LayerChunk {
 	ASE_LayerChunkFlags flags;
 	ASE_LayerType layer_type;
 	uint16_t layer_child_level;
-	uint16_t ignored_default_layer_w;
-	uint16_t ignored_default_layer_h;
+	uint16_t reserved0;
+	uint16_t reserved1;
 	ASE_BlendMode blend_mode;
 	uint8_t opacity;
-	uint8_t reserved0[3];
+	uint8_t reserved2[3];
 	ASE_String layer_name;
 	#if 0
 	uint32_t tileset_idx;
