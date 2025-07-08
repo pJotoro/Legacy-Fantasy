@@ -142,6 +142,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						if (!event.key.repeat && ctx->player.can_jump) {
 							ctx->player.can_jump = 0;
 							ctx->player.vel.y = -PLAYER_JUMP;
+							SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 						}
 					}
 					break;
@@ -187,6 +188,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (ctx->player.can_jump) {
 						ctx->player.can_jump = 0;
 						ctx->player.vel.y = -PLAYER_JUMP;
+						SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 					}
 				}
 				break;
@@ -366,26 +368,37 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		bool player_is_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
 		bool player_is_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_is_moving_y;
-		if (!player_was_moving_x && player_is_moving_x) {
-			ResetAnim(&ctx->player);
-			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-		} else if (player_was_moving_x && !player_is_moving_x) {
-			ResetAnim(&ctx->player);
-			SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");			
+		if (ctx->player.can_jump) {
+			if (!player_was_moving_x && player_is_moving_x) {
+				ResetAnim(&ctx->player);
+				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+			} else if (player_was_moving_x && !player_is_moving_x) {
+				ResetAnim(&ctx->player);
+				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");			
+			}			
 		}
 
 		// PlayerAnimation
 		{
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 
-			ctx->player.frame_tick += 1;
-			if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
-				ctx->player.frame_tick = 0;
-				ctx->player.frame += 1;
-				if (ctx->player.frame >= s->n_frames) {
-					ctx->player.frame = 0;
-				}
+			Sprite jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+			Sprite jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+
+			if (ctx->player.sprite == jump_start && ctx->player.frame >= s->n_frames && ctx->player.vel.y > 0.0f) {
+				ctx->player.sprite = jump_end;
+				ResetAnim(&ctx->player);
+			} else {
+				ctx->player.frame_tick += 1;
+				if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
+					ctx->player.frame_tick = 0;
+					ctx->player.frame += 1;
+					if (ctx->player.frame >= s->n_frames && ctx->player.sprite != jump_start && ctx->player.sprite != jump_end) {
+						ctx->player.frame = 0;
+					}
+				}	
 			}
+
 		}
 
 		// RenderBegin
