@@ -402,6 +402,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
 			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
+			if (ctx->player.dir < 0.0f) {
+				dst.x += ctx->player.size.x;
+			}
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
@@ -613,7 +616,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 						ASE_TagsChunk* chunk = raw_chunk;
 						ASE_Tag* tags = (ASE_Tag*)(chunk+1);
 						for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
-							ASE_Tag* tag = &tags[tag_idx];
+							ASE_Tag* tag = &tags[tag_idx]; (void)tag;
 							#if 0
 							char* name = SDL_malloc(tag->name.len + 1); SDL_CHECK(name);
 							SDL_strlcpy(name, (char*)(tag+1), tag->name.len + 1);
