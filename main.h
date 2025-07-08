@@ -40,6 +40,14 @@ typedef size_t Sprite;
 
 #define GetSprite(path) ((Sprite)(HashString(path, 0) & (MAX_SPRITES - 1)))
 
+enum {
+	ENTITY_STATE_IDLE,
+	ENTITY_STATE_RUN,
+	ENTITY_STATE_JUMP_START,
+	ENTITY_STATE_JUMP_END,
+};
+typedef uint32_t EntityState;
+
 typedef struct Entity {
 	vec2s pos;
 	vec2s size;
@@ -50,6 +58,7 @@ typedef struct Entity {
 	int32_t can_jump;
 	Sprite sprite;
 	EntityFlags flags;
+	EntityState state;
 } Entity;
 
 void ResetAnim(Entity* entity);
