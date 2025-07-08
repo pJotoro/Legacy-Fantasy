@@ -478,10 +478,11 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			char* file = files[file_idx];
 			char sprite_path[2048]; const size_t SPRITE_PATH_SIZE = 2048;
 			SDL_CHECK(SDL_snprintf(sprite_path, SPRITE_PATH_SIZE, "%s\\%s", dir_path, file) >= 0);
+			SDL_CHECK(SDL_GetPathInfo(sprite_path, NULL));
 
 			Sprite sprite = GetSprite(sprite_path);
 			SpriteDesc* sprite_desc = &ctx->sprites[sprite];
-			if (sprite_desc->initialized) {
+			if (sprite_desc->path) {
 				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
 				ctx->n_collisions += 1;
 				continue;
@@ -520,14 +521,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					SDL_strlcat(sprite_path, sheet, SPRITE_PATH_SIZE);				
 				}
 
-				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path);
-				if (!sprite_desc->texture) {
-					SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_WARN, "Failed to load texture: %s", sprite_path);
-					SDL_free(sprite_desc->frame_dur);
-					SDL_CloseIO(fs);
-					*sprite_desc = (SpriteDesc){0};
-					continue;
-				}
+				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path); SDL_CHECK(sprite_desc->texture);
 			}
 
 			for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
@@ -636,7 +630,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			}
 
 			ctx->n_sprites += 1;
-			sprite_desc->initialized = true;
 
 			SDL_CloseIO(fs);
 

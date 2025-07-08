@@ -92,7 +92,6 @@ typedef struct SpriteDesc {
 	uint16_t n_frames;
 	uint16_t w;
 	uint16_t h;
-	bool initialized;
 } SpriteDesc;
 
 #define MAX_SPRITES 256

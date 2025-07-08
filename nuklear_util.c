@@ -258,7 +258,7 @@ void NK_UpdateUI(Context* gctx) {
 
 			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 				SpriteDesc* sprite = &gctx->sprites[sprite_idx];
-				if (sprite->initialized) {
+				if (sprite->path) {
 					if (nk_group_begin(ctx, sprite->path, NK_WINDOW_TITLE|NK_WINDOW_NO_SCROLLBAR)) {
 						float height = 20.0f;
 						int item_width = 80;
