@@ -32,8 +32,7 @@ typedef int64_t ssize_t;
 #define PLAYER_FRAME_TICK 20
 
 enum {
-	ENTITY_FLAG_STATIC = FLAG(0),
-	ENTITY_FLAG_SUB_PIXEL_PRECISION = FLAG(1),
+	ENTITY_FLAG_NOTHING_YET = FLAG(0),
 };
 typedef uint32_t EntityFlags;
 
@@ -42,18 +41,9 @@ typedef size_t Sprite;
 #define GetSprite(path) ((Sprite)(HashString(path, 0) & (MAX_SPRITES - 1)))
 
 typedef struct Entity {
-	union {
-		struct {
-			vec2s pos;
-			vec2s size;
-			vec2s vel;
-		};
-		struct {
-			ivec2s ipos;
-			ivec2s isize;
-			ivec2s ivel;
-		};
-	};
+	vec2s pos;
+	vec2s size;
+	vec2s vel;
 	int32_t frame;
 	int32_t frame_tick;
 	int32_t can_jump;
