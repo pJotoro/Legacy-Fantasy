@@ -1,6 +1,5 @@
 #include <SDL.h>
 #include <SDL_main.h>
-#include <SDL_image.h>
 #include <SDL_ttf.h>
 
 #include <cglm/struct.h>
@@ -15,6 +14,8 @@
 #define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
 #define XXH_IMPLEMENTATION      /* access definitions */
 #include <xxhash.h>
+
+#include <zlib.h>
 
 #include "aseprite.h"
 
@@ -380,6 +381,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// PlayerAnimation
 		{
+			/*
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 
 			Sprite jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
@@ -398,7 +400,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 				}	
 			}
-
+			*/
 		}
 
 		// RenderBegin
@@ -412,13 +414,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
-			if (ctx->player.dir < 0.0f) {
-				dst.x += ctx->player.size.x;
-			}
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
+			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
+			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
+			// if (ctx->player.dir < 0.0f) {
+			// 	dst.x += ctx->player.size.x;
+			// }
+			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
 		// RenderLevel
@@ -496,6 +498,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	if (n_files > 0) {
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
 			char* file = files[file_idx];
+			if (SDL_strcmp(file, "Idle.aseprite") == 0) {
+				SDL_Log("bruh");
+			}
 			char sprite_path[2048]; const size_t SPRITE_PATH_SIZE = 2048;
 			SDL_CHECK(SDL_snprintf(sprite_path, SPRITE_PATH_SIZE, "%s\\%s", dir_path, file) >= 0);
 			SDL_CHECK(SDL_GetPathInfo(sprite_path, NULL));
@@ -540,8 +545,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					sprite_path[end_idx+1] = '\0';
 					SDL_strlcat(sprite_path, sheet, SPRITE_PATH_SIZE);				
 				}
-
-				sprite_desc->texture = IMG_LoadTexture(ctx->renderer, sprite_path); SDL_CHECK(sprite_desc->texture);
 			}
 
 			for (size_t frame_idx = 0; frame_idx < (size_t)header.n_frames; frame_idx += 1) {
@@ -574,6 +577,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 					} break;
 					case ASE_CHUNK_TYPE_CELL: {
 						ASE_CellChunk* chunk = raw_chunk;
+
 						switch (chunk->type) {
 						case ASE_CELL_TYPE_RAW: {
 							sprite_desc->w = chunk->raw.w;
@@ -664,11 +668,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_CloseIO(fs);
 
 		#if 1
-			sprite_desc->w = (uint16_t)sprite_desc->texture->w / sprite_desc->n_frames;
-			sprite_desc->h = (uint16_t)sprite_desc->texture->h;
+			// sprite_desc->w = (uint16_t)sprite_desc->texture->w / sprite_desc->n_frames;
+			// sprite_desc->h = (uint16_t)sprite_desc->texture->h;
 		#else
-			sprite_desc->w = header.grid_x + header.grid_w + sprite_desc->w;
-			sprite_desc->h = header.grid_y + header.grid_h + sprite_desc->h;
 			if (sprite_desc->h != (uint32_t)sprite_desc->texture->h) {
 				char prefix[] = "assets\\legacy_fantasy_high_forest\\"; size_t prefix_len = SDL_arraysize(prefix);
 				char* rel_path = sprite_path + prefix_len - 1;
@@ -678,7 +680,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 		#endif
 		}
 	} else if (n_files == 0) {
-		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
+		// SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
 	}
 	
 	SDL_free(files);

@@ -5,5 +5,5 @@ link_directories(vendor/SDL3/lib)
 
 project(LegacyFantasy)
 add_executable(LegacyFantasy WIN32 main.c libraries.c)
-target_link_libraries(LegacyFantasy SDL3.lib SDL3_image.lib SDL3_ttf.lib)
+target_link_libraries(LegacyFantasy SDL3.lib SDL3_image.lib SDL3_ttf.lib libz-static.lib)
 target_compile_options(LegacyFantasy PRIVATE /W4 /WX /wd4200 /wd4456 /diagnostics:column)
