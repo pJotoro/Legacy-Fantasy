@@ -36,9 +36,7 @@ enum {
 };
 typedef uint32_t EntityFlags;
 
-typedef size_t Sprite;
-
-#define GetSprite(path) ((Sprite)(HashString(path, 0) & (MAX_SPRITES - 1)))
+#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
 enum {
 	ENTITY_STATE_IDLE,
@@ -85,15 +83,6 @@ TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
 
-typedef struct SpriteDesc {
-	char* path;
-	SDL_Texture* texture;
-	uint16_t* frame_dur; // number of game frames per sprite frame, for now
-	uint16_t n_frames;
-	uint16_t w;
-	uint16_t h;
-} SpriteDesc;
-
 #define MAX_SPRITES 256
 
 typedef struct Context {
@@ -126,8 +115,6 @@ typedef struct Context {
 	size_t n_sprites;
 
 	size_t sprite_tests_failed;
-
-	bool show_ui;
 } Context;
 
 void SetSprite(Context* ctx, Entity* entity, const char* path);
@@ -139,7 +126,6 @@ void LoadLevel(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
 
-void LoadSprite(Context* ctx, char* path, size_t path_len);
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
