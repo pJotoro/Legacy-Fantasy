@@ -17,6 +17,8 @@
 
 #include <zlib.h>
 
+typedef int64_t ssize_t;
+
 #include "aseprite.h"
 #include "sprite.h"
 
@@ -518,7 +520,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			}
 			
 			SDL_IOStream* fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
-			LoadSprite(fs, sprite_desc);
+			LoadSprite(ctx, fs, sprite_desc);
 
 			ctx->n_sprites += 1;
 

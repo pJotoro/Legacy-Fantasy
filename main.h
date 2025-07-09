@@ -25,8 +25,6 @@
 #define SDL_ReadIOChecked(S, P, SZ) SDL_CHECK(SDL_ReadIO(S, P, SZ) == SZ)
 #define SDL_ReadStructChecked(S, STRUCT) SDL_CHECK(SDL_ReadStruct(S, STRUCT) == sizeof(*(STRUCT)))
 
-typedef int64_t ssize_t;
-
 #define PLAYER_FRAME_COUNT 4
 #define PLAYER_FRAME_WIDTH 64
 #define PLAYER_FRAME_TICK 20
@@ -118,8 +116,8 @@ typedef struct Context {
 } Context;
 
 void SetSprite(Context* ctx, Entity* entity, const char* path);
-
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
+void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);

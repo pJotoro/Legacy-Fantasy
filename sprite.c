@@ -1,4 +1,6 @@
-void LoadSprite(SDL_IOStream* fs, SpriteDesc* sd) {
+void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
+	(void)ctx;
+
 	ASE_Header header;
 	SDL_ReadStructChecked(fs, &header);
 
@@ -6,10 +8,47 @@ void LoadSprite(SDL_IOStream* fs, SpriteDesc* sd) {
 	SDL_assert(header.color_depth == 32);
 	SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
 	SDL_assert(header.grid_w == 16 && header.grid_h == 16);
-
+	
+	sd->w = (size_t)header.w;
+	sd->h = (size_t)header.h;
 	sd->n_frames = (size_t)header.n_frames;
 	sd->frames = SDL_malloc(sizeof(SpriteFrame) * sd->n_frames); SDL_CHECK(sd->frames);
 
+	int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+		ASE_Frame frame;
+		SDL_ReadStructChecked(fs, &frame);
+		SDL_assert(frame.magic_number == 0xF1FA);
+
+		// Would mean this aseprite file is very old.
+		SDL_assert(frame.n_chunks != 0);
+
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+			ASE_ChunkHeader chunk_header;
+			SDL_ReadStructChecked(fs, &chunk_header);
+			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+			void* raw_chunk = SDL_malloc(chunk_header.size - sizeof(ASE_ChunkHeader)); SDL_CHECK(raw_chunk);
+			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+
+			switch (chunk_header.type) {
+			case ASE_CHUNK_TYPE_LAYER: {
+				sd->n_layers += 1;
+			} break;
+			case ASE_CHUNK_TYPE_CELL: {
+				sd->n_cells += 1;
+			} break;
+			}
+
+			SDL_free(raw_chunk);
+		}
+	}
+
+	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
+	sd->layers = SDL_malloc(sizeof(SpriteLayer) * sd->n_layers); SDL_CHECK(sd->layers);
+	sd->cells = SDL_malloc(sizeof(SpriteCell) * sd->n_cells); SDL_CHECK(sd->cells);
+	size_t layer_idx = 0;
+	size_t cell_idx = 0;
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
@@ -36,28 +75,38 @@ void LoadSprite(SDL_IOStream* fs, SpriteDesc* sd) {
 			case ASE_CHUNK_TYPE_LAYER: {
 				// TODO: tileset_idx and uuid
 				ASE_LayerChunk* chunk = raw_chunk;
-				(void)chunk;
+				SpriteLayer sprite_layer = {0};
+				sprite_layer.name = SDL_malloc(chunk->layer_name.len + 1);
+				SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+				sd->layers[layer_idx++] = sprite_layer;
 			} break;
 			case ASE_CHUNK_TYPE_CELL: {
 				ASE_CellChunk* chunk = raw_chunk;
-
+				SpriteCell cell = {
+					.layer_idx = layer_idx,
+					.frame_idx = frame_idx,
+					.x_offset = (ssize_t)chunk->x,
+					.y_offset = (ssize_t)chunk->y,
+					.z_idx = (ssize_t)chunk->z_idx,
+				};
+				SDL_assert(chunk->type == ASE_CELL_TYPE_COMPRESSED_IMAGE);
 				switch (chunk->type) {
 				case ASE_CELL_TYPE_RAW: {
-					sd->w = chunk->raw.w;
-					sd->h = chunk->raw.h;
 				} break;
 				case ASE_CELL_TYPE_LINKED: {
-
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-					sd->w = chunk->compressed_image.w;
-					sd->h = chunk->compressed_image.h;
+					cell.rel_w = (size_t)chunk->compressed_image.w;
+					cell.rel_h = (size_t)chunk->compressed_image.h;
+					ASE_Pixel* pixels = (ASE_Pixel*)((&chunk->compressed_image.h)+1);
+					
+					// SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.rel_w, (int32_t)cell.rel_h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.rel_w)); SDL_CHECK(surf);
+					// cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
-					sd->w = chunk->compressed_image.w;
-					sd->h = chunk->compressed_image.h;					
 				} break;
 				}
+				sd->cells[cell_idx++] = cell;
 			} break;
 			case ASE_CHUNK_TYPE_CELL_EXTRA: {
 				ASE_CellChunk* chunk = raw_chunk;
