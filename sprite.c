@@ -1,3 +1,12 @@
+voidpf ZAllocFunc(voidpf opaque, uInt items, uInt size) {
+	void* res = SDL_malloc((size_t)(items * size)); SDL_CHECK(res);
+	return (voidpf)res;
+}
+
+void ZFreeFunc(voidpf opaque, voidpf address) {
+	SDL_free((void*)address);
+}
+
 void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 	(void)ctx;
 
@@ -96,12 +105,23 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 				case ASE_CELL_TYPE_LINKED: {
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-					cell.rel_w = (size_t)chunk->compressed_image.w;
-					cell.rel_h = (size_t)chunk->compressed_image.h;
 					ASE_Pixel* pixels = (ASE_Pixel*)((&chunk->compressed_image.h)+1);
-					
-					// SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.rel_w, (int32_t)cell.rel_h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.rel_w)); SDL_CHECK(surf);
-					// cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
+					void* output_buf = SDL_malloc(sizeof(uint32_t)*sd->w*sd->h);
+					z_stream zs = {
+						.next_in = (Bytef*)pixels,
+						.avail_in = (uInt)(sizeof(uint32_t)*chunk->compressed_image.w*chunk->compressed_image.h),
+						.next_out = (Bytef*)output_buf,
+						.avail_out = (uInt)(sizeof(uint32_t)*sd->w*sd->h),
+						.zalloc = ZAllocFunc,
+						.zfree = ZFreeFunc,
+						.opaque = NULL,
+					};
+					int32_t zres = inflateInit(&zs); SDL_assert(zres == Z_OK);
+					zres = inflate(&zs, Z_FINISH); SDL_assert(zres == Z_STREAM_END);
+					zres = inflateEnd(&zs); SDL_assert(zres == Z_OK);
+
+					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.rel_w, (int32_t)cell.rel_h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.rel_w)); SDL_CHECK(surf);
+					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;
