@@ -15,8 +15,8 @@ typedef struct SpriteCell {
 	ssize_t x_offset;
 	ssize_t y_offset;
 	ssize_t z_idx;
-	size_t rel_w; // width relative to x offset
-	size_t rel_h; // height relative to y offset
+	size_t w; // width relative to x offset
+	size_t h; // height relative to y offset
 	SDL_Texture* texture;
 } SpriteCell;
 

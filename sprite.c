@@ -1,10 +1,37 @@
 voidpf ZAllocFunc(voidpf opaque, uInt items, uInt size) {
+	(void)opaque;
 	void* res = SDL_malloc((size_t)(items * size)); SDL_CHECK(res);
 	return (voidpf)res;
 }
 
 void ZFreeFunc(voidpf opaque, voidpf address) {
+	(void)opaque;
 	SDL_free((void*)address);
+}
+
+void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
+	int32_t res;
+	z_stream zs = {
+		.zalloc = ZAllocFunc,
+		.zfree = ZFreeFunc,
+	};
+	res = inflateInit(&zs); SDL_assert(res == Z_OK);
+
+	do {
+		uint8_t in[16384];
+		uint8_t out[16384];
+
+		SDL_ReadIO(src, in, SDL_arraysize(in));
+		zs.next_in = in;
+
+		do {
+			zs.avail_out = SDL_arraysize(out);
+			zs.next_out = out;
+			res = inflate(&zs, Z_NO_FLUSH); SDL_assert(res != Z_STREAM_ERROR && res != Z_NEED_DICT && res != Z_DATA_ERROR && res != Z_MEM_ERROR);
+
+		} while(zs.avail_out == 0);
+
+	} while (res != Z_STREAM_END);
 }
 
 void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
@@ -73,8 +100,9 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 			SDL_ReadStructChecked(fs, &chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-			void* raw_chunk = SDL_malloc(chunk_header.size - sizeof(ASE_ChunkHeader)); SDL_CHECK(raw_chunk);
-			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+			size_t chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+			void* raw_chunk = SDL_malloc(chunk_size); SDL_CHECK(raw_chunk);
+			SDL_ReadIOChecked(fs, raw_chunk, chunk_size);
 
 			switch (chunk_header.type) {
 			case ASE_CHUNK_TYPE_OLD_PALETTE: {
@@ -105,13 +133,17 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 				case ASE_CELL_TYPE_LINKED: {
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
+					cell.w = (size_t)chunk->compressed_image.w;
+					cell.h = (size_t)chunk->compressed_image.h;
+
 					ASE_Pixel* pixels = (ASE_Pixel*)((&chunk->compressed_image.h)+1);
-					void* output_buf = SDL_malloc(sizeof(uint32_t)*sd->w*sd->h);
+					size_t output_buf_size = sizeof(uint32_t)*cell.w*cell.h;
+					void* output_buf = SDL_malloc(output_buf_size);
 					z_stream zs = {
 						.next_in = (Bytef*)pixels,
-						.avail_in = (uInt)(sizeof(uint32_t)*chunk->compressed_image.w*chunk->compressed_image.h),
+						.avail_in = (uInt)(chunk_size - sizeof(ASE_CellChunk)),
 						.next_out = (Bytef*)output_buf,
-						.avail_out = (uInt)(sizeof(uint32_t)*sd->w*sd->h),
+						.avail_out = (uInt)(output_buf_size),
 						.zalloc = ZAllocFunc,
 						.zfree = ZFreeFunc,
 						.opaque = NULL,
@@ -120,8 +152,9 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 					zres = inflate(&zs, Z_FINISH); SDL_assert(zres == Z_STREAM_END);
 					zres = inflateEnd(&zs); SDL_assert(zres == Z_OK);
 
-					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.rel_w, (int32_t)cell.rel_h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.rel_w)); SDL_CHECK(surf);
+					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
+
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;
