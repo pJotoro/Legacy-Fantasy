@@ -21,7 +21,7 @@ void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
 		uint8_t in[16384];
 		uint8_t out[16384];
 
-		SDL_ReadIO(src, in, SDL_arraysize(in));
+		zs.avail_in = (uInt)SDL_ReadIO(src, in, SDL_arraysize(in)); SDL_assert(zs.avail_in != 0);
 		zs.next_in = in;
 
 		do {
@@ -29,9 +29,14 @@ void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
 			zs.next_out = out;
 			res = inflate(&zs, Z_NO_FLUSH); SDL_assert(res != Z_STREAM_ERROR && res != Z_NEED_DICT && res != Z_DATA_ERROR && res != Z_MEM_ERROR);
 
-		} while(zs.avail_out == 0);
+			size_t have = SDL_arraysize(out) - (size_t)zs.avail_out;
+			size_t maybe_have = SDL_WriteIO(dst, out, have); SDL_assert(maybe_have == have);
 
+		} while(zs.avail_out == 0);
 	} while (res != Z_STREAM_END);
+
+	inflateEnd(&zs);
+	SDL_assert(res == Z_STREAM_END);
 }
 
 void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
@@ -136,23 +141,24 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 					cell.w = (size_t)chunk->compressed_image.w;
 					cell.h = (size_t)chunk->compressed_image.h;
 
-					ASE_Pixel* pixels = (ASE_Pixel*)((&chunk->compressed_image.h)+1);
-					size_t output_buf_size = sizeof(uint32_t)*cell.w*cell.h;
-					void* output_buf = SDL_malloc(output_buf_size);
-					z_stream zs = {
-						.next_in = (Bytef*)pixels,
-						.avail_in = (uInt)(chunk_size - sizeof(ASE_CellChunk)),
-						.next_out = (Bytef*)output_buf,
-						.avail_out = (uInt)(output_buf_size),
-						.zalloc = ZAllocFunc,
-						.zfree = ZFreeFunc,
-						.opaque = NULL,
-					};
-					int32_t zres = inflateInit(&zs); SDL_assert(zres == Z_OK);
-					zres = inflate(&zs, Z_FINISH); SDL_assert(zres == Z_STREAM_END);
-					zres = inflateEnd(&zs); SDL_assert(zres == Z_OK);
+					// It's the zero-sized array at the end of ASE_CellChunk.
+					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk); 
+					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, (void*)pixels, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
+					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
+					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
+					
+					{
+						SDL_IOStream* src = SDL_IOFromMem(src_buf, src_buf_size); SDL_CHECK(src);
+						SDL_IOStream* dst = SDL_IOFromMem(dst_buf, dst_buf_size); SDL_CHECK(dst);
+
+						Inflate(src, dst);
+
+						SDL_CloseIO(dst);
+						SDL_CloseIO(src);
+					}
+
+					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
 
 				} break;
