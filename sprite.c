@@ -1,6 +1,4 @@
-void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
-	(void)ctx;
-
+void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	ASE_Header header;
 	SDL_ReadStructChecked(fs, &header);
 
@@ -12,7 +10,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 	sd->w = (size_t)header.w;
 	sd->h = (size_t)header.h;
 	sd->n_frames = (size_t)header.n_frames;
-	sd->frames = SDL_malloc(sizeof(SpriteFrame) * sd->n_frames); SDL_CHECK(sd->frames);
+	sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
 
 	int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
@@ -36,7 +34,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 				sd->n_layers += 1;
 			} break;
 			case ASE_CHUNK_TYPE_CELL: {
-				sd->n_cells += 1;
+				sd->frames[frame_idx].n_cells += 1;
 			} break;
 			}
 
@@ -45,8 +43,12 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 
 	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
-	sd->layers = SDL_malloc(sizeof(SpriteLayer) * sd->n_layers); SDL_CHECK(sd->layers);
-	sd->cells = SDL_malloc(sizeof(SpriteCell) * sd->n_cells); SDL_CHECK(sd->cells);
+	sd->layers = SDL_calloc(sd->n_layers, sizeof(SpriteLayer)); SDL_CHECK(sd->layers);
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+		if (sd->frames[frame_idx].n_cells > 0) {
+			sd->frames[frame_idx].cells = SDL_malloc(sizeof(SpriteCell) * sd->frames[frame_idx].n_cells); SDL_CHECK(sd->frames[frame_idx].cells);
+		}
+	}
 	size_t layer_idx = 0;
 	size_t cell_idx = 0;
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
@@ -110,7 +112,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 					sinflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
-					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
+					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
 					SDL_DestroySurface(surf);
 					SDL_free(dst_buf);
 
@@ -118,7 +120,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;
 				}
-				sd->cells[cell_idx++] = cell;
+				sd->frames[frame_idx].cells[cell_idx++] = cell;
 			} break;
 			case ASE_CHUNK_TYPE_CELL_EXTRA: {
 				ASE_CellChunk* chunk = raw_chunk;
@@ -187,5 +189,11 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 
 			SDL_free(raw_chunk);
 		}
+	}
+}
+
+void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect) {
+	for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].n_cells; cell_idx += 1) {
+		SDL_RenderTexture(renderer, sd->frames[frame_idx].cells[cell_idx].texture, srcrect, dstrect);
 	}
 }

@@ -110,6 +110,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	if (ctx->sprite_tests_failed > 0) {
 		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
 	}
+	// for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+	// 	SpriteDesc* sd = &ctx->sprites[sprite_idx];
+	// 	if (!sd->path) continue;
+
+	// 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+
+	// 	}
+	// }
 
 	ResetGame(ctx);
 
@@ -430,7 +438,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (ctx->player.dir < 0.0f) {
 				dst.x += ctx->player.size.x;
 			}
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
+			DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
 		}
 
 		// RenderLevel
@@ -527,7 +535,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			}
 			
 			SDL_IOStream* fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
-			LoadSprite(ctx, fs, sprite_desc);
+			LoadSprite(ctx->renderer, fs, sprite_desc);
 
 			ctx->n_sprites += 1;
 
