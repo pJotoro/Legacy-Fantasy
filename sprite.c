@@ -17,11 +17,11 @@ void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
 	};
 	res = inflateInit(&zs); SDL_assert(res == Z_OK);
 
-	do {
-		uint8_t in[16384];
-		uint8_t out[16384];
+	uint8_t in[16384];
+	uint8_t out[16384];
 
-		zs.avail_in = (uInt)SDL_ReadIO(src, in, SDL_arraysize(in)); SDL_assert(zs.avail_in != 0);
+	do {
+		zs.avail_in = (uInt)SDL_ReadIO(src, in, SDL_arraysize(in)); SDL_assert(zs.avail_in != 0); // assertion fails here
 		zs.next_in = in;
 
 		do {
@@ -30,7 +30,7 @@ void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
 			res = inflate(&zs, Z_NO_FLUSH); SDL_assert(res != Z_STREAM_ERROR && res != Z_NEED_DICT && res != Z_DATA_ERROR && res != Z_MEM_ERROR);
 
 			size_t have = SDL_arraysize(out) - (size_t)zs.avail_out;
-			size_t maybe_have = SDL_WriteIO(dst, out, have); SDL_assert(maybe_have == have);
+			size_t written = SDL_WriteIO(dst, out, have); SDL_assert(have == written);
 
 		} while(zs.avail_out == 0);
 	} while (res != Z_STREAM_END);
@@ -160,6 +160,8 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
+					SDL_DestroySurface(surf);
+					SDL_free(dst_buf);
 
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
