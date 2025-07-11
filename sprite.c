@@ -1,44 +1,3 @@
-voidpf ZAllocFunc(voidpf opaque, uInt items, uInt size) {
-	(void)opaque;
-	void* res = SDL_malloc((size_t)(items * size)); SDL_CHECK(res);
-	return (voidpf)res;
-}
-
-void ZFreeFunc(voidpf opaque, voidpf address) {
-	(void)opaque;
-	SDL_free((void*)address);
-}
-
-void Inflate(SDL_IOStream* src, SDL_IOStream* dst) {
-	int32_t res;
-	z_stream zs = {
-		.zalloc = ZAllocFunc,
-		.zfree = ZFreeFunc,
-	};
-	res = inflateInit(&zs); SDL_assert(res == Z_OK);
-
-	uint8_t in[16384];
-	uint8_t out[16384];
-
-	do {
-		zs.avail_in = (uInt)SDL_ReadIO(src, in, SDL_arraysize(in)); SDL_assert(zs.avail_in != 0); // assertion fails here
-		zs.next_in = in;
-
-		do {
-			zs.avail_out = SDL_arraysize(out);
-			zs.next_out = out;
-			res = inflate(&zs, Z_NO_FLUSH); SDL_assert(res != Z_STREAM_ERROR && res != Z_NEED_DICT && res != Z_DATA_ERROR && res != Z_MEM_ERROR);
-
-			size_t have = SDL_arraysize(out) - (size_t)zs.avail_out;
-			size_t written = SDL_WriteIO(dst, out, have); SDL_assert(have == written);
-
-		} while(zs.avail_out == 0);
-	} while (res != Z_STREAM_END);
-
-	inflateEnd(&zs);
-	SDL_assert(res == Z_STREAM_END);
-}
-
 void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 	(void)ctx;
 
@@ -148,15 +107,7 @@ void LoadSprite(Context* ctx, SDL_IOStream* fs, SpriteDesc* sd) {
 					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
 					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 					
-					{
-						SDL_IOStream* src = SDL_IOFromMem(src_buf, src_buf_size); SDL_CHECK(src);
-						SDL_IOStream* dst = SDL_IOFromMem(dst_buf, dst_buf_size); SDL_CHECK(dst);
-
-						Inflate(src, dst);
-
-						SDL_CloseIO(dst);
-						SDL_CloseIO(src);
-					}
+					sinflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);

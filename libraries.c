@@ -17,4 +17,7 @@
 #define RADDBG_MARKUP_IMPLEMENTATION
 #include <raddbg_markup.h>
 
+#define SINFL_IMPLEMENTATION
+#include <sinfl.h>
+
 #pragma warning(pop)

@@ -15,7 +15,7 @@
 #define XXH_IMPLEMENTATION      /* access definitions */
 #include <xxhash.h>
 
-#include <zlib.h>
+#include <sinfl.h>
 
 typedef int64_t ssize_t;
 
@@ -384,26 +384,33 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// PlayerAnimation
 		{
-			/*
 			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
 
-			Sprite jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-			Sprite jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+			// Sprite jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+			// Sprite jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
 
-			if (ctx->player.sprite == jump_start && ctx->player.frame >= s->n_frames && ctx->player.vel.y > 0.0f) {
-				ctx->player.sprite = jump_end;
-				ResetAnim(&ctx->player);
-			} else {
-				ctx->player.frame_tick += 1;
-				if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
-					ctx->player.frame_tick = 0;
-					ctx->player.frame += 1;
-					if (ctx->player.frame >= s->n_frames && ctx->player.sprite != jump_start && ctx->player.sprite != jump_end) {
-						ctx->player.frame = 0;
-					}
-				}	
+			// if (ctx->player.sprite == jump_start && ctx->player.frame >= s->n_frames && ctx->player.vel.y > 0.0f) {
+			// 	ctx->player.sprite = jump_end;
+			// 	ResetAnim(&ctx->player);
+			// } else {
+			// 	ctx->player.frame_tick += 1;
+			// 	if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
+			// 		ctx->player.frame_tick = 0;
+			// 		ctx->player.frame += 1;
+			// 		if (ctx->player.frame >= s->n_frames && ctx->player.sprite != jump_start && ctx->player.sprite != jump_end) {
+			// 			ctx->player.frame = 0;
+			// 		}
+			// 	}	
+			// }
+
+			ctx->player.frame_tick += 1;
+			if (ctx->player.frame_tick >= (int32_t)s->frames[ctx->player.frame].dur) {
+				ctx->player.frame_tick = 0;
+				ctx->player.frame += 1;
+				if (ctx->player.frame >= s->n_frames) {
+					ctx->player.frame = 0;
+				}
 			}
-			*/
 		}
 
 		// RenderBegin
@@ -417,13 +424,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
-			// if (ctx->player.dir < 0.0f) {
-			// 	dst.x += ctx->player.size.x;
-			// }
-			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
+			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
+			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
+			if (ctx->player.dir < 0.0f) {
+				dst.x += ctx->player.size.x;
+			}
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, s->texture, &src, &dst));
 		}
 
 		// RenderLevel
