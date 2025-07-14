@@ -119,6 +119,25 @@ int32_t main(int32_t argc, char* argv[]) {
 	// 	}
 	// }
 
+	// SortSpriteCells (uses insertion sort)
+	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		SpriteDesc* sd = &ctx->sprites[sprite_idx];
+		if (sd->path) {
+			for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+				SpriteFrame* sf = &sd->frames[frame_idx];
+				for (size_t i = 1; i < sf->n_cells; i += 1) {
+					SpriteCell key = sf->cells[i];
+					size_t j = i - 1;
+					while (j >= 0 && CompareSpriteCells(&sf->cells[j], &key) == 1) {
+						sf->cells[j + 1] = sf->cells[j];
+						j -= 1;
+					}
+					sf->cells[j + 1] = key;
+				}
+			}
+		}
+	}
+
 	ResetGame(ctx);
 
 	ctx->running = true;

@@ -206,5 +206,18 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 // }
 
 void DrawEntity(Context* ctx, Entity* entity) {
-	(void)ctx; (void)entity;
+	(void)ctx;
+	(void)entity;
+}
+
+// This is really stupid and could be written in like two lines probably.
+int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b) {
+	ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
+	ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
+	if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
+		return -1;
+	} else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
+		return 1;
+	}
+	return 0;
 }
