@@ -49,7 +49,7 @@ typedef struct Entity {
 	vec2s size;
 	vec2s vel;
 	float dir;
-	int32_t frame;
+	size_t frame;
 	int32_t frame_tick;
 	int32_t can_jump;
 	Sprite sprite;

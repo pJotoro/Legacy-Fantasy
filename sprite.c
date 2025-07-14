@@ -206,8 +206,24 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 // }
 
 void DrawEntity(Context* ctx, Entity* entity) {
-	(void)ctx;
-	(void)entity;
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->sprite);
+	SpriteFrame* sf = &sd->frames[entity->frame];
+	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
+		SpriteCell* cell = &sf->cells[cell_idx];
+		const SDL_FRect srcrect = {
+			(float)(entity->frame*cell->w),
+			0.0f,
+			(float)(cell->w),
+			(float)(cell->h),
+		};
+		const SDL_FRect dstrect = {
+			(float)(cell->x_offset + entity->pos.x),
+			(float)(cell->y_offset + entity->pos.y),
+			(float)(cell->w),
+			(float)(cell->h),
+		};
+		SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
+	}
 }
 
 // This is really stupid and could be written in like two lines probably.

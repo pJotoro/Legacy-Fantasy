@@ -457,9 +457,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			// if (ctx->player.dir < 0.0f) {
 			// 	dst.x += ctx->player.size.x;
 			// }
-			// DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
+			// DrawSprite(ctx->renderer, s, ctx->player.frame, &src, &dst);
 			// DrawSpriteSheet(ctx->renderer, s, (vec2s){dst.x, dst.y}); (void)src;
+			vec2s save_pos = ctx->player.pos;
+			ctx->player.pos.x = (float)(rw/2);
+			ctx->player.pos.y = (float)(rh/2);
 			DrawEntity(ctx, &ctx->player);
+			ctx->player.pos = save_pos;
 		}
 
 		// RenderLevel
