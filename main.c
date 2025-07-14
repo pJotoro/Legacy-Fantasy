@@ -432,15 +432,15 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
-			if (ctx->player.dir < 0.0f) {
-				dst.x += ctx->player.size.x;
-			}
-			//DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
-			(void)src;
-			DrawSpriteSheet(ctx->renderer, s, (vec2s){dst.x, dst.y});
+			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
+			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
+			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
+			// if (ctx->player.dir < 0.0f) {
+			// 	dst.x += ctx->player.size.x;
+			// }
+			// DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
+			// DrawSpriteSheet(ctx->renderer, s, (vec2s){dst.x, dst.y}); (void)src;
+			DrawEntity(ctx, &ctx->player);
 		}
 
 		// RenderLevel

@@ -191,16 +191,20 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
-void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect) {
-	for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].n_cells; cell_idx += 1) {
-		SDL_RenderTexture(renderer, sd->frames[frame_idx].cells[cell_idx].texture, srcrect, dstrect);
-	}
-}
+// void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect) {
+// 	for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].n_cells; cell_idx += 1) {
+// 		SDL_RenderTexture(renderer, sd->frames[frame_idx].cells[cell_idx].texture, srcrect, dstrect);
+// 	}
+// }
 
-void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos) {
-	const SDL_FRect srcrect = {0.0f, 0.0f, (float)(sd->w*sd->n_frames), (float)sd->h};
-	const SDL_FRect dstrect = {pos.x, pos.y, (float)(sd->w*sd->n_frames), (float)sd->h};
-	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
-		DrawSprite(renderer, sd, frame_idx, &srcrect, &dstrect);
-	}
+// void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos) {
+// 	const SDL_FRect srcrect = {0.0f, 0.0f, (float)(sd->w*sd->n_frames), (float)sd->h};
+// 	const SDL_FRect dstrect = {pos.x, pos.y, (float)(sd->w*sd->n_frames), (float)sd->h};
+// 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+// 		DrawSprite(renderer, sd, frame_idx, &srcrect, &dstrect);
+// 	}
+// }
+
+void DrawEntity(Context* ctx, Entity* entity) {
+	(void)ctx; (void)entity;
 }

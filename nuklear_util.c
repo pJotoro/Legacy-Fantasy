@@ -269,6 +269,14 @@ void NK_UpdateUI(Context* gctx) {
 						nk_value_uint(ctx, "h", (uint32_t)sprite->h);
 						nk_value_uint(ctx, "frames", (uint32_t)sprite->n_frames);
 
+						// cols = 1;
+						// nk_layout_row_static(ctx, height, item_width, cols);
+
+						// nk_label(ctx, "Layers:", NK_TEXT_LEFT);
+						// for (size_t layer_idx = 0; layer_idx < sprite->n_layers; layer_idx += 1) {
+						// 	nk_label(ctx, sprite->layers[layer_idx].name, NK_TEXT_CENTERED);
+						// }
+
 						nk_group_end(ctx);
 					}
 				}
