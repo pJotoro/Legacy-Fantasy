@@ -81,7 +81,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				SpriteLayer sprite_layer = {0};
 				sprite_layer.name = SDL_malloc(chunk->layer_name.len + 1);
 				SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
-				sd->layers[layer_idx++] = sprite_layer;
+				sd->layers[layer_idx] = sprite_layer; layer_idx += 1;
 			} break;
 			case ASE_CHUNK_TYPE_CELL: {
 				ASE_CellChunk* chunk = raw_chunk;
@@ -120,7 +120,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;
 				}
-				sd->frames[frame_idx].cells[cell_idx++] = cell;
+				sd->frames[frame_idx].cells[cell_idx] = cell; cell_idx += 1;
 			} break;
 			case ASE_CHUNK_TYPE_CELL_EXTRA: {
 				ASE_CellChunk* chunk = raw_chunk;
