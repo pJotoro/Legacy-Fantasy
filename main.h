@@ -119,6 +119,7 @@ void SetSprite(Context* ctx, Entity* entity, const char* path);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
 void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect);
+void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);

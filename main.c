@@ -438,7 +438,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (ctx->player.dir < 0.0f) {
 				dst.x += ctx->player.size.x;
 			}
-			DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
+			//DrawSprite(ctx->renderer, s, (size_t)ctx->player.frame, &src, &dst);
+			(void)src;
+			DrawSpriteSheet(ctx->renderer, s, (vec2s){dst.x, dst.y});
 		}
 
 		// RenderLevel

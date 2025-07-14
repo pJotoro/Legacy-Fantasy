@@ -196,3 +196,11 @@ void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const 
 		SDL_RenderTexture(renderer, sd->frames[frame_idx].cells[cell_idx].texture, srcrect, dstrect);
 	}
 }
+
+void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos) {
+	const SDL_FRect srcrect = {0.0f, 0.0f, (float)(sd->w*sd->n_frames), (float)sd->h};
+	const SDL_FRect dstrect = {pos.x, pos.y, (float)(sd->w*sd->n_frames), (float)sd->h};
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+		DrawSprite(renderer, sd, frame_idx, &srcrect, &dstrect);
+	}
+}
