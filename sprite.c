@@ -50,8 +50,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 		}
 	}
 	size_t layer_idx = 0;
-	size_t cell_idx = 0;
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+		size_t cell_idx = 0;
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
@@ -115,7 +115,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
 					SDL_DestroySurface(surf);
 					SDL_free(dst_buf);
-
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;
