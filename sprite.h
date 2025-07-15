@@ -14,6 +14,9 @@ typedef struct SpriteCell {
 	size_t w; // width relative to x offset
 	size_t h; // height relative to y offset
 	SDL_Texture* texture;
+	
+	SDL_Surface* surf;
+	void* surf_backing;
 } SpriteCell;
 
 typedef struct SpriteFrame {

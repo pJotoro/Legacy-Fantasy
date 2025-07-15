@@ -108,13 +108,16 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
 					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
-					
-					sinflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
+
+					size_t res = zsinflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
+					SDL_Log("%s: %llu", sd->path, res);
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
-					SDL_DestroySurface(surf);
-					SDL_free(dst_buf);
+					// SDL_DestroySurface(surf);
+					// SDL_free(dst_buf);
+					cell.surf = surf;
+					cell.surf_backing = dst_buf;
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
 				} break;

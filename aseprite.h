@@ -170,32 +170,11 @@ typedef struct ASE_CellChunk {
 	ASE_CellType type;
 	int16_t z_idx;
 	uint8_t reserved0[5];
-	union {
-		struct {
-			uint16_t w;
-			uint16_t h;
-			// ASE_Pixel pixels[];
-		} raw;
-		struct {
-			uint16_t frame_pos;
-		} linked;
-		struct {
-			uint16_t w;
-			uint16_t h;
-			// ASE_Pixel pixels[];
-		} compressed_image;
-		struct {
-			uint16_t w;
-			uint16_t h;
-			uint16_t bits_per_tile;
-			uint32_t tile_id_bitmask;
-			uint32_t x_flip_bitmask;
-			uint32_t y_flip_bitmask;
-			uint32_t diagonal_flip_bitmask;
-			uint8_t reserved1[10];
-			// uint32_t tiles[];
-		} compressed_tilemap;
-	};
+	struct {
+		uint16_t w;
+		uint16_t h;
+		// ASE_Pixel pixels[];
+	} compressed_image;
 } ASE_CellChunk;
 
 enum {

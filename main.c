@@ -37,6 +37,7 @@ void ResetGame(Context* ctx) {
 		.pos.y = TILE_SIZE*6.0f,
 		.dir = 1.0f,
 	};
+	// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 	SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
@@ -62,7 +63,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 0
+#if 1
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -405,7 +406,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 			} else if (player_was_moving_x && !player_is_moving_x) {
 				ResetAnim(&ctx->player);
-				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");			
+				// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 			}			
 		}
 
