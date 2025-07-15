@@ -106,6 +106,10 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk); 
 					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
+					if (SDL_strcmp(sd->path, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite") == 0) {
+						SDL_SaveFile("uncompressed_image", src_buf, src_buf_size);
+					}
+
 					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
 					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 
