@@ -237,7 +237,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir)
 }
 
 void DrawEntity(Context* ctx, Entity* entity) {
-	DrawSprite(ctx, entity->sprite, entity->frame, entity->pos, entity->dir);
+	DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
 }
 
 // This is really stupid and could be written in like two lines probably.

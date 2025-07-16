@@ -252,7 +252,7 @@ void NK_UpdateUI(Context* gctx) {
 		}
 
 		if (nk_group_begin(ctx, "Sprites", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
-			float height = 70.0f;
+			float height = 200.0f;
 			int cols = 1;
 		    nk_layout_row_dynamic(ctx, height, cols);
 

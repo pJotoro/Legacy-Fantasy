@@ -402,45 +402,16 @@ int32_t main(int32_t argc, char* argv[]) {
 		bool player_is_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_is_moving_y;
 		if (ctx->player.can_jump) {
 			if (!player_was_moving_x && player_is_moving_x) {
-				ResetAnim(&ctx->player);
+				ResetAnim(&ctx->player.anim);
 				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 			} else if (player_was_moving_x && !player_is_moving_x) {
-				ResetAnim(&ctx->player);
+				ResetAnim(&ctx->player.anim);
 				// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 			}			
 		}
 
-		// PlayerAnimation
-		{
-			SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-
-			// Sprite jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-			// Sprite jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
-
-			// if (ctx->player.sprite == jump_start && ctx->player.frame >= s->n_frames && ctx->player.vel.y > 0.0f) {
-			// 	ctx->player.sprite = jump_end;
-			// 	ResetAnim(&ctx->player);
-			// } else {
-			// 	ctx->player.frame_tick += 1;
-			// 	if (ctx->player.frame_tick >= (int32_t)s->frame_dur[ctx->player.frame]) {
-			// 		ctx->player.frame_tick = 0;
-			// 		ctx->player.frame += 1;
-			// 		if (ctx->player.frame >= s->n_frames && ctx->player.sprite != jump_start && ctx->player.sprite != jump_end) {
-			// 			ctx->player.frame = 0;
-			// 		}
-			// 	}	
-			// }
-
-			ctx->player.frame_tick += 1;
-			if (ctx->player.frame_tick >= (int32_t)s->frames[ctx->player.frame].dur) {
-				ctx->player.frame_tick = 0;
-				ctx->player.frame += 1;
-				if (ctx->player.frame >= s->n_frames) {
-					ctx->player.frame = 0;
-				}
-			}
-		}
+		UpdateAnim(ctx, &ctx->player.anim);
 
 		// RenderBegin
 		{
@@ -453,14 +424,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderPlayer
 		{
-			// SpriteDesc* s = GetSpriteDesc(ctx, ctx->player.sprite);
-			// SDL_FRect src = { (float)(ctx->player.frame*s->w), 0.0f, (float)s->w, (float)s->h };
-			// SDL_FRect dst = { (float)(rw/2), (float)(rh/2), (float)s->w * ctx->player.dir, (float)s->h };
-			// if (ctx->player.dir < 0.0f) {
-			// 	dst.x += ctx->player.size.x;
-			// }
-			// DrawSprite(ctx->renderer, s, ctx->player.frame, &src, &dst);
-			// DrawSpriteSheet(ctx->renderer, s, (vec2s){dst.x, dst.y}); (void)src;
 			vec2s save_pos = ctx->player.pos;
 			ctx->player.pos.x = (float)(rw/2);
 			ctx->player.pos.y = (float)(rh/2);
@@ -576,9 +539,9 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	return SDL_ENUM_CONTINUE;
 }
 
-void ResetAnim(Entity* entity) {
-	entity->frame = 0;
-	entity->frame_tick = 0;
+void ResetAnim(Anim* anim) {
+	anim->frame_idx = 0;
+	anim->frame_tick = 0;
 }
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
@@ -586,9 +549,9 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 }
 
 void SetSprite(Context* ctx, Entity* entity, const char* path) {
-	ResetAnim(entity);
-	entity->sprite = GetSprite((char*)path);
-	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->sprite);
+	ResetAnim(&entity->anim);
+	entity->anim.sprite = GetSprite((char*)path);
+	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
 	entity->size.x = (float)sprite_desc->w;
 	entity->size.y = (float)sprite_desc->h;
 }

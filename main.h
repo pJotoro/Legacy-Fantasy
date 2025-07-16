@@ -44,24 +44,31 @@ enum {
 };
 typedef uint32_t EntityState;
 
+typedef struct Anim {
+	Sprite sprite;
+	size_t frame_idx;
+	size_t frame_tick;
+} Anim;
+
 typedef struct Entity {
 	vec2s pos;
 	vec2s size;
 	vec2s vel;
 	float dir;
-	size_t frame;
-	int32_t frame_tick;
+	Anim anim;
 	int32_t can_jump;
-	Sprite sprite;
 	EntityFlags flags;
 	EntityState state;
 } Entity;
 
-void ResetAnim(Entity* entity);
+void ResetAnim(Anim* anim);
+
+#define MAX_SPRITES 256
 
 typedef struct Nuklear {
 	struct nk_context ctx;
 	struct nk_user_font font;
+	Anim anims[MAX_SPRITES];
 } Nuklear;
 
 typedef uint8_t TileType;
@@ -80,8 +87,6 @@ typedef struct Level {
 TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
 
 void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
-
-#define MAX_SPRITES 256
 
 typedef struct Context {
 	SDL_Window* window;
@@ -118,8 +123,10 @@ typedef struct Context {
 void SetSprite(Context* ctx, Entity* entity, const char* path);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir);
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, float dir);
 void DrawEntity(Context* ctx, Entity* entity);
+
+void UpdateAnim(Context* ctx, Anim* anim);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);
