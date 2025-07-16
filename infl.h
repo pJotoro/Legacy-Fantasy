@@ -121,7 +121,7 @@ static void INFL_Eat(INFL_Context* s, int32_t cnt) {
   s->bitcnt -= cnt;
 }
 
-static int32_t INFL__get(INFL_Context* s, int32_t cnt) {
+static int32_t INFL__Get(INFL_Context* s, int32_t cnt) {
   int32_t res = INFL_Peek(s, cnt);
   INFL_Eat(s, cnt);
   return res;
@@ -129,7 +129,7 @@ static int32_t INFL__get(INFL_Context* s, int32_t cnt) {
 
 static int32_t INFL_Get(INFL_Context* s, int32_t cnt) {
   INFL_Refill(s);
-  return INFL__get(s, cnt);
+  return INFL__Get(s, cnt);
 }
 
 typedef struct INFL_Gen {
@@ -285,8 +285,8 @@ static uint64_t INFL_Decompress(uint8_t* out, uint64_t cap, const uint8_t* in, u
       /* block header */
       int32_t type = 0;
       INFL_Refill(&s);
-      last = INFL__get(&s,1);
-      type = INFL__get(&s,2);
+      last = INFL__Get(&s,1);
+      type = INFL__Get(&s,2);
 
       switch (type) {default: return (uint64_t)(out-o);
       case 0x00: state = stored; break;
@@ -296,9 +296,9 @@ static uint64_t INFL_Decompress(uint8_t* out, uint64_t cap, const uint8_t* in, u
     case stored: {
       /* uncompressed block */
       uint32_t len, nlen;
-      INFL__get(&s,s.bitcnt & 7);
-      len = (uint16_t)INFL__get(&s,16);
-      nlen = (uint16_t)INFL__get(&s,16);
+      INFL__Get(&s,s.bitcnt & 7);
+      len = (uint16_t)INFL__Get(&s,16);
+      nlen = (uint16_t)INFL__Get(&s,16);
       s.bitptr -= s.bitcnt / 8;
       s.bitbuf = s.bitcnt = 0;
 
@@ -333,9 +333,9 @@ static uint64_t INFL_Decompress(uint8_t* out, uint64_t cap, const uint8_t* in, u
       uint8_t nlens[19] = {0}, lens[288+32];
 
       INFL_Refill(&s);
-      {int32_t nlit = 257 + INFL__get(&s,5);
-      int32_t ndist = 1 + INFL__get(&s,5);
-      int32_t nlen = 4 + INFL__get(&s,4);
+      {int32_t nlit = 257 + INFL__Get(&s,5);
+      int32_t ndist = 1 + INFL__Get(&s,5);
+      int32_t nlen = 4 + INFL__Get(&s,4);
       for (n = 0; n < nlen; n++)
         nlens[order[n]] = (uint8_t)INFL_Get(&s,3);
       INFL_Build(hlens, nlens, 7, 7, 19);
@@ -385,9 +385,9 @@ static uint64_t INFL_Decompress(uint8_t* out, uint64_t cap, const uint8_t* in, u
           return (uint64_t)(out-o);
         }
         sym -= 257;
-        {int32_t len = INFL__get(&s, lbits[sym]) + lbase[sym];
+        {int32_t len = INFL__Get(&s, lbits[sym]) + lbase[sym];
         int32_t dsym = INFL_Decode(&s, s.dsts, 8);
-        int32_t offs = INFL__get(&s, dbits[dsym]) + dbase[dsym];
+        int32_t offs = INFL__Get(&s, dbits[dsym]) + dbase[dsym];
         uint8_t* dst = out, *src = out - offs;
         if (INFL_Unlikely(offs > (uint64_t)(out-o))) {
           return (uint64_t)(out-o);
