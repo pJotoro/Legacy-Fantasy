@@ -214,7 +214,7 @@ void DrawEntity(Context* ctx, Entity* entity) {
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 		const SDL_FRect srcrect = {
-			(float)(entity->frame*cell->w),
+			0.0f,
 			0.0f,
 			(float)(cell->w),
 			(float)(cell->h),
