@@ -118,8 +118,7 @@ typedef struct Context {
 void SetSprite(Context* ctx, Entity* entity, const char* path);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
-// void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect);
-// void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos);
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir);
 void DrawEntity(Context* ctx, Entity* entity);
 
 void ResetGame(Context* ctx);
