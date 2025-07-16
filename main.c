@@ -15,7 +15,7 @@
 #define XXH_IMPLEMENTATION      /* access definitions */
 #include <xxhash.h>
 
-#include <sinfl.h>
+#include "infl.h"
 
 typedef int64_t ssize_t;
 

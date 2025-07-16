@@ -1,194 +1,186 @@
-#ifndef SINFL_H_INCLUDED
-#define SINFL_H_INCLUDED
+#ifndef INFL_H_INCLUDED
+#define INFL_H_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define INFL_PRE_TBL_SIZE 128
+#define INFL_LIT_TBL_SIZE 1334
+#define INFL_OFF_TBL_SIZE 402
 
-#define SINFL_PRE_TBL_SIZE 128
-#define SINFL_LIT_TBL_SIZE 1334
-#define SINFL_OFF_TBL_SIZE 402
+typedef struct INFL_Context {
+  const uint8_t* bitptr;
+  const uint8_t* bitend;
+  uint64_t bitbuf;
+  int32_t bitcnt;
 
-struct sinfl {
-  const unsigned char *bitptr;
-  const unsigned char *bitend;
-  unsigned long long bitbuf;
-  int bitcnt;
+  uint32_t lits[INFL_LIT_TBL_SIZE];
+  uint32_t dsts[INFL_OFF_TBL_SIZE];
+} INFL_Context;
 
-  unsigned lits[SINFL_LIT_TBL_SIZE];
-  unsigned dsts[SINFL_OFF_TBL_SIZE];
-};
-extern size_t sinflate(void *out, size_t cap, const void *in, size_t size);
-extern size_t zsinflate(void *out, size_t cap, const void *in, size_t size);
+extern uint64_t INFL_Inflate(void* out, uint64_t cap, const void* in, uint64_t size);
+extern uint64_t INFL_ZInflate(void* out, uint64_t cap, const void* in, uint64_t size);
 
-#ifdef __cplusplus
-}
-#endif
+#endif /* INFL_H_INCLUDED */
 
-#endif /* SINFL_H_INCLUDED */
+#ifdef INFL_IMPLEMENTATION
 
-#ifdef SINFL_IMPLEMENTATION
-
-#include <string.h> /* memcpy, memset */
-#include <assert.h> /* assert */
+#include <SDL_stdinc.h>
+#include <SDL_assert.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-#define sinfl_likely(x)       __builtin_expect((x),1)
-#define sinfl_unlikely(x)     __builtin_expect((x),0)
+#define INFL_Likely(x)       __builtin_expect((x),1)
+#define INFL_Unlikely(x)     __builtin_expect((x),0)
 #else
-#define sinfl_likely(x)       (x)
-#define sinfl_unlikely(x)     (x)
+#define INFL_Likely(x)       (x)
+#define INFL_Unlikely(x)     (x)
 #endif
 
-#ifndef SINFL_NO_SIMD
+#ifndef INFL_NO_SIMD
 #if defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
   #include <arm_neon.h>
-  #define sinfl_char16           uint8x16_t
-  #define sinfl_char16_ld(p)     vld1q_u8((const unsigned char*)(p))
-  #define sinfl_char16_str(d, v) vst1q_u8((unsigned char*)(d), v)
-  #define sinfl_char16_char(c)   vdupq_n_u8(c)
+  #define INFL_Char16           uint8x16_t
+  #define INFL_Char16_ld(p)     vld1q_u8((const uint8_t*)(p))
+  #define INFL_Char16_str(d, v) vst1q_u8((uint8_t*)(d), v)
+  #define INFL_Char16_char(c)   vdupq_n_u8(c)
 #elif defined(__x86_64__) || defined(_WIN32) || defined(_WIN64)
   #include <emmintrin.h>
-  #define sinfl_char16 __m128i
-  #define sinfl_char16_ld(p) _mm_loadu_si128((const __m128i *)(void*)(p))
-  #define sinfl_char16_str(d,v)  _mm_storeu_si128((__m128i*)(void*)(d), v)
-  #define sinfl_char16_char(c) _mm_set1_epi8(c)
+  #define INFL_Char16 __m128i
+  #define INFL_Char16_ld(p) _mm_loadu_si128((const __m128i* )(void*)(p))
+  #define INFL_Char16_str(d,v)  _mm_storeu_si128((__m128i*)(void*)(d), v)
+  #define INFL_Char16_char(c) _mm_set1_epi8(c)
 #else
-  #define SINFL_NO_SIMD
+  #define INFL_NO_SIMD
 #endif
 #endif
 
-static int
-sinfl_bsr(unsigned n) {
+static int32_t INFL_Bsr(uint32_t n) {
 #ifdef _MSC_VER
-  unsigned long r = 0;
+  uint32_t r = 0;
   _BitScanReverse(&r, n);
-  return (int)r;
+  return (int32_t)r;
 #elif defined(__GNUC__) || defined(__clang__)
   return 31 - __builtin_clz(n);
 #endif
 }
-static unsigned long long
-sinfl_read64(const void *p) {
-  unsigned long long n;
-  memcpy(&n, p, 8);
+
+static uint64_t INFL_Read64(const void* p) {
+  uint64_t n;
+  SDL_memcpy(&n, p, 8);
   return n;
 }
-static void
-sinfl_copy64(unsigned char **dst, unsigned char **src) {
-  memcpy(*dst, *src, 8);
+
+static void INFL_Copy64(uint8_t** dst, uint8_t** src) {
+  SDL_memcpy(*dst, *src, 8);
   *dst += 8, *src += 8;
 }
-static unsigned char*
-sinfl_write64(unsigned char *dst, unsigned long long w) {
-  memcpy(dst, &w, 8);
+
+static uint8_t* INFL_Write64(uint8_t* dst, uint64_t w) {
+  SDL_memcpy(dst, &w, 8);
   return dst + 8;
 }
-#ifndef SINFL_NO_SIMD
-static unsigned char*
-sinfl_write128(unsigned char *dst, sinfl_char16 w) {
-  sinfl_char16_str(dst, w);
+
+#ifndef INFL_NO_SIMD
+static uint8_t* INFL_Write128(uint8_t* dst, INFL_Char16 w) {
+  INFL_Char16_str(dst, w);
   return dst + 8;
 }
-static void
-sinfl_copy128(unsigned char **dst, unsigned char **src) {
-  sinfl_char16 n = sinfl_char16_ld(*src);
-  sinfl_char16_str(*dst, n);
+
+static void INFL_Copy128(uint8_t** dst, uint8_t** src) {
+  INFL_Char16 n = INFL_Char16_ld(*src);
+  INFL_Char16_str(*dst, n);
   *dst += 16, *src += 16;
 }
 #endif
-static void
-sinfl_refill(struct sinfl *s) {
+
+static void INFL_Refill(INFL_Context* s) {
   if (s->bitend - s->bitptr >= 8) {
       // @raysan5: original code, only those 3 lines
-      s->bitbuf |= sinfl_read64(s->bitptr) << s->bitcnt;
+      s->bitbuf |= INFL_Read64(s->bitptr) << s->bitcnt;
       s->bitptr += (63 - s->bitcnt) >> 3;
       s->bitcnt |= 56; /* bitcount in range [56,63] */
   } else {
       // @raysan5: added this case when bits remaining < 8
-      int bitswant = 63 - s->bitcnt;
-      int byteswant = bitswant >> 3;
-      int bytesuse = s->bitend - s->bitptr <= byteswant ? (int)(s->bitend - s->bitptr) : byteswant;
-      unsigned long long n = 0;
-      memcpy(&n, s->bitptr, bytesuse);
+      int32_t bitswant = 63 - s->bitcnt;
+      int32_t byteswant = bitswant >> 3;
+      int32_t bytesuse = s->bitend - s->bitptr <= byteswant ? (int32_t)(s->bitend - s->bitptr) : byteswant;
+      uint64_t n = 0;
+      SDL_memcpy(&n, s->bitptr, bytesuse);
       s->bitbuf |= n << s->bitcnt;
       s->bitptr += bytesuse;
       s->bitcnt += bytesuse << 3;
   }
 }
-static int
-sinfl_peek(struct sinfl *s, int cnt) {
-  assert(cnt >= 0 && cnt <= 56);
-  assert(cnt <= s->bitcnt);
+
+static int32_t INFL_Peek(INFL_Context* s, int32_t cnt) {
+  SDL_assert(cnt >= 0 && cnt <= 56);
+  SDL_assert(cnt <= s->bitcnt);
   return s->bitbuf & ((1ull << cnt) - 1);
 }
-static void
-sinfl_eat(struct sinfl *s, int cnt) {
-  assert(cnt <= s->bitcnt);
+
+static void INFL_Eat(INFL_Context* s, int32_t cnt) {
+  SDL_assert(cnt <= s->bitcnt);
   s->bitbuf >>= cnt;
   s->bitcnt -= cnt;
 }
-static int
-sinfl__get(struct sinfl *s, int cnt) {
-  int res = sinfl_peek(s, cnt);
-  sinfl_eat(s, cnt);
+
+static int32_t INFL__get(INFL_Context* s, int32_t cnt) {
+  int32_t res = INFL_Peek(s, cnt);
+  INFL_Eat(s, cnt);
   return res;
 }
-static int
-sinfl_get(struct sinfl *s, int cnt) {
-  sinfl_refill(s);
-  return sinfl__get(s, cnt);
+
+static int32_t INFL_Get(INFL_Context* s, int32_t cnt) {
+  INFL_Refill(s);
+  return INFL__get(s, cnt);
 }
-struct sinfl_gen {
-  int len;
-  int cnt;
-  int word;
-  short* sorted;
-};
-static int
-sinfl_build_tbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
-                const int *cnt) {
-  int tbl_end = 0;
+
+typedef struct INFL_Gen {
+  int32_t len;
+  int32_t cnt;
+  int32_t word;
+  int16_t* sorted;
+} INFL_Gen;
+
+static int32_t INFL_BuildTbl(INFL_Gen* gen, uint32_t* tbl, int32_t tbl_bits, const int32_t* cnt) {
+  int32_t tbl_end = 0;
   while (!(gen->cnt = cnt[gen->len])) {
     ++gen->len;
   }
   tbl_end = 1 << gen->len;
   while (gen->len <= tbl_bits) {
-    do {unsigned bit = 0;
+    do {uint32_t bit = 0;
       tbl[gen->word] = (*gen->sorted++ << 16) | gen->len;
       if (gen->word == tbl_end - 1) {
         for (; gen->len < tbl_bits; gen->len++) {
-          memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end * sizeof(tbl[0]));
+          SDL_memcpy(&tbl[tbl_end], tbl, (uint64_t)tbl_end*  sizeof(tbl[0]));
           tbl_end <<= 1;
         }
         return 1;
       }
-      bit = 1 << sinfl_bsr((unsigned)(gen->word ^ (tbl_end - 1)));
+      bit = 1 << INFL_Bsr((uint32_t)(gen->word ^ (tbl_end - 1)));
       gen->word &= bit - 1;
       gen->word |= bit;
     } while (--gen->cnt);
     do {
       if (++gen->len <= tbl_bits) {
-        memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end * sizeof(tbl[0]));
+        SDL_memcpy(&tbl[tbl_end], tbl, (uint64_t)tbl_end*  sizeof(tbl[0]));
         tbl_end <<= 1;
       }
     } while (!(gen->cnt = cnt[gen->len]));
   }
   return 0;
 }
-static void
-sinfl_build_subtbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
-                   const int *cnt) {
-  int sub_bits = 0;
-  int sub_start = 0;
-  int sub_prefix = -1;
-  int tbl_end = 1 << tbl_bits;
+
+static void INFL_BuildSubtbl(INFL_Gen* gen, uint32_t* tbl, int32_t tbl_bits,
+                   const int32_t* cnt) {
+  int32_t sub_bits = 0;
+  int32_t sub_start = 0;
+  int32_t sub_prefix = -1;
+  int32_t tbl_end = 1 << tbl_bits;
   while (1) {
-    unsigned entry;
-    int bit, stride, i;
+    uint32_t entry;
+    int32_t bit, stride, i;
     /* start new sub-table */
     if ((gen->word & ((1 << tbl_bits)-1)) != sub_prefix) {
-      int used = 0;
+      int32_t used = 0;
       sub_prefix = gen->word & ((1 << tbl_bits)-1);
       sub_start = tbl_end;
       sub_bits = gen->len - tbl_bits;
@@ -212,7 +204,7 @@ sinfl_build_subtbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
     if (gen->word == (1 << gen->len)-1) {
       return;
     }
-    bit = 1 << sinfl_bsr(gen->word ^ ((1 << gen->len) - 1));
+    bit = 1 << INFL_Bsr(gen->word ^ ((1 << gen->len) - 1));
     gen->word &= bit - 1;
     gen->word |= bit;
     gen->cnt--;
@@ -221,13 +213,13 @@ sinfl_build_subtbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
     }
   }
 }
-static void
-sinfl_build(unsigned *tbl, unsigned char *lens, int tbl_bits, int maxlen,
-            int symcnt) {
-  int i, used = 0;
-  short sort[288];
-  int cnt[16] = {0}, off[16]= {0};
-  struct sinfl_gen gen = {0};
+
+static void INFL_Build(uint32_t* tbl, uint8_t* lens, int32_t tbl_bits, int32_t maxlen,
+            int32_t symcnt) {
+  int32_t i, used = 0;
+  int16_t sort[288];
+  int32_t cnt[16] = {0}, off[16]= {0};
+  INFL_Gen gen = {0};
   gen.sorted = sort;
   gen.len = 1;
 
@@ -240,7 +232,7 @@ sinfl_build(unsigned *tbl, unsigned char *lens, int tbl_bits, int maxlen,
   }
   used = (used << 1) + cnt[i];
   for (i = 0; i < symcnt; ++i)
-    gen.sorted[off[lens[i]]++] = (short)i;
+    gen.sorted[off[lens[i]]++] = (int16_t)i;
   gen.sorted += off[0];
 
   if (used < (1 << maxlen)){
@@ -248,42 +240,42 @@ sinfl_build(unsigned *tbl, unsigned char *lens, int tbl_bits, int maxlen,
       tbl[i] = (0 << 16u) | 1;
     return;
   }
-  if (!sinfl_build_tbl(&gen, tbl, tbl_bits, cnt)){
-    sinfl_build_subtbl(&gen, tbl, tbl_bits, cnt);
+  if (!INFL_BuildTbl(&gen, tbl, tbl_bits, cnt)){
+    INFL_BuildSubtbl(&gen, tbl, tbl_bits, cnt);
   }
 }
-static int
-sinfl_decode(struct sinfl *s, const unsigned *tbl, int bit_len) {
-  int idx = sinfl_peek(s, bit_len);
-  unsigned key = tbl[idx];
+
+static int32_t INFL_Decode(INFL_Context* s, const uint32_t* tbl, int32_t bit_len) {
+  int32_t idx = INFL_Peek(s, bit_len);
+  uint32_t key = tbl[idx];
   if (key & 0x10) {
     /* sub-table lookup */
-    int len = key & 0x0f;
-    sinfl_eat(s, bit_len);
-    idx = sinfl_peek(s, len);
-    key = tbl[((key >> 16) & 0xffff) + (unsigned)idx];
+    int32_t len = key & 0x0f;
+    INFL_Eat(s, bit_len);
+    idx = INFL_Peek(s, len);
+    key = tbl[((key >> 16) & 0xffff) + (uint32_t)idx];
   }
-  sinfl_eat(s, key & 0x0f);
+  INFL_Eat(s, key & 0x0f);
   return (key >> 16) & 0x0fff;
 }
-static size_t
-sinfl_decompress(unsigned char *out, size_t cap, const unsigned char *in, size_t size) {
-  static const unsigned char order[] = {16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15};
-  static const short dbase[30+2] = {1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,
+
+static uint64_t INFL_Decompress(uint8_t* out, uint64_t cap, const uint8_t* in, uint64_t size) {
+  static const uint8_t order[] = {16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15};
+  static const int16_t dbase[30+2] = {1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,
       257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577};
-  static const unsigned char dbits[30+2] = {0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,
+  static const uint8_t dbits[30+2] = {0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,
       10,10,11,11,12,12,13,13,0,0};
-  static const short lbase[29+2] = {3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,
+  static const int16_t lbase[29+2] = {3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,
       43,51,59,67,83,99,115,131,163,195,227,258,0,0};
-  static const unsigned char lbits[29+2] = {0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,
+  static const uint8_t lbits[29+2] = {0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,
       4,4,4,5,5,5,5,0,0,0};
 
-  const unsigned char *oe = out + cap;
-  const unsigned char *e = in + size, *o = out;
-  enum sinfl_states {hdr,stored,fixed,dyn,blk};
-  enum sinfl_states state = hdr;
-  struct sinfl s = {0};
-  int last = 0;
+  const uint8_t* oe = out + cap;
+  const uint8_t* e = in + size, *o = out;
+  typedef enum INFL_States {hdr,stored,fixed,dyn,blk} INFL_States;
+  INFL_States state = hdr;
+  INFL_Context s = {0};
+  int32_t last = 0;
 
   s.bitptr = in;
   s.bitend = e;
@@ -291,38 +283,38 @@ sinfl_decompress(unsigned char *out, size_t cap, const unsigned char *in, size_t
     switch (state) {
     case hdr: {
       /* block header */
-      int type = 0;
-      sinfl_refill(&s);
-      last = sinfl__get(&s,1);
-      type = sinfl__get(&s,2);
+      int32_t type = 0;
+      INFL_Refill(&s);
+      last = INFL__get(&s,1);
+      type = INFL__get(&s,2);
 
-      switch (type) {default: return (size_t)(out-o);
+      switch (type) {default: return (uint64_t)(out-o);
       case 0x00: state = stored; break;
       case 0x01: state = fixed; break;
       case 0x02: state = dyn; break;}
     } break;
     case stored: {
       /* uncompressed block */
-      unsigned len, nlen;
-      sinfl__get(&s,s.bitcnt & 7);
-      len = (unsigned short)sinfl__get(&s,16);
-      nlen = (unsigned short)sinfl__get(&s,16);
+      uint32_t len, nlen;
+      INFL__get(&s,s.bitcnt & 7);
+      len = (uint16_t)INFL__get(&s,16);
+      nlen = (uint16_t)INFL__get(&s,16);
       s.bitptr -= s.bitcnt / 8;
       s.bitbuf = s.bitcnt = 0;
 
-      if ((unsigned short)len != (unsigned short)~nlen)
-        return (size_t)(out-o);
+      if ((uint16_t)len != (uint16_t)~nlen)
+        return (uint64_t)(out-o);
       if (len > (e - s.bitptr))
-        return (size_t)(out-o);
+        return (uint64_t)(out-o);
 
-      memcpy(out, s.bitptr, (size_t)len);
+      SDL_memcpy(out, s.bitptr, (uint64_t)len);
       s.bitptr += len, out += len;
-      if (last) return (size_t)(out-o);
+      if (last) return (uint64_t)(out-o);
       state = hdr;
     } break;
     case fixed: {
       /* fixed huffman codes */
-      int n; unsigned char lens[288+32];
+      int32_t n; uint8_t lens[288+32];
       for (n = 0; n <= 143; n++) lens[n] = 8;
       for (n = 144; n <= 255; n++) lens[n] = 9;
       for (n = 256; n <= 279; n++) lens[n] = 7;
@@ -330,98 +322,98 @@ sinfl_decompress(unsigned char *out, size_t cap, const unsigned char *in, size_t
       for (n = 0; n < 32; n++) lens[288+n] = 5;
 
       /* build lit/dist tables */
-      sinfl_build(s.lits, lens, 10, 15, 288);
-      sinfl_build(s.dsts, lens + 288, 8, 15, 32);
+      INFL_Build(s.lits, lens, 10, 15, 288);
+      INFL_Build(s.dsts, lens + 288, 8, 15, 32);
       state = blk;
     } break;
     case dyn: {
       /* dynamic huffman codes */
-      int n, i;
-      unsigned hlens[SINFL_PRE_TBL_SIZE];
-      unsigned char nlens[19] = {0}, lens[288+32];
+      int32_t n, i;
+      uint32_t hlens[INFL_PRE_TBL_SIZE];
+      uint8_t nlens[19] = {0}, lens[288+32];
 
-      sinfl_refill(&s);
-      {int nlit = 257 + sinfl__get(&s,5);
-      int ndist = 1 + sinfl__get(&s,5);
-      int nlen = 4 + sinfl__get(&s,4);
+      INFL_Refill(&s);
+      {int32_t nlit = 257 + INFL__get(&s,5);
+      int32_t ndist = 1 + INFL__get(&s,5);
+      int32_t nlen = 4 + INFL__get(&s,4);
       for (n = 0; n < nlen; n++)
-        nlens[order[n]] = (unsigned char)sinfl_get(&s,3);
-      sinfl_build(hlens, nlens, 7, 7, 19);
+        nlens[order[n]] = (uint8_t)INFL_Get(&s,3);
+      INFL_Build(hlens, nlens, 7, 7, 19);
 
       /* decode code lengths */
       for (n = 0; n < nlit + ndist;) {
-        int sym = 0;
-        sinfl_refill(&s);
-        sym = sinfl_decode(&s, hlens, 7);
-        switch (sym) {default: lens[n++] = (unsigned char)sym; break;
-        case 16: for (i=3+sinfl_get(&s,2);i;i--,n++) lens[n]=lens[n-1]; break;
-        case 17: for (i=3+sinfl_get(&s,3);i;i--,n++) lens[n]=0; break;
-        case 18: for (i=11+sinfl_get(&s,7);i;i--,n++) lens[n]=0; break;}
+        int32_t sym = 0;
+        INFL_Refill(&s);
+        sym = INFL_Decode(&s, hlens, 7);
+        switch (sym) {default: lens[n++] = (uint8_t)sym; break;
+        case 16: for (i=3+INFL_Get(&s,2);i;i--,n++) lens[n]=lens[n-1]; break;
+        case 17: for (i=3+INFL_Get(&s,3);i;i--,n++) lens[n]=0; break;
+        case 18: for (i=11+INFL_Get(&s,7);i;i--,n++) lens[n]=0; break;}
       }
       /* build lit/dist tables */
-      sinfl_build(s.lits, lens, 10, 15, nlit);
-      sinfl_build(s.dsts, lens + nlit, 8, 15, ndist);
+      INFL_Build(s.lits, lens, 10, 15, nlit);
+      INFL_Build(s.dsts, lens + nlit, 8, 15, ndist);
       state = blk;}
     } break;
     case blk: {
       /* decompress block */
       while (1) {
-        int sym;
-        sinfl_refill(&s);
-        sym = sinfl_decode(&s, s.lits, 10);
+        int32_t sym;
+        INFL_Refill(&s);
+        sym = INFL_Decode(&s, s.lits, 10);
         if (sym < 256) {
           /* literal */
-          if (sinfl_unlikely(out >= oe)) {
-            return (size_t)(out-o);
+          if (INFL_Unlikely(out >= oe)) {
+            return (uint64_t)(out-o);
           }
-          *out++ = (unsigned char)sym;
-          sym = sinfl_decode(&s, s.lits, 10);
+          *out++ = (uint8_t)sym;
+          sym = INFL_Decode(&s, s.lits, 10);
           if (sym < 256) {
-            *out++ = (unsigned char)sym;
+            *out++ = (uint8_t)sym;
             continue;
           }
         }
-        if (sinfl_unlikely(sym == 256)) {
+        if (INFL_Unlikely(sym == 256)) {
           /* end of block */
-          if (last) return (size_t)(out-o);
+          if (last) return (uint64_t)(out-o);
           state = hdr;
           break;
         }
         /* match */
         if (sym >= 286) {
           /* length codes 286 and 287 must not appear in compressed data */
-          return (size_t)(out-o);
+          return (uint64_t)(out-o);
         }
         sym -= 257;
-        {int len = sinfl__get(&s, lbits[sym]) + lbase[sym];
-        int dsym = sinfl_decode(&s, s.dsts, 8);
-        int offs = sinfl__get(&s, dbits[dsym]) + dbase[dsym];
-        unsigned char *dst = out, *src = out - offs;
-        if (sinfl_unlikely(offs > (size_t)(out-o))) {
-          return (size_t)(out-o);
+        {int32_t len = INFL__get(&s, lbits[sym]) + lbase[sym];
+        int32_t dsym = INFL_Decode(&s, s.dsts, 8);
+        int32_t offs = INFL__get(&s, dbits[dsym]) + dbase[dsym];
+        uint8_t* dst = out, *src = out - offs;
+        if (INFL_Unlikely(offs > (uint64_t)(out-o))) {
+          return (uint64_t)(out-o);
         }
         out = out + len;
 
-#ifndef SINFL_NO_SIMD
-        if (sinfl_likely(oe - out >= 16 * 3)) {
+#ifndef INFL_NO_SIMD
+        if (INFL_Likely(oe - out >= 16 * 3)) {
           if (offs >= 16) {
             /* simd copy match */
-            sinfl_copy128(&dst, &src);
-            sinfl_copy128(&dst, &src);
-            do sinfl_copy128(&dst, &src);
+            INFL_Copy128(&dst, &src);
+            INFL_Copy128(&dst, &src);
+            do INFL_Copy128(&dst, &src);
             while (dst < out);
           } else if (offs >= 8) {
             /* word copy match */
-            sinfl_copy64(&dst, &src);
-            sinfl_copy64(&dst, &src);
-            do sinfl_copy64(&dst, &src);
+            INFL_Copy64(&dst, &src);
+            INFL_Copy64(&dst, &src);
+            do INFL_Copy64(&dst, &src);
             while (dst < out);
           } else if (offs == 1) {
             /* rle match copying */
-            sinfl_char16 w = sinfl_char16_char(src[0]);
-            dst = sinfl_write128(dst, w);
-            dst = sinfl_write128(dst, w);
-            do dst = sinfl_write128(dst, w);
+            INFL_Char16 w = INFL_Char16_char(src[0]);
+            dst = INFL_Write128(dst, w);
+            dst = INFL_Write128(dst, w);
+            do dst = INFL_Write128(dst, w);
             while (dst < out);
           } else {
             /* byte copy match */
@@ -432,21 +424,21 @@ sinfl_decompress(unsigned char *out, size_t cap, const unsigned char *in, size_t
           }
         }
 #else
-        if (sinfl_likely(oe - out >= 3 * 8 - 3)) {
+        if (INFL_Likely(oe - out >= 3 * 8 - 3)) {
           if (offs >= 8) {
             /* word copy match */
-            sinfl_copy64(&dst, &src);
-            sinfl_copy64(&dst, &src);
-            do sinfl_copy64(&dst, &src);
+            INFL_Copy64(&dst, &src);
+            INFL_Copy64(&dst, &src);
+            do INFL_Copy64(&dst, &src);
             while (dst < out);
           } else if (offs == 1) {
             /* rle match copying */
-            unsigned int c = src[0];
-            unsigned int hw = (c << 24u) | (c << 16u) | (c << 8u) | (unsigned)c;
-            unsigned long long w = (unsigned long long)hw << 32llu | hw;
-            dst = sinfl_write64(dst, w);
-            dst = sinfl_write64(dst, w);
-            do dst = sinfl_write64(dst, w);
+            uint32_t c = src[0];
+            uint32_t hw = (c << 24u) | (c << 16u) | (c << 8u) | (uint32_t)c;
+            uint64_t w = (uint64_t)hw << 32llu | hw;
+            dst = INFL_Write64(dst, w);
+            dst = INFL_Write64(dst, w);
+            do dst = INFL_Write64(dst, w);
             while (dst < out);
           } else {
             /* byte copy match */
@@ -466,18 +458,18 @@ sinfl_decompress(unsigned char *out, size_t cap, const unsigned char *in, size_t
       }
     } break;}
   }
-  return (size_t)(out-o);
+  return (uint64_t)(out-o);
 }
-extern size_t
-sinflate(void *out, size_t cap, const void *in, size_t size) {
-  return sinfl_decompress((unsigned char*)out, cap, (const unsigned char*)in, size);
+
+extern uint64_t INFL_Inflate(void* out, uint64_t cap, const void* in, uint64_t size) {
+  return INFL_Decompress((uint8_t*)out, cap, (const uint8_t*)in, size);
 }
-static unsigned
-sinfl_adler32(unsigned adler32, const unsigned char *in, size_t in_len) {
-  const unsigned ADLER_MOD = 65521;
-  unsigned s1 = adler32 & 0xffff;
-  unsigned s2 = adler32 >> 16;
-  size_t blk_len, i;
+
+static uint32_t INFL_Adler32(uint32_t adler32, const uint8_t* in, uint64_t in_len) {
+  const uint32_t ADLER_MOD = 65521;
+  uint32_t s1 = adler32 & 0xffff;
+  uint32_t s2 = adler32 >> 16;
+  uint64_t blk_len, i;
 
   blk_len = in_len % 5552;
   while (in_len) {
@@ -497,16 +489,16 @@ sinfl_adler32(unsigned adler32, const unsigned char *in, size_t in_len) {
     s1 %= ADLER_MOD; s2 %= ADLER_MOD;
     in_len -= blk_len;
     blk_len = 5552;
-  } return (unsigned)(s2 << 16) + (unsigned)s1;
+  } return (uint32_t)(s2 << 16) + (uint32_t)s1;
 }
-extern size_t
-zsinflate(void *out, size_t cap, const void *mem, size_t size) {
-  const unsigned char *in = (const unsigned char*)mem;
+
+extern uint64_t INFL_ZInflate(void* out, uint64_t cap, const void* mem, uint64_t size) {
+  const uint8_t* in = (const uint8_t*)mem;
   if (size >= 6) {
-    const unsigned char *eob = in + size - 4;
-    size_t n = sinfl_decompress((unsigned char*)out, cap, in + 2u, size);
-    unsigned a = sinfl_adler32(1u, (unsigned char*)out, n);
-    unsigned h = eob[0] << 24 | eob[1] << 16 | eob[2] << 8 | eob[3] << 0;
+    const uint8_t* eob = in + size - 4;
+    uint64_t n = INFL_Decompress((uint8_t*)out, cap, in + 2u, size);
+    uint32_t a = INFL_Adler32(1u, (uint8_t*)out, n);
+    uint32_t h = eob[0] << 24 | eob[1] << 16 | eob[2] << 8 | eob[3] << 0;
     return a == h ? n : -1;
   } else {
     return -1;

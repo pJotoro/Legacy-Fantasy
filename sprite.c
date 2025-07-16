@@ -113,7 +113,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
 					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 
-					size_t res = zsinflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
+					size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 					SDL_Log("%s: %llu", sd->path, res);
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
