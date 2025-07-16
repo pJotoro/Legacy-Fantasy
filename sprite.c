@@ -103,7 +103,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					cell.h = (size_t)chunk->compressed_image.h;
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
-					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk); 
+					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
 					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
