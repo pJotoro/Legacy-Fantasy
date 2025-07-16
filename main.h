@@ -68,7 +68,6 @@ void ResetAnim(Anim* anim);
 typedef struct Nuklear {
 	struct nk_context ctx;
 	struct nk_user_font font;
-	Anim anims[MAX_SPRITES];
 } Nuklear;
 
 typedef uint8_t TileType;
@@ -118,6 +117,9 @@ typedef struct Context {
 	size_t n_sprites;
 
 	size_t sprite_tests_failed;
+
+	bool draw_selected_anim;
+	Anim selected_anim;
 } Context;
 
 void SetSprite(Context* ctx, Entity* entity, const char* path);

@@ -213,7 +213,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir)
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
 		SpriteCell* cell = &sf->cells[cell_idx];
-		const SDL_FRect srcrect = {
+		SDL_FRect srcrect = {
 			0.0f,
 			0.0f,
 			(float)(cell->w),

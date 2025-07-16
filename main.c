@@ -153,6 +153,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key) {
 				case SDLK_0:
+					ctx->draw_selected_anim = true;
+					ResetAnim(&ctx->selected_anim);
+					do {
+						ctx->selected_anim.sprite.idx += 1;
+						if (ctx->selected_anim.sprite.idx >= MAX_SPRITES) ctx->selected_anim.sprite.idx = 0;
+					} while (!ctx->sprites[ctx->selected_anim.sprite.idx].path);
 					break;
 				case SDLK_SPACE:
 					break;
@@ -412,6 +418,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		UpdateAnim(ctx, &ctx->player.anim);
+		if (ctx->draw_selected_anim) {
+			UpdateAnim(ctx, &ctx->selected_anim);
+		}
 
 		// RenderBegin
 		{
@@ -448,6 +457,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			// SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->sprites[ctx->sprite_idx].w, (float)ctx->sprites[ctx->sprite_idx].h };
 			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
+		}
+
+		if (ctx->draw_selected_anim) {
+			DrawAnim(ctx, &ctx->selected_anim, (vec2s){300.0f, 300.0f}, 1.0f);
 		}
 
 		// RenderEnd
