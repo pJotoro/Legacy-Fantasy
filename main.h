@@ -125,6 +125,7 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, float dir);
 void DrawEntity(Context* ctx, Entity* entity);
+void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir);
 
 void UpdateAnim(Context* ctx, Anim* anim);
 

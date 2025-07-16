@@ -240,6 +240,10 @@ void DrawEntity(Context* ctx, Entity* entity) {
 	DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
 }
 
+void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir) {
+	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
+}
+
 // This is really stupid and could be written in like two lines probably.
 int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b) {
 	ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;

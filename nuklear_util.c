@@ -269,6 +269,8 @@ void NK_UpdateUI(Context* gctx) {
 						nk_value_uint(ctx, "h", (uint32_t)sprite->h);
 						nk_value_uint(ctx, "frames", (uint32_t)sprite->n_frames);
 
+
+
 						// cols = 1;
 						// nk_layout_row_static(ctx, height, item_width, cols);
 
