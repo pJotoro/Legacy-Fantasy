@@ -174,7 +174,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						if (!event.key.repeat && ctx->player.can_jump) {
 							ctx->player.can_jump = 0;
 							ctx->player.vel.y = -PLAYER_JUMP;
-							SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+							// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 						}
 					}
 					break;
@@ -220,7 +220,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (ctx->player.can_jump) {
 						ctx->player.can_jump = 0;
 						ctx->player.vel.y = -PLAYER_JUMP;
-						SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+						// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 					}
 				}
 				break;

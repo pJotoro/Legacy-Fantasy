@@ -219,12 +219,19 @@ void DrawEntity(Context* ctx, Entity* entity) {
 			(float)(cell->w),
 			(float)(cell->h),
 		};
-		const SDL_FRect dstrect = {
-			(float)(cell->x_offset + entity->pos.x),
-			(float)(cell->y_offset + entity->pos.y),
+		SDL_FRect dstrect = {
+			(float)(entity->pos.x),
+			(float)(entity->pos.y + cell->y_offset),
 			(float)(cell->w),
 			(float)(cell->h),
 		};
+		if (entity->dir > 0.0f) {
+			dstrect.x += (float)cell->x_offset;
+		} else {
+			dstrect.x -= (float)cell->x_offset;
+			dstrect.x += (float)sd->w;
+			dstrect.w = -dstrect.w;
+		}
 		SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 	}
 }
