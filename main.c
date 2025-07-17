@@ -34,10 +34,9 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
-		.pos.y = TILE_SIZE*6.0f,
+		.pos.y = TILE_SIZE*11.0f,
 		.dir = 1.0f,
 	};
-	// SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
@@ -462,7 +461,7 @@ void UpdatePlayer(Context* ctx) {
 		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-End.aseprite");
+		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
 	}
 
 	if (ctx->player.vel.x < 0.0f) {
@@ -508,6 +507,7 @@ void UpdatePlayer(Context* ctx) {
 		}
 	}
 
+	ctx->player.vel.y += GRAVITY;
 	ctx->player.jump_frames = SDL_max(0, ctx->player.jump_frames - 1);
 	if (ctx->player.vel.y < 0.0f) {
 		Rect side;
@@ -555,7 +555,9 @@ void UpdatePlayer(Context* ctx) {
 	case ENTITY_STATE_IDLE: {
 		SetSprite(&ctx->player, player_idle);
 
-		if (ctx->axis.y == -1.0f) {
+		if (ctx->player.vel.y > 0.0f) {
+			ctx->player.state = ENTITY_STATE_JUMP_END;
+		} else if (ctx->axis.y == -1.0f) {
 			ctx->player.state = ENTITY_STATE_JUMP_START;
 		} else if (ctx->axis.x != 0.0f) {
 			ctx->player.state = ENTITY_STATE_RUN;
@@ -564,7 +566,9 @@ void UpdatePlayer(Context* ctx) {
 	case ENTITY_STATE_RUN: {
 		SetSprite(&ctx->player, player_run);
 
-		if (ctx->axis.y == -1.0f) {
+		if (ctx->player.vel.y > 0.0f) {
+			ctx->player.state = ENTITY_STATE_JUMP_END;
+		} else if (ctx->axis.y == -1.0f) {
 			ctx->player.state = ENTITY_STATE_JUMP_START;
 		} else if (ctx->axis.x == 0.0f && ctx->player.vel.x == 0.0f) {
 			ctx->player.state = ENTITY_STATE_IDLE;
@@ -588,24 +592,22 @@ void UpdatePlayer(Context* ctx) {
 			ctx->player.vel.y = -PLAYER_JUMP;
 		}
 
-		if (ctx->axis.y == 1.0f) {
+		if (ctx->axis.y == 1.0f || ctx->player.vel.y > 0.0f) {
 			ctx->player.state = ENTITY_STATE_JUMP_END;
 		}
 
-		ctx->player.vel.y += GRAVITY;
 
 	} break;
 	case ENTITY_STATE_JUMP_END: {
 		SetSprite(&ctx->player, player_jump_end);
 
-		if (ctx->player.jump_frames > 0) {
+		if (ctx->player.jump_frames > 0 || ctx->player.vel.y == 0.0f) {
 			if (ctx->player.vel.x == 0.0f) {
 				ctx->player.state = ENTITY_STATE_IDLE;
 			} else {
 				ctx->player.state = ENTITY_STATE_RUN;
 			}
 		} else {
-			ctx->player.vel.y += GRAVITY;
 		}
 	} break;
 	}
