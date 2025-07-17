@@ -240,6 +240,22 @@ void DrawEntity(Context* ctx, Entity* entity) {
 	DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
 }
 
+void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+    if (anim->frame_idx < sd->n_frames || loop) {
+    	anim->frame_tick += 1;
+	    if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
+	        anim->frame_tick = 0;
+	        anim->frame_idx += 1;
+	        if (anim->frame_idx >= sd->n_frames) {
+	        	if (loop) anim->frame_idx = 0;
+	        	else anim->frame_idx -= 1;
+	        }
+	    }
+    }
+    
+}
+
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir) {
 	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }

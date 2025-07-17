@@ -127,15 +127,3 @@ void DrawCircleFilled(SDL_Renderer* renderer, const int32_t cx, const int32_t cy
         }
     }	
 }
-
-void UpdateAnim(Context* ctx, Anim* anim) {
-    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    anim->frame_tick += 1;
-    if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
-        anim->frame_tick = 0;
-        anim->frame_idx += 1;
-        if (anim->frame_idx >= sd->n_frames) {
-            anim->frame_idx = 0;
-        }
-    }
-}

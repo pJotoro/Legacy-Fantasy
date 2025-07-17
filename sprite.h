@@ -32,7 +32,7 @@ typedef struct SpriteDesc {
 } SpriteDesc;
 
 typedef struct Sprite {
-	size_t idx;
+	ssize_t idx;
 } Sprite;
 
 int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b);

@@ -37,8 +37,8 @@ void ResetGame(Context* ctx) {
 		.pos.y = TILE_SIZE*6.0f,
 		.dir = 1.0f,
 	};
-	// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-	SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	// SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -177,10 +177,10 @@ int32_t main(int32_t argc, char* argv[]) {
 					break;
 				case SDLK_UP:
 					if (!ctx->gamepad) {
-						if (!event.key.repeat && ctx->player.can_jump) {
-							ctx->player.can_jump = 0;
-							ctx->player.vel.y = -PLAYER_JUMP;
-							// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+						if (!event.key.repeat && ctx->player.jump_frames) {
+							if (ctx->player.state == ENTITY_STATE_IDLE || ctx->player.state == ENTITY_STATE_RUN) {
+								ctx->axis.y = -1.0f;
+							}
 						}
 					}
 					break;
@@ -205,7 +205,9 @@ int32_t main(int32_t argc, char* argv[]) {
 					break;
 				case SDLK_UP:
 					if (!ctx->gamepad) {
-						ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y*GRAVITY);
+						if (ctx->player.state == ENTITY_STATE_JUMP_START) {
+							ctx->axis.y = 1.0f;
+						}
 					}
 					break;
 				case SDLK_DOWN:
@@ -217,22 +219,21 @@ int32_t main(int32_t argc, char* argv[]) {
 				if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
 					float value = (float)event.gaxis.value / 32767.0f;
 					ctx->axis.x = value;
-					// TODO: What do we do about the y axis?
 				}
 
 				break;
 			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					if (ctx->player.can_jump) {
-						ctx->player.can_jump = 0;
-						ctx->player.vel.y = -PLAYER_JUMP;
-						// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+					if (ctx->player.jump_frames > 0) {
+						ctx->axis.y = -1.0f;
 					}
 				}
 				break;
 			case SDL_EVENT_GAMEPAD_BUTTON_UP:
 				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y/2.0f);
+					if (ctx->player.state == ENTITY_STATE_JUMP_START) {
+						ctx->axis.y = 1.0f;
+					}
 				}
 				break;
 			case SDL_EVENT_QUIT:
@@ -285,141 +286,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		NK_UpdateUI(ctx);
 
-		const float MOVE_SPEED_MIN = 1.0f;
-		bool player_was_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
-		bool player_was_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_was_moving_y;
-
-		// PlayerMovement
-		{
-			if (ctx->player.can_jump) {
-				float acc = ctx->axis.x * PLAYER_ACC;
-				// ctx->player.vel.x += acc*ctx->dt;
-				ctx->player.vel.x += acc;
-				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-				ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-
-				if (ctx->player.vel.x != 0.0f) {
-					ctx->player.dir = glm_signf(ctx->player.vel.x);
-				}
-			}
-			// ctx->player.vel.y += GRAVITY*ctx->dt;
-			ctx->player.vel.y += GRAVITY;
-		}	
-
-		// PlayerCollision
-		{
-			if (ctx->player.vel.x < 0.0f) {
-				Rect side;
-				side.pos.x = ctx->player.pos.x + ctx->player.vel.x;
-				side.pos.y = ctx->player.pos.y + 1.0f;
-				side.area.x = 1.0f;
-				side.area.y = ctx->player.size.y - 2.0f;
-				bool break_loop = false;
-				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (GetTile(&ctx->level, tile_x, tile_y)) {
-							Tile t;
-							t.x = (int)tile_x;
-							t.y = (int)tile_y;
-							Rect tile = RectFromTile(t);
-							if (RectsIntersect(&ctx->level, side, tile)) {
-								ctx->player.pos.x = tile.pos.x + ctx->player.size.x;
-								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
-								break_loop = true;
-							}
-						}
-					}
-				}
-			} else if (ctx->player.vel.x > 0.0f) {
-				Rect side;
-				side.pos.x = (ctx->player.pos.x + ctx->player.size.x - 1.0f) + ctx->player.vel.x;
-				side.pos.y = ctx->player.pos.y + 1.0f;
-				side.area.x = 1.0f;
-				side.area.y = ctx->player.size.y - 2.0f;
-				bool break_loop = false;
-				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (GetTile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-							if (RectsIntersect(&ctx->level, side, tile)) {
-								ctx->player.pos.x = tile.pos.x - ctx->player.size.x;
-								ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
-								break_loop = true;
-							}
-						}
-					}
-				}
-			}
-
-			ctx->player.can_jump = SDL_max(0, ctx->player.can_jump - 1);
-			if (ctx->player.vel.y < 0.0f) {
-				Rect side;
-				side.pos.x = ctx->player.pos.x + 1.0f; 
-				side.pos.y = ctx->player.pos.y + ctx->player.vel.y;
-				side.area.x = ctx->player.size.x - 2.0f;
-				side.area.y = 1.0f;
-				bool break_loop = false;
-				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (GetTile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-							if (RectsIntersect(&ctx->level, side, tile)) {
-								ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
-								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
-								break_loop = true;
-							}
-						}
-					}
-				}
-			} else if (ctx->player.vel.y > 0.0f) {
-				Rect side;
-				side.pos.x = ctx->player.pos.x + 1.0f; 
-				side.pos.y = (ctx->player.pos.y + ctx->player.size.y - 1.0f) + ctx->player.vel.y;
-				side.area.x = ctx->player.size.x - 2.0f;
-				side.area.y = 1.0f;
-				bool break_loop = false;
-				for (size_t tile_y = 0; tile_y < ctx->level.h && !break_loop; tile_y += 1) {
-					for (size_t tile_x = 0; tile_x < ctx->level.w && !break_loop; tile_x += 1) {
-						if (GetTile(&ctx->level, tile_x, tile_y)) {
-							Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-							if (RectsIntersect(&ctx->level, side, tile)) {
-								ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
-								ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
-								ctx->player.can_jump = PLAYER_JUMP_PERIOD;
-								break_loop = true;
-							}
-						}
-					}
-				}
-			}
-
-			// vec2s vel_dt;
-			// vel_dt = glms_vec2_scale(ctx->player.vel, ctx->dt);
-			// ctx->player.pos = glms_vec2_add(ctx->player.pos, vel_dt);
-			ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
-
-			if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
-				ResetGame(ctx);
-			}
-		}
-
-		bool player_is_moving_x = SDL_fabsf(ctx->player.vel.x) >= MOVE_SPEED_MIN;
-		bool player_is_moving_y = SDL_fabsf(ctx->player.vel.y) >= MOVE_SPEED_MIN; (void)player_is_moving_y;
-		if (ctx->player.can_jump) {
-			if (!player_was_moving_x && player_is_moving_x) {
-				ResetAnim(&ctx->player.anim);
-				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-			} else if (player_was_moving_x && !player_is_moving_x) {
-				ResetAnim(&ctx->player.anim);
-				// SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-				SetSprite(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-			}			
-		}
-
-		UpdateAnim(ctx, &ctx->player.anim);
+		UpdatePlayer(ctx);
+		
 		if (ctx->draw_selected_anim) {
-			UpdateAnim(ctx, &ctx->selected_anim);
+			UpdateAnim(ctx, &ctx->selected_anim, true);
 		}
 
 		// RenderBegin
@@ -561,10 +431,196 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 	return &ctx->sprites[sprite.idx];
 }
 
-void SetSprite(Context* ctx, Entity* entity, const char* path) {
+void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path) {
 	ResetAnim(&entity->anim);
 	entity->anim.sprite = GetSprite((char*)path);
 	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
 	entity->size.x = (float)sprite_desc->w;
 	entity->size.y = (float)sprite_desc->h;
 }
+
+bool SetSprite(Entity* entity, Sprite sprite) {
+	bool sprite_changed = false;
+	if (entity->anim.sprite.idx != sprite.idx) {
+		sprite_changed = true;
+		entity->anim.sprite = sprite;
+		ResetAnim(&entity->anim);
+	}
+	return sprite_changed;
+}
+
+void UpdatePlayer(Context* ctx) {
+	static Sprite player_idle;
+	static Sprite player_run;
+	static Sprite player_jump_start;
+	static Sprite player_jump_end;
+
+	static bool sprites_initialized = false;
+	if (!sprites_initialized) {
+		sprites_initialized = true;
+
+		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-End.aseprite");
+	}
+
+	if (ctx->player.vel.x < 0.0f) {
+		Rect side;
+		side.pos.x = ctx->player.pos.x + ctx->player.vel.x;
+		side.pos.y = ctx->player.pos.y + 1.0f;
+		side.area.x = 1.0f;
+		side.area.y = ctx->player.size.y - 2.0f;
+		bool break_all = false;
+		for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
+				if (GetTile(&ctx->level, tile_x, tile_y)) {
+					Tile t;
+					t.x = (int)tile_x;
+					t.y = (int)tile_y;
+					Rect tile = RectFromTile(t);
+					if (RectsIntersect(&ctx->level, side, tile)) {
+						ctx->player.pos.x = tile.pos.x + ctx->player.size.x;
+						ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+						break_all = true;
+					}
+				}
+			}
+		}
+	} else if (ctx->player.vel.x > 0.0f) {
+		Rect side;
+		side.pos.x = (ctx->player.pos.x + ctx->player.size.x - 1.0f) + ctx->player.vel.x;
+		side.pos.y = ctx->player.pos.y + 1.0f;
+		side.area.x = 1.0f;
+		side.area.y = ctx->player.size.y - 2.0f;
+		bool break_all = false;
+		for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
+				if (GetTile(&ctx->level, tile_x, tile_y)) {
+					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+					if (RectsIntersect(&ctx->level, side, tile)) {
+						ctx->player.pos.x = tile.pos.x - ctx->player.size.x;
+						ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+						break_all = true;
+					}
+				}
+			}
+		}
+	}
+
+	ctx->player.jump_frames = SDL_max(0, ctx->player.jump_frames - 1);
+	if (ctx->player.vel.y < 0.0f) {
+		Rect side;
+		side.pos.x = ctx->player.pos.x + 1.0f; 
+		side.pos.y = ctx->player.pos.y + ctx->player.vel.y;
+		side.area.x = ctx->player.size.x - 2.0f;
+		side.area.y = 1.0f;
+		bool break_all = false;
+		for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
+				if (GetTile(&ctx->level, tile_x, tile_y)) {
+					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+					if (RectsIntersect(&ctx->level, side, tile)) {
+						ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
+						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+						SDL_assert(ctx->player.jump_frames == 0);
+						break_all = true;
+					}
+				}
+			}
+		}
+	} else if (ctx->player.vel.y > 0.0f) {
+		Rect side;
+		side.pos.x = ctx->player.pos.x + 1.0f; 
+		side.pos.y = (ctx->player.pos.y + ctx->player.size.y - 1.0f) + ctx->player.vel.y;
+		side.area.x = ctx->player.size.x - 2.0f;
+		side.area.y = 1.0f;
+		bool break_all = false;
+		for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
+			for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
+				if (GetTile(&ctx->level, tile_x, tile_y)) {
+					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
+					if (RectsIntersect(&ctx->level, side, tile)) {
+						ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
+						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+						ctx->player.jump_frames = PLAYER_JUMP_PERIOD;
+						break_all = true;
+					}
+				}
+			}
+		}
+	}
+
+	switch (ctx->player.state) {
+	case ENTITY_STATE_IDLE: {
+		SetSprite(&ctx->player, player_idle);
+
+		if (ctx->axis.y == -1.0f) {
+			ctx->player.state = ENTITY_STATE_JUMP_START;
+		} else if (ctx->axis.x != 0.0f) {
+			ctx->player.state = ENTITY_STATE_RUN;
+		}
+	} break;
+	case ENTITY_STATE_RUN: {
+		SetSprite(&ctx->player, player_run);
+
+		if (ctx->axis.y == -1.0f) {
+			ctx->player.state = ENTITY_STATE_JUMP_START;
+		} else if (ctx->axis.x == 0.0f && ctx->player.vel.x == 0.0f) {
+			ctx->player.state = ENTITY_STATE_IDLE;
+		} else {
+			float acc = ctx->axis.x * PLAYER_ACC;
+			// ctx->player.vel.x += acc*ctx->dt;
+			ctx->player.vel.x += acc;
+			if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+			else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+			ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+
+			if (ctx->player.vel.x != 0.0f) {
+				ctx->player.dir = glm_signf(ctx->player.vel.x);
+			}
+		}
+
+	} break;
+	case ENTITY_STATE_JUMP_START: {
+		if (SetSprite(&ctx->player, player_jump_start)) {
+			ctx->player.jump_frames = 0;
+			ctx->player.vel.y = -PLAYER_JUMP;
+		}
+
+		if (ctx->axis.y == 1.0f) {
+			ctx->player.state = ENTITY_STATE_JUMP_END;
+		}
+
+		ctx->player.vel.y += GRAVITY;
+
+	} break;
+	case ENTITY_STATE_JUMP_END: {
+		SetSprite(&ctx->player, player_jump_end);
+
+		if (ctx->player.jump_frames > 0) {
+			if (ctx->player.vel.x == 0.0f) {
+				ctx->player.state = ENTITY_STATE_IDLE;
+			} else {
+				ctx->player.state = ENTITY_STATE_RUN;
+			}
+		} else {
+			ctx->player.vel.y += GRAVITY;
+		}
+	} break;
+	}
+
+	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
+
+	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
+		ResetGame(ctx);
+	}
+
+	bool loop = true;
+	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx) {
+		loop = false;
+	}
+	UpdateAnim(ctx, &ctx->player.anim, loop);
+	
+}
+
