@@ -529,10 +529,10 @@ void UpdatePlayer(Context* ctx) {
 	if (ctx->player.state != ENTITY_STATE_IDLE) {
 		if (ctx->player.vel.x < 0.0f) {
 			Rect side;
-			side.pos.x = ctx->player.pos.x + ctx->player.vel.x;
-			side.pos.y = ctx->player.pos.y + 1.0f;
-			side.area.x = 1.0f;
-			side.area.y = ctx->player.size.y - 2.0f;
+			side.min.x = ctx->player.pos.x + ctx->player.vel.x;
+			side.min.y = ctx->player.pos.y + 1.0f;
+			side.max.x = 1.0f;
+			side.max.y = ctx->player.size.y - 2.0f;
 			bool break_all = false;
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
@@ -542,7 +542,7 @@ void UpdatePlayer(Context* ctx) {
 						t.y = (int)tile_y;
 						Rect tile = RectFromTile(t);
 						if (RectsIntersect(&ctx->level, side, tile)) {
-							ctx->player.pos.x = tile.pos.x + ctx->player.size.x;
+							ctx->player.pos.x = tile.min.x + ctx->player.size.x;
 							ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
 						}
@@ -551,17 +551,17 @@ void UpdatePlayer(Context* ctx) {
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
 			Rect side;
-			side.pos.x = (ctx->player.pos.x + ctx->player.size.x - 1.0f) + ctx->player.vel.x;
-			side.pos.y = ctx->player.pos.y + 1.0f;
-			side.area.x = 1.0f;
-			side.area.y = ctx->player.size.y - 2.0f;
+			side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1.0f) + ctx->player.vel.x;
+			side.min.y = ctx->player.pos.y + 1.0f;
+			side.max.x = 1.0f;
+			side.max.y = ctx->player.size.y - 2.0f;
 			bool break_all = false;
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
 						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 						if (RectsIntersect(&ctx->level, side, tile)) {
-							ctx->player.pos.x = tile.pos.x - ctx->player.size.x;
+							ctx->player.pos.x = tile.min.x - ctx->player.size.x;
 							ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
 						}
@@ -575,17 +575,17 @@ void UpdatePlayer(Context* ctx) {
 		ctx->player.vel.y += GRAVITY;
 		if (ctx->player.vel.y < 0.0f) {
 			Rect side;
-			side.pos.x = ctx->player.pos.x + 1.0f; 
-			side.pos.y = ctx->player.pos.y + ctx->player.vel.y;
-			side.area.x = ctx->player.size.x - 2.0f;
-			side.area.y = 1.0f;
+			side.min.x = ctx->player.pos.x + 1.0f; 
+			side.min.y = ctx->player.pos.y + ctx->player.vel.y;
+			side.max.x = ctx->player.size.x - 2.0f;
+			side.max.y = 1.0f;
 			bool break_all = false;
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
 						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 						if (RectsIntersect(&ctx->level, side, tile)) {
-							ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
+							ctx->player.pos.y = tile.min.y + ctx->player.size.y;
 							ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
 							ctx->player.state = ENTITY_STATE_JUMP_END;
@@ -595,17 +595,17 @@ void UpdatePlayer(Context* ctx) {
 			}
 		} else if (ctx->player.vel.y > 0.0f) {
 			Rect side;
-			side.pos.x = ctx->player.pos.x + 1.0f; 
-			side.pos.y = (ctx->player.pos.y + ctx->player.size.y - 1.0f) + ctx->player.vel.y;
-			side.area.x = ctx->player.size.x - 2.0f;
-			side.area.y = 1.0f;
+			side.min.x = ctx->player.pos.x + 1.0f; 
+			side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1.0f) + ctx->player.vel.y;
+			side.max.x = ctx->player.size.x - 2.0f;
+			side.max.y = 1.0f;
 			bool break_all = false;
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
 						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 						if (RectsIntersect(&ctx->level, side, tile)) {
-							ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
+							ctx->player.pos.y = tile.min.y - ctx->player.size.y;
 							ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
 							if (ctx->player.vel.x != 0.0f) {
@@ -634,4 +634,3 @@ void UpdatePlayer(Context* ctx) {
 	UpdateAnim(ctx, &ctx->player.anim, loop);
 	
 }
-

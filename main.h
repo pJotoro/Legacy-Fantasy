@@ -51,6 +51,11 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
+typedef struct Rect {
+	vec2s min;
+	vec2s max;
+} Rect;
+
 typedef struct Entity {
 	vec2s pos;
 	vec2s size;

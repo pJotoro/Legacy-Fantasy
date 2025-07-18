@@ -6,11 +6,6 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 	return (ivec2s){(int)v.x, (int)v.y};
 }
 
-typedef struct Rect {
-	vec2s pos;
-	vec2s area;
-} Rect;
-
 typedef ivec2s Tile;
 
 FORCEINLINE Rect RectFromTile(Tile tile) {
@@ -21,8 +16,8 @@ FORCEINLINE Rect RectFromTile(Tile tile) {
 }
 
 FORCEINLINE void TileFromRect(Rect rect, Tile tile) {
-	rect.pos = glms_vec2_floor(rect.pos);
-	tile = ivec2_from_vec2(rect.pos);
+	rect.min = glms_vec2_floor(rect.min);
+	tile = ivec2_from_vec2(rect.min);
 }
 
 FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
@@ -30,12 +25,16 @@ FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
 }
 
 FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
-	return rect.pos.x >= 0.0f && rect.pos.x+rect.area.x < (level->w+1)*TILE_SIZE && rect.pos.y >= 0.0f && rect.pos.y+rect.area.y < (level->h+1)*TILE_SIZE;
+	return rect.min.x >= 0.0f && rect.min.x+rect.max.x < (level->w+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.min.y+rect.max.y < (level->h+1)*TILE_SIZE;
 }
 
 FORCEINLINE bool RectsIntersect(Level* level, Rect a, Rect b) {
 	if (!RectIsValid(level, a) || !RectIsValid(level, b)) return false;
-	return ((a.pos.x < (b.pos.x + b.area.x) && (a.pos.x + a.area.x) > b.pos.x) && (a.pos.y < (b.pos.y + b.area.y) && (a.pos.y + a.area.y) > b.pos.y));
+	bool d0 = b.max.x < a.min.x;
+    bool d1 = a.max.x < b.min.x;
+    bool d2 = b.max.y < a.min.y;
+    bool d3 = a.max.y < b.min.y;
+    return !(d0 | d1 | d2 | d3);
 }
 
 void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
