@@ -145,9 +145,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		nk_input_begin(&ctx->nk.ctx);
 
 		SDL_Event event;
+		float dir = 0.0f;
 		while (SDL_PollEvent(&event)) {
 			NK_HandleEvent(ctx, &event);
-
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
 				switch (event.key.key) {
@@ -165,20 +165,20 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->running = false;
 					break;
 				case SDLK_LEFT:
-					if (!ctx->gamepad) {
-						ctx->axis.x = SDL_max(ctx->axis.x - 1.0f, -1.0f);
+					if (!ctx->gamepad && !event.key.repeat) {
+						dir -= 1.0f;
 					}
 					break;
 				case SDLK_RIGHT:
-					if (!ctx->gamepad) {
-						ctx->axis.x = SDL_min(ctx->axis.x + 1.0f, +1.0f);
+					if (!ctx->gamepad && !event.key.repeat) {
+						dir += 1.0f;
 					}
 					break;
 				case SDLK_UP:
 					if (!ctx->gamepad) {
 						if (!event.key.repeat && ctx->player.jump_frames) {
 							if (ctx->player.state == ENTITY_STATE_IDLE || ctx->player.state == ENTITY_STATE_RUN) {
-								ctx->axis.y = -1.0f;
+								ctx->player.state = ENTITY_STATE_JUMP_START;
 							}
 						}
 					}
@@ -194,18 +194,18 @@ int32_t main(int32_t argc, char* argv[]) {
 				switch (event.key.key) {
 				case SDLK_LEFT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = SDL_min(ctx->axis.x + 1.0f, +1.0f);
-					}	
+						dir += 1.0f;
+					}
 					break;
 				case SDLK_RIGHT:
 					if (!ctx->gamepad) {
-						ctx->axis.x = SDL_max(ctx->axis.x - 1.0f, -1.0f);
+						dir -= 1.0f;
 					}
 					break;
 				case SDLK_UP:
 					if (!ctx->gamepad) {
 						if (ctx->player.state == ENTITY_STATE_JUMP_START) {
-							ctx->axis.y = 1.0f;
+							ctx->player.state = ENTITY_STATE_JUMP_END;
 						}
 					}
 					break;
@@ -216,22 +216,21 @@ int32_t main(int32_t argc, char* argv[]) {
 				break;
 			case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 				if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
-					float value = (float)event.gaxis.value / 32767.0f;
-					ctx->axis.x = value;
+					dir = (float)event.gaxis.value / 32767.0f;
 				}
 
 				break;
 			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					if (ctx->player.jump_frames > 0) {
-						ctx->axis.y = -1.0f;
+					if (ctx->player.state == ENTITY_STATE_IDLE || ctx->player.state == ENTITY_STATE_RUN) {
+						
 					}
 				}
 				break;
 			case SDL_EVENT_GAMEPAD_BUTTON_UP:
 				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
 					if (ctx->player.state == ENTITY_STATE_JUMP_START) {
-						ctx->axis.y = 1.0f;
+						ctx->player.state = ENTITY_STATE_JUMP_END;
 					}
 				}
 				break;
@@ -239,6 +238,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				ctx->running = false;
 				break;
 			}		
+		}
+
+		ctx->player.acc = dir*PLAYER_ACC;
+		if (dir != 0.0f && ctx->player.state == ENTITY_STATE_IDLE) {
+			ctx->player.state = ENTITY_STATE_RUN;
 		}
 
 		nk_input_end(&ctx->nk.ctx);
@@ -464,6 +468,7 @@ void UpdatePlayer(Context* ctx) {
 		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
 	}
 
+	vec2s collision = {0.0f, 0.0f};
 	if (ctx->player.vel.x < 0.0f) {
 		Rect side;
 		side.pos.x = ctx->player.pos.x + ctx->player.vel.x;
@@ -479,6 +484,7 @@ void UpdatePlayer(Context* ctx) {
 					t.y = (int)tile_y;
 					Rect tile = RectFromTile(t);
 					if (RectsIntersect(&ctx->level, side, tile)) {
+						collision.x = -1.0f;
 						ctx->player.pos.x = tile.pos.x + ctx->player.size.x;
 						ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 						break_all = true;
@@ -498,6 +504,7 @@ void UpdatePlayer(Context* ctx) {
 				if (GetTile(&ctx->level, tile_x, tile_y)) {
 					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 					if (RectsIntersect(&ctx->level, side, tile)) {
+						collision.y = 1.0f;
 						ctx->player.pos.x = tile.pos.x - ctx->player.size.x;
 						ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 						break_all = true;
@@ -521,10 +528,12 @@ void UpdatePlayer(Context* ctx) {
 				if (GetTile(&ctx->level, tile_x, tile_y)) {
 					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 					if (RectsIntersect(&ctx->level, side, tile)) {
+						collision.y = -1.0f;
 						ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
 						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 						SDL_assert(ctx->player.jump_frames == 0);
 						break_all = true;
+						ctx->player.state = ENTITY_STATE_JUMP_END;
 					}
 				}
 			}
@@ -541,6 +550,7 @@ void UpdatePlayer(Context* ctx) {
 				if (GetTile(&ctx->level, tile_x, tile_y)) {
 					Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
 					if (RectsIntersect(&ctx->level, side, tile)) {
+						collision.y = 1.0f;
 						ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
 						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 						ctx->player.jump_frames = PLAYER_JUMP_PERIOD;
@@ -554,60 +564,28 @@ void UpdatePlayer(Context* ctx) {
 	switch (ctx->player.state) {
 	case ENTITY_STATE_IDLE: {
 		SetSprite(&ctx->player, player_idle);
-
-		if (ctx->player.vel.y > 0.0f) {
-			ctx->player.state = ENTITY_STATE_JUMP_END;
-		} else if (ctx->axis.y == -1.0f) {
-			ctx->player.state = ENTITY_STATE_JUMP_START;
-		} else if (ctx->axis.x != 0.0f) {
-			ctx->player.state = ENTITY_STATE_RUN;
-		}
 	} break;
 	case ENTITY_STATE_RUN: {
 		SetSprite(&ctx->player, player_run);
 
-		if (ctx->player.vel.y > 0.0f) {
-			ctx->player.state = ENTITY_STATE_JUMP_END;
-		} else if (ctx->axis.y == -1.0f) {
-			ctx->player.state = ENTITY_STATE_JUMP_START;
-		} else if (ctx->axis.x == 0.0f && ctx->player.vel.x == 0.0f) {
-			ctx->player.state = ENTITY_STATE_IDLE;
-		} else {
-			float acc = ctx->axis.x * PLAYER_ACC;
-			// ctx->player.vel.x += acc*ctx->dt;
-			ctx->player.vel.x += acc;
-			if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-			else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-			ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+		ctx->player.vel.x += ctx->player.acc;
+		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 
-			if (ctx->player.vel.x != 0.0f) {
-				ctx->player.dir = glm_signf(ctx->player.vel.x);
-			}
+		if (ctx->player.vel.x != 0.0f) {
+			ctx->player.dir = glm_signf(ctx->player.vel.x);
 		}
-
 	} break;
-	case ENTITY_STATE_JUMP_START: {
+	case ENTITY_STATE_JUMP_START: {		
 		if (SetSprite(&ctx->player, player_jump_start)) {
 			ctx->player.jump_frames = 0;
 			ctx->player.vel.y = -PLAYER_JUMP;
 		}
-
-		if (ctx->axis.y == 1.0f || ctx->player.vel.y > 0.0f) {
-			ctx->player.state = ENTITY_STATE_JUMP_END;
-		}
-
-
 	} break;
 	case ENTITY_STATE_JUMP_END: {
-		SetSprite(&ctx->player, player_jump_end);
-
-		if (ctx->player.jump_frames > 0 || ctx->player.vel.y == 0.0f) {
-			if (ctx->player.vel.x == 0.0f) {
-				ctx->player.state = ENTITY_STATE_IDLE;
-			} else {
-				ctx->player.state = ENTITY_STATE_RUN;
-			}
-		} else {
+		if (SetSprite(&ctx->player, player_jump_end)) {
+			ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y / 2.0f);
 		}
 	} break;
 	}

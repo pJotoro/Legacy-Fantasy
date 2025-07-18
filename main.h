@@ -55,6 +55,7 @@ typedef struct Entity {
 	vec2s size;
 	vec2s vel;
 	float dir;
+	float acc;
 	Anim anim;
 	ssize_t jump_frames;
 	EntityFlags flags;
