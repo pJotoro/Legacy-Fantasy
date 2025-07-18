@@ -145,7 +145,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		nk_input_begin(&ctx->nk.ctx);
 
 		SDL_Event event;
-		float dir = 0.0f;
 		while (SDL_PollEvent(&event)) {
 			NK_HandleEvent(ctx, &event);
 			switch (event.type) {
@@ -165,22 +164,18 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->running = false;
 					break;
 				case SDLK_LEFT:
-					if (!ctx->gamepad && !event.key.repeat) {
-						dir -= 1.0f;
+					if (!event.key.repeat) {
+						ctx->button_left = true;
 					}
 					break;
 				case SDLK_RIGHT:
-					if (!ctx->gamepad && !event.key.repeat) {
-						dir += 1.0f;
+					if (!event.key.repeat) {
+						ctx->button_right = true;
 					}
 					break;
 				case SDLK_UP:
-					if (!ctx->gamepad) {
-						if (!event.key.repeat && ctx->player.jump_frames) {
-							if (ctx->player.state == ENTITY_STATE_IDLE || ctx->player.state == ENTITY_STATE_RUN) {
-								ctx->player.state = ENTITY_STATE_JUMP_START;
-							}
-						}
+					if (!event.key.repeat) {
+						ctx->button_jump = true;
 					}
 					break;
 				case SDLK_DOWN:
@@ -193,56 +188,36 @@ int32_t main(int32_t argc, char* argv[]) {
 			case SDL_EVENT_KEY_UP:
 				switch (event.key.key) {
 				case SDLK_LEFT:
-					if (!ctx->gamepad) {
-						dir += 1.0f;
-					}
+					ctx->button_left = false;
 					break;
 				case SDLK_RIGHT:
-					if (!ctx->gamepad) {
-						dir -= 1.0f;
-					}
+					ctx->button_right = false;
 					break;
 				case SDLK_UP:
-					if (!ctx->gamepad) {
-						if (ctx->player.state == ENTITY_STATE_JUMP_START) {
-							ctx->player.state = ENTITY_STATE_JUMP_END;
-						}
-					}
-					break;
-				case SDLK_DOWN:
-
+					ctx->jump = false;
 					break;
 				}
 				break;
-			case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-				if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
-					dir = (float)event.gaxis.value / 32767.0f;
-				}
+			// case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+			// 	if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
+			// 				ctx->player.acc = (float)event.gaxis.value / 32767.0f;
+			// 	}
 
-				break;
-			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					if (ctx->player.state == ENTITY_STATE_IDLE || ctx->player.state == ENTITY_STATE_RUN) {
-						
-					}
-				}
-				break;
-			case SDL_EVENT_GAMEPAD_BUTTON_UP:
-				if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-					if (ctx->player.state == ENTITY_STATE_JUMP_START) {
-						ctx->player.state = ENTITY_STATE_JUMP_END;
-					}
-				}
-				break;
+			// 	break;
+			// case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+			// 	if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
+			// 		ctx->jump = true;
+			// 	}
+			// 	break;
+			// case SDL_EVENT_GAMEPAD_BUTTON_UP:
+			// 	if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
+			// 		ctx->jump = false;
+			// 	}
+			// 	break;
 			case SDL_EVENT_QUIT:
 				ctx->running = false;
 				break;
 			}		
-		}
-
-		ctx->player.acc = dir*PLAYER_ACC;
-		if (dir != 0.0f && ctx->player.state == ENTITY_STATE_IDLE) {
-			ctx->player.state = ENTITY_STATE_RUN;
 		}
 
 		nk_input_end(&ctx->nk.ctx);
@@ -269,13 +244,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		if (!ctx->gamepad) {
-			int joystick_count = 0;
-			SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
-			if (joystick_count != 0) {
-				ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
-			}
-		}
+		// if (!ctx->gamepad) {
+		// 	int joystick_count = 0;
+		// 	SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
+		// 	if (joystick_count != 0) {
+		// 		ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
+		// 	}
+		// }
 
 		// UpdateLevel
 		{
@@ -452,6 +427,39 @@ bool SetSprite(Entity* entity, Sprite sprite) {
 	return sprite_changed;
 }
 
+/*
+Things to check for:
+- collisions:
+	- left
+	- right
+	- up
+	- down
+- horizontal movement
+- vertical movement
+
+States:
+- Idle:
+	- No collisions.
+	- If either the left or the right key is down, but not both, change to run state.
+	- If the jump button is pressed, enter the jump start state.
+- Run:
+	- Horizontal collisions, not vertical collisions.
+	- If neither the left nor the right key is pressed, and horizontal velocity is 0, 	  enter the idle state.
+	- If the jump button is pressed, enter the jump start state.
+- Jump start:
+	- Horizontal collisions and vertical collisions.
+	- Horizontal movement and vertical movement.
+	- If you let go of the jump button, enter the jump end state.
+	- If the jump start animation ends, enter the jump end state.
+	- If you hit the ceiling, enter the jump end state.
+	- If you hit the ground, enter the idle or run state depending on if there is any horizontal movement.
+- Jump end:
+	- Horizontal collisions and vertical collisions.
+	- Horizontal movement and vertical movement.
+	- If the jump end animation ends, stay the last frame.
+	- If you hit the ground, enter the idle or run state depending on if there is any horizontal movement.
+*/
+
 void UpdatePlayer(Context* ctx) {
 	static Sprite player_idle;
 	static Sprite player_run;
@@ -515,7 +523,6 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	ctx->player.vel.y += GRAVITY;
-	ctx->player.jump_frames = SDL_max(0, ctx->player.jump_frames - 1);
 	if (ctx->player.vel.y < 0.0f) {
 		Rect side;
 		side.pos.x = ctx->player.pos.x + 1.0f; 
@@ -531,7 +538,6 @@ void UpdatePlayer(Context* ctx) {
 						collision.y = -1.0f;
 						ctx->player.pos.y = tile.pos.y + ctx->player.size.y;
 						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
-						SDL_assert(ctx->player.jump_frames == 0);
 						break_all = true;
 						ctx->player.state = ENTITY_STATE_JUMP_END;
 					}
@@ -553,7 +559,6 @@ void UpdatePlayer(Context* ctx) {
 						collision.y = 1.0f;
 						ctx->player.pos.y = tile.pos.y - ctx->player.size.y;
 						ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
-						ctx->player.jump_frames = PLAYER_JUMP_PERIOD;
 						break_all = true;
 					}
 				}
@@ -568,7 +573,7 @@ void UpdatePlayer(Context* ctx) {
 	case ENTITY_STATE_RUN: {
 		SetSprite(&ctx->player, player_run);
 
-		ctx->player.vel.x += ctx->player.acc;
+		ctx->player.vel.x += ctx->player.acc * PLAYER_ACC;
 		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
@@ -579,7 +584,6 @@ void UpdatePlayer(Context* ctx) {
 	} break;
 	case ENTITY_STATE_JUMP_START: {		
 		if (SetSprite(&ctx->player, player_jump_start)) {
-			ctx->player.jump_frames = 0;
 			ctx->player.vel.y = -PLAYER_JUMP;
 		}
 	} break;

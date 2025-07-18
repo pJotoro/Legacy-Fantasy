@@ -57,7 +57,7 @@ typedef struct Entity {
 	float dir;
 	float acc;
 	Anim anim;
-	ssize_t jump_frames;
+	// ssize_t jump_frames;
 	EntityFlags flags;
 	EntityState state;
 } Entity;
@@ -99,8 +99,10 @@ typedef struct Context {
 	TTF_TextEngine* text_engine;
 	TTF_Font* font_roboto_regular;
 
-	SDL_Gamepad* gamepad;
-	vec2s axis;
+	// SDL_Gamepad* gamepad;
+	bool button_left;
+	bool button_right;
+	bool button_jump;
 
 	SDL_Time time;
 	float dt;
