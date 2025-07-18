@@ -25,6 +25,8 @@
 #define SDL_ReadIOChecked(S, P, SZ) SDL_CHECK(SDL_ReadIO(S, P, SZ) == SZ)
 #define SDL_ReadStructChecked(S, STRUCT) SDL_CHECK(SDL_ReadStruct(S, STRUCT) == sizeof(*(STRUCT)))
 
+#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
+
 #define PLAYER_FRAME_COUNT 4
 #define PLAYER_FRAME_WIDTH 64
 #define PLAYER_FRAME_TICK 20
@@ -33,8 +35,6 @@ enum {
 	ENTITY_FLAG_NOTHING_YET = FLAG(0),
 };
 typedef uint32_t EntityFlags;
-
-#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
 enum {
 	ENTITY_STATE_IDLE = 0u,
@@ -48,6 +48,7 @@ typedef struct Anim {
 	Sprite sprite;
 	size_t frame_idx;
 	size_t frame_tick;
+	bool ended;
 } Anim;
 
 typedef struct Entity {
@@ -55,7 +56,6 @@ typedef struct Entity {
 	vec2s size;
 	vec2s vel;
 	float dir;
-	float acc;
 	Anim anim;
 	// ssize_t jump_frames;
 	EntityFlags flags;
@@ -134,7 +134,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, float dir);
 void DrawEntity(Context* ctx, Entity* entity);
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir);
-
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 
 void ResetGame(Context* ctx);
