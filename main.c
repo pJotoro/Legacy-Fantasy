@@ -403,6 +403,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 void ResetAnim(Anim* anim) {
 	anim->frame_idx = 0;
 	anim->frame_tick = 0;
+	anim->ended = false;
 }
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
