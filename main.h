@@ -50,7 +50,7 @@ typedef struct Entity {
 	float dir;
 	Anim anim;
 	// ssize_t jump_frames;
-	int32_t touching_floor;
+	ssize_t touching_floor;
 } Entity;
 
 void ResetAnim(Anim* anim);
