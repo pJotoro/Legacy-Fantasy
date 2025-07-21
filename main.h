@@ -32,11 +32,6 @@
 #define PLAYER_FRAME_TICK 20
 
 enum {
-	ENTITY_FLAG_NOTHING_YET = FLAG(0),
-};
-typedef uint32_t EntityFlags;
-
-enum {
 	ENTITY_STATE_IDLE = 0u,
 	ENTITY_STATE_RUN = 1u,
 	ENTITY_STATE_JUMP_START = 2u,
@@ -63,8 +58,8 @@ typedef struct Entity {
 	float dir;
 	Anim anim;
 	// ssize_t jump_frames;
-	EntityFlags flags;
 	EntityState state;
+	int32_t touching_floor;
 } Entity;
 
 void ResetAnim(Anim* anim);
@@ -107,7 +102,7 @@ typedef struct Context {
 	// SDL_Gamepad* gamepad;
 	int32_t button_left;
 	int32_t button_right;
-	int32_t button_jump;
+	bool button_jump;
 
 	SDL_Time time;
 	float dt;

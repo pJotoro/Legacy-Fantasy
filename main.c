@@ -144,6 +144,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	while (ctx->running) {
 		nk_input_begin(&ctx->nk.ctx);
 
+		ctx->button_jump = false;
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			NK_HandleEvent(ctx, &event);
@@ -175,7 +176,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					break;
 				case SDLK_UP:
 					if (!event.key.repeat) {
-						ctx->button_jump = 1;
+						ctx->button_jump = true;
 					}
 					break;
 				case SDLK_DOWN:
@@ -194,7 +195,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->button_right = 0;
 					break;
 				case SDLK_UP:
-					ctx->button_jump = 0;
 					break;
 				}
 				break;
@@ -526,9 +526,20 @@ void UpdatePlayer(Context* ctx) {
 	// } break;
 	// }
 
-	int32_t input_x = ctx->button_right - ctx->button_left;
-	float acc = (float)input_x * PLAYER_ACC;
+	if (ctx->player.touching_floor && ctx->button_jump) {
+		ctx->player.vel.y -= PLAYER_JUMP;
+		ctx->player.touching_floor = 0;
+	}
 	ctx->player.vel.y += GRAVITY;
+
+	if (ctx->player.touching_floor) {
+		int32_t input_x = ctx->button_right - ctx->button_left;
+		float acc = (float)input_x * PLAYER_ACC;
+		ctx->player.vel.x += acc;
+		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+	}
 	
 	// collision
 	{
@@ -562,14 +573,16 @@ void UpdatePlayer(Context* ctx) {
 							} else {
 								overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect_x.min.x);
 							}
+							ctx->player.vel.x = 0.0f;
 						}
 						if (ctx->player.vel.y != 0.0f && RectsIntersect(player_rect_y, tile_rect)) {
-							ctx->player.vel.y = 0.0f;
 							if (ctx->player.vel.y > 0.0f) {
+								ctx->player.touching_floor = 10;
 								overlap.y = SDL_max(overlap.y, player_rect_y.max.y - tile_rect.min.y);
 							} else {
 								overlap.y = SDL_min(overlap.y, tile_rect.max.y - player_rect_y.min.y);
 							}
+							ctx->player.vel.y = 0.0f;
 						}
 					}
 				}
@@ -579,8 +592,9 @@ void UpdatePlayer(Context* ctx) {
 		ctx->player.pos = glms_vec2_add(ctx->player.pos, glms_vec2_sub(ctx->player.vel, overlap));
 		if (overlap.x != 0.0f) ctx->player.vel.x = 0.0f;
 		if (overlap.y != 0.0f) ctx->player.vel.y = 0.0f;
-	}
 
+		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
+	}
 
 	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
 		ResetGame(ctx);
