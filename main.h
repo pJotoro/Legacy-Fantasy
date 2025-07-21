@@ -31,14 +31,6 @@
 #define PLAYER_FRAME_WIDTH 64
 #define PLAYER_FRAME_TICK 20
 
-enum {
-	ENTITY_STATE_IDLE = 0u,
-	ENTITY_STATE_RUN = 1u,
-	ENTITY_STATE_JUMP_START = 2u,
-	ENTITY_STATE_JUMP_END = 3u,
-};
-typedef uint32_t EntityState;
-
 typedef struct Anim {
 	Sprite sprite;
 	size_t frame_idx;
@@ -58,7 +50,6 @@ typedef struct Entity {
 	float dir;
 	Anim anim;
 	// ssize_t jump_frames;
-	EntityState state;
 	int32_t touching_floor;
 } Entity;
 
