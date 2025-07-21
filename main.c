@@ -462,16 +462,19 @@ void UpdatePlayer(Context* ctx) {
 							} else {
 								overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect_x.min.x);
 							}
-							ctx->player.vel.x = 0.0f;
 						}
 						if (ctx->player.vel.y != 0.0f && RectsIntersect(player_rect_y, tile_rect)) {
 							if (ctx->player.vel.y > 0.0f) {
+								if (!ctx->player.touching_floor) {
+									overlap.y = SDL_max(overlap.y, player_rect_y.max.y - tile_rect.min.y);									
+								} else {
+									overlap.y = 0.0f;
+									ctx->player.vel.y = 0.0f;
+								}
 								ctx->player.touching_floor = 10;
-								overlap.y = SDL_max(overlap.y, player_rect_y.max.y - tile_rect.min.y);
 							} else {
 								overlap.y = SDL_min(overlap.y, tile_rect.max.y - player_rect_y.min.y);
 							}
-							ctx->player.vel.y = 0.0f;
 						}
 					}
 				}
@@ -479,6 +482,8 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		ctx->player.pos = glms_vec2_add(ctx->player.pos, glms_vec2_sub(ctx->player.vel, overlap));
+		if (overlap.x != 0.0f) ctx->player.vel.x = 0.0f;
+		if (overlap.y != 0.0f) ctx->player.vel.y = 0.0f;
 	}
 
 	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
