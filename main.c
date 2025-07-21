@@ -526,6 +526,8 @@ void UpdatePlayer(Context* ctx) {
 	} break;
 	}
 
+	ctx->player.vel.y += GRAVITY;
+	
 	for (size_t y = 0; y < ctx->level.h; y += 1) {
 		for (size_t x = 0; x < ctx->level.w; x += 1) {
 			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
@@ -539,8 +541,6 @@ void UpdatePlayer(Context* ctx) {
 				if (RectsIntersectBasic(player_rect, tile_rect)) {
 					CollisionRes res = RectsIntersect(player_rect, tile_rect);
 					// SDL_Log("depth = %f, contact point = {%f, %f}, n = {%f, %f}", res.depth, res.contact_point.x, res.contact_point.y, res.n.x, res.n.y);
-					// vec2s v = glms_vec2_scale(res.n, res.depth);
-					// ctx->player.pos = glms_vec2_add(ctx->player.pos, v);
 					vec2s n = res.n;
 					n.x = ctx->player.vel.x != 0.0f ? n.x : 0.0f;
 					n.y = ctx->player.vel.y != 0.0f ? n.y : 0.0f;
@@ -558,7 +558,6 @@ void UpdatePlayer(Context* ctx) {
 		}
 	}
 
-	ctx->player.vel.y += GRAVITY;
 	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 
 	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
