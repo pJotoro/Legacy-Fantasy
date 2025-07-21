@@ -241,7 +241,7 @@ void DrawEntity(Context* ctx, Entity* entity) {
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    if (!anim->ended && (anim->frame_idx < sd->n_frames || loop)) {
+    if (loop || !anim->ended) {
     	anim->frame_tick += 1;
 	    if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
 	        anim->frame_tick = 0;
