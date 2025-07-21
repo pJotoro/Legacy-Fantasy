@@ -540,12 +540,12 @@ void UpdatePlayer(Context* ctx) {
 						Tile t;
 						t.x = (int)tile_x;
 						t.y = (int)tile_y;
-						Rect tile = RectFromTile(t);
-						if (RectsIntersect(&ctx->level, side, tile)) {
+						Rect tile = RectFromTile(t); (void)tile;
+						/*if (RectsIntersect(&ctx->level, side, tile)) {
 							ctx->player.pos.x = tile.min.x + ctx->player.size.x;
 							ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
-						}
+						}*/
 					}
 				}
 			}
@@ -559,12 +559,12 @@ void UpdatePlayer(Context* ctx) {
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
-						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-						if (RectsIntersect(&ctx->level, side, tile)) {
+						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y}); (void)tile;
+						/*if (RectsIntersect(&ctx->level, side, tile)) {
 							ctx->player.pos.x = tile.min.x - ctx->player.size.x;
 							ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
-						}
+						}*/
 					}
 				}
 			}
@@ -583,13 +583,13 @@ void UpdatePlayer(Context* ctx) {
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
-						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-						if (RectsIntersect(&ctx->level, side, tile)) {
+						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y}); (void)tile;
+						/*if (RectsIntersect(&ctx->level, side, tile)) {
 							ctx->player.pos.y = tile.min.y + ctx->player.size.y;
 							ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
 							ctx->player.state = ENTITY_STATE_JUMP_END;
-						}
+						}*/
 					}
 				}
 			}
@@ -603,8 +603,8 @@ void UpdatePlayer(Context* ctx) {
 			for (size_t tile_y = 0; tile_y < ctx->level.h && !break_all; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w && !break_all; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y)) {
-						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y});
-						if (RectsIntersect(&ctx->level, side, tile)) {
+						Rect tile = RectFromTile((Tile){(int)tile_x, (int)tile_y}); (void)tile;
+						/*if (RectsIntersect(&ctx->level, side, tile)) {
 							ctx->player.pos.y = tile.min.y - ctx->player.size.y;
 							ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
 							break_all = true;
@@ -613,7 +613,7 @@ void UpdatePlayer(Context* ctx) {
 							} else {
 								ctx->player.state = ENTITY_STATE_IDLE;
 							}
-						}
+						}*/
 					}
 				}
 			}
