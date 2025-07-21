@@ -9,10 +9,10 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 typedef ivec2s Tile;
 
 FORCEINLINE Rect RectFromTile(Tile tile) {
-	vec2s pos = vec2_from_ivec2(tile);
-	pos = glms_vec2_scale(pos, (float)TILE_SIZE);
-	vec2s size = (vec2s){(float)TILE_SIZE, (float)TILE_SIZE};
-	return (Rect){pos, size};
+    Rect res;
+    res.min = glms_vec2_scale(vec2_from_ivec2(tile), (float)TILE_SIZE);
+    res.max = glms_vec2_adds(res.min, (float)TILE_SIZE);
+	return res;
 }
 
 FORCEINLINE void TileFromRect(Rect rect, Tile tile) {
@@ -29,8 +29,7 @@ FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
 }
 
 // TODO: How to make this check which side we collided with?
-FORCEINLINE bool RectsIntersectBasic(Level* level, Rect a, Rect b) {
-	if (!RectIsValid(level, a) || !RectIsValid(level, b)) return false;
+FORCEINLINE bool RectsIntersectBasic(Rect a, Rect b) {
 	bool d0 = b.max.x < a.min.x;
     bool d1 = a.max.x < b.min.x;
     bool d2 = b.max.y < a.min.y;
@@ -47,9 +46,10 @@ typedef struct CollisionRes
     vec2s n;
 } CollisionRes;
 
+// NOTE: This function assumes that RectsIntersectBasic(a, b) has already succeeded.
 CollisionRes RectsIntersect(Rect a, Rect b)
 {
-    CollisionRes res = {0};
+    CollisionRes res;
 
     vec2s mid_a = glms_vec2_scale(glms_vec2_add(a.min, a.max), 0.5f);
     vec2s mid_b = glms_vec2_scale(glms_vec2_add(b.min, b.max), 0.5f);
@@ -59,9 +59,7 @@ CollisionRes RectsIntersect(Rect a, Rect b)
 
     // calc overlap on x and y axes
     float dx = e_a.x + e_b.x - SDL_fabsf(d.x);
-    if (dx < 0) return res;
     float dy = e_a.y + e_b.y - SDL_fabsf(d.y);
-    if (dy < 0) return res;
 
     // x axis overlap is smaller
     if (dx < dy)

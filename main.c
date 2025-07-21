@@ -34,7 +34,7 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
-		.pos.y = TILE_SIZE*11.0f,
+		.pos.y = TILE_SIZE*0.0f,
 		.dir = 1.0f,
 	};
 	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
@@ -62,7 +62,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 1
+#if 0
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -524,6 +524,38 @@ void UpdatePlayer(Context* ctx) {
 			ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y / 2.0f);
 		}
 	} break;
+	}
+
+	for (size_t y = 0; y < ctx->level.h; y += 1) {
+		for (size_t x = 0; x < ctx->level.w; x += 1) {
+			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
+				ivec2s tile = {(int32_t)x, (int32_t)y};
+				Rect tile_rect = RectFromTile(tile);
+				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->player.anim.sprite);
+				Rect player_rect = {
+					.min = ctx->player.pos,
+					.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
+				};
+				if (RectsIntersectBasic(player_rect, tile_rect)) {
+					CollisionRes res = RectsIntersect(player_rect, tile_rect);
+					// SDL_Log("depth = %f, contact point = {%f, %f}, n = {%f, %f}", res.depth, res.contact_point.x, res.contact_point.y, res.n.x, res.n.y);
+					// vec2s v = glms_vec2_scale(res.n, res.depth);
+					// ctx->player.pos = glms_vec2_add(ctx->player.pos, v);
+					vec2s n = res.n;
+					n.x = ctx->player.vel.x != 0.0f ? n.x : 0.0f;
+					n.y = ctx->player.vel.y != 0.0f ? n.y : 0.0f;
+					if (res.n.x != 0.0f) ctx->player.vel.x = 0.0f;
+					if (res.n.y != 0.0f) ctx->player.vel.y = 0.0f;
+					do {
+						player_rect.min = glms_vec2_add(player_rect.min, n);
+						player_rect.max = glms_vec2_add(player_rect.max, n);
+					} while (RectsIntersectBasic(player_rect, tile_rect));
+					ctx->player.pos = player_rect.min;
+
+				}
+			}
+			
+		}
 	}
 
 	ctx->player.vel.y += GRAVITY;
