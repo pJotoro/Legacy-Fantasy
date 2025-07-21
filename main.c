@@ -543,15 +543,18 @@ void UpdatePlayer(Context* ctx) {
 						.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
 					};
 					if (RectsIntersectBasic(player_rect, tile_rect)) {
+						break_all = true;
 						CollisionRes res = RectsIntersect(player_rect, tile_rect);
 						// SDL_Log("depth = %f, contact point = {%f, %f}, n = {%f, %f}", res.depth, res.contact_point.x, res.contact_point.y, res.n.x, res.n.y);
 						vec2s n = res.n;
+						if (n.x == 0.0f && n.y == 0.0f) {
+							break;
+						}
 						do {
 							player_rect.min = glms_vec2_add(player_rect.min, n);
 							player_rect.max = glms_vec2_add(player_rect.max, n);
 						} while (RectsIntersectBasic(player_rect, tile_rect));
 						ctx->player.pos = player_rect.min;
-						break_all = true;
 					}
 				}
 				
