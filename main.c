@@ -20,7 +20,6 @@
 typedef int64_t ssize_t;
 
 #include "aseprite.h"
-#include "sprite.h"
 
 #include "main.h"
 
@@ -400,67 +399,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	return SDL_ENUM_CONTINUE;
 }
 
-void ResetAnim(Anim* anim) {
-	anim->frame_idx = 0;
-	anim->frame_tick = 0;
-	anim->ended = false;
-}
-
-SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
-	return &ctx->sprites[sprite.idx];
-}
-
-void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path) {
-	ResetAnim(&entity->anim);
-	entity->anim.sprite = GetSprite((char*)path);
-	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
-	entity->size.x = (float)sprite_desc->w;
-	entity->size.y = (float)sprite_desc->h;
-}
-
-bool SetSprite(Entity* entity, Sprite sprite) {
-	bool sprite_changed = false;
-	if (entity->anim.sprite.idx != sprite.idx) {
-		sprite_changed = true;
-		entity->anim.sprite = sprite;
-		ResetAnim(&entity->anim);
-	}
-	return sprite_changed;
-}
-
-/*
-Things to check for:
-- collisions:
-	- left
-	- right
-	- up
-	- down
-- horizontal movement
-- vertical movement
-
-States:
-- Idle:
-	- No collisions.
-	- If either the left or the right key is down, but not both, change to run state.
-	- If the jump button is pressed, enter the jump start state.
-- Run:
-	- Horizontal collisions, not vertical collisions.
-	- If neither the left nor the right key is pressed, and horizontal velocity is 0, 	  enter the idle state.
-	- If the jump button is pressed, enter the jump start state.
-- Jump start:
-	- Horizontal collisions and vertical collisions.
-	- Horizontal movement and vertical movement.
-	- If you let go of the jump button, enter the jump end state.
-	- If the jump start animation ends, enter the jump end state.
-	- If you hit the ceiling, enter the jump end state.
-	- If you hit the ground, enter the idle or run state depending on if there is any horizontal movement.
-- Jump end:
-	- Horizontal collisions and vertical collisions.
-	- Horizontal movement and vertical movement.
-	- If the jump end animation ends, stay the last frame.
-	- If you hit the ground, enter the idle or run state depending on if there is any horizontal movement.
-*/
-
 void UpdatePlayer(Context* ctx) {
 	static Sprite player_idle;
 	static Sprite player_run;
@@ -476,56 +414,6 @@ void UpdatePlayer(Context* ctx) {
 		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
 	}
-
-	// switch (ctx->player.state) {
-	// case ENTITY_STATE_IDLE: {
-	// 	if (SetSprite(&ctx->player, player_idle)) {
-	// 		ctx->player.vel = (vec2s){0.0f, 0.0f};
-	// 		ctx->player.pos.y -= 1.0f;
-	// 	}
-	// 	if (ctx->button_jump) {
-	// 		ctx->player.state = ENTITY_STATE_JUMP_START;
-	// 	} else if ((ctx->button_left || ctx->button_right) && !(ctx->button_left && ctx->button_right)) {
-	// 		ctx->player.state = ENTITY_STATE_RUN;
-	// 	}
-	// } break;
-	// case ENTITY_STATE_RUN: {
-	// 	if (SetSprite(&ctx->player, player_run)) {
-	// 		ctx->player.vel.y = 0.0f;
-	// 		ctx->player.pos.y -= 1.0f;
-	// 	}
-
-	// 	if (ctx->button_jump) {
-	// 		ctx->player.state = ENTITY_STATE_JUMP_START;
-	// 	} else {
-	// 		float acc = 0.0f;
-	// 		if (ctx->button_left) acc -= 1.0f;
-	// 		if (ctx->button_right) acc += 1.0f;
-	// 		ctx->player.vel.x += acc * PLAYER_ACC;
-	// 		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-	// 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-	// 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-
-	// 		if (ctx->player.vel.x != 0.0f) {
-	// 			ctx->player.dir = glm_signf(ctx->player.vel.x);
-	// 		}
-	// 	}
-	// } break;
-	// case ENTITY_STATE_JUMP_START: {		
-	// 	if (SetSprite(&ctx->player, player_jump_start)) {
-	// 		ctx->player.vel.y = -PLAYER_JUMP;
-	// 	}
-
-	// 	if (!ctx->button_jump || ctx->player.anim.ended) {
-	// 		ctx->player.state = ENTITY_STATE_JUMP_END;
-	// 	}
-	// } break;
-	// case ENTITY_STATE_JUMP_END: {
-	// 	if (SetSprite(&ctx->player, player_jump_end)) {
-	// 		ctx->player.vel.y = SDL_max(ctx->player.vel.y, ctx->player.vel.y / 2.0f);
-	// 	}
-	// } break;
-	// }
 
 	if (ctx->player.touching_floor && ctx->button_jump) {
 		ctx->player.vel.y -= PLAYER_JUMP;
@@ -591,8 +479,6 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		ctx->player.pos = glms_vec2_add(ctx->player.pos, glms_vec2_sub(ctx->player.vel, overlap));
-		if (overlap.x != 0.0f) ctx->player.vel.x = 0.0f;
-		if (overlap.y != 0.0f) ctx->player.vel.y = 0.0f;
 	}
 
 	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	

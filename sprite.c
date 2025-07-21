@@ -273,3 +273,31 @@ int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b) {
 	}
 	return 0;
 }
+
+void ResetAnim(Anim* anim) {
+	anim->frame_idx = 0;
+	anim->frame_tick = 0;
+	anim->ended = false;
+}
+
+SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
+	return &ctx->sprites[sprite.idx];
+}
+
+void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path) {
+	ResetAnim(&entity->anim);
+	entity->anim.sprite = GetSprite((char*)path);
+	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
+	entity->size.x = (float)sprite_desc->w;
+	entity->size.y = (float)sprite_desc->h;
+}
+
+bool SetSprite(Entity* entity, Sprite sprite) {
+	bool sprite_changed = false;
+	if (entity->anim.sprite.idx != sprite.idx) {
+		sprite_changed = true;
+		entity->anim.sprite = sprite;
+		ResetAnim(&entity->anim);
+	}
+	return sprite_changed;
+}
