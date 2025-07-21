@@ -105,9 +105,9 @@ typedef struct Context {
 	TTF_Font* font_roboto_regular;
 
 	// SDL_Gamepad* gamepad;
-	bool button_left;
-	bool button_right;
-	bool button_jump;
+	int32_t button_left;
+	int32_t button_right;
+	int32_t button_jump;
 
 	SDL_Time time;
 	float dt;

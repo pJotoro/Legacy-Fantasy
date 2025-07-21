@@ -28,8 +28,7 @@ FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
 	return rect.min.x >= 0.0f && rect.min.x+rect.max.x < (level->w+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.min.y+rect.max.y < (level->h+1)*TILE_SIZE;
 }
 
-// TODO: How to make this check which side we collided with?
-FORCEINLINE bool RectsIntersectBasic(Rect a, Rect b) {
+FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 	bool d0 = b.max.x < a.min.x;
     bool d1 = a.max.x < b.min.x;
     bool d2 = b.max.y < a.min.y;
@@ -37,64 +36,64 @@ FORCEINLINE bool RectsIntersectBasic(Rect a, Rect b) {
     return !(d0 | d1 | d2 | d3);
 }
 
-typedef struct CollisionRes
-{
-    float depth;
-    vec2s contact_point;
+// typedef struct CollisionRes
+// {
+//     float depth;
+//     vec2s contact_point;
 
-    // always points from a to b
-    vec2s n;
-} CollisionRes;
+//     // always points from a to b
+//     vec2s n;
+// } CollisionRes;
 
-// NOTE: This function assumes that RectsIntersectBasic(a, b) has already succeeded.
-CollisionRes RectsIntersect(Rect a, Rect b)
-{
-    CollisionRes res;
+// // NOTE: This function assumes that RectsIntersectBasic(a, b) has already succeeded.
+// CollisionRes RectsIntersect(Rect a, Rect b)
+// {
+//     CollisionRes res;
 
-    vec2s mid_a = glms_vec2_scale(glms_vec2_add(a.min, a.max), 0.5f);
-    vec2s mid_b = glms_vec2_scale(glms_vec2_add(b.min, b.max), 0.5f);
-    vec2s e_a = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(a.max, a.min), 0.5f));
-    vec2s e_b = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(b.max, b.min), 0.5f));
-    vec2s d = glms_vec2_sub(mid_b, mid_a);
+//     vec2s mid_a = glms_vec2_scale(glms_vec2_add(a.min, a.max), 0.5f);
+//     vec2s mid_b = glms_vec2_scale(glms_vec2_add(b.min, b.max), 0.5f);
+//     vec2s e_a = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(a.max, a.min), 0.5f));
+//     vec2s e_b = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(b.max, b.min), 0.5f));
+//     vec2s d = glms_vec2_sub(mid_b, mid_a);
 
-    // calc overlap on x and y axes
-    float dx = e_a.x + e_b.x - SDL_fabsf(d.x);
-    float dy = e_a.y + e_b.y - SDL_fabsf(d.y);
+//     // calc overlap on x and y axes
+//     float dx = e_a.x + e_b.x - SDL_fabsf(d.x);
+//     float dy = e_a.y + e_b.y - SDL_fabsf(d.y);
 
-    // x axis overlap is smaller
-    if (dx < dy)
-    {
-        res.depth = dx;
-        if (d.x < 0)
-        {
-            res.n = (vec2s){-1.0f, 0};
-            res.contact_point = glms_vec2_sub(mid_a, (vec2s){e_a.x, 0});
-        }
-        else
-        {
-            res.n = (vec2s){1.0f, 0};
-            res.contact_point = glms_vec2_add(mid_a, (vec2s){e_a.x, 0});
-        }
-    }
+//     // x axis overlap is smaller
+//     if (dx < dy)
+//     {
+//         res.depth = dx;
+//         if (d.x < 0)
+//         {
+//             res.n = (vec2s){-1.0f, 0};
+//             res.contact_point = glms_vec2_sub(mid_a, (vec2s){e_a.x, 0});
+//         }
+//         else
+//         {
+//             res.n = (vec2s){1.0f, 0};
+//             res.contact_point = glms_vec2_add(mid_a, (vec2s){e_a.x, 0});
+//         }
+//     }
 
-    // y axis overlap is smaller
-    else
-    {
-        res.depth = dy;
-        if (d.y < 0)
-        {
-            res.n = (vec2s){0, -1.0f};
-            res.contact_point = glms_vec2_sub(mid_a, (vec2s){0, e_a.y});
-        }
-        else
-        {
-            res.n = (vec2s){0, 1.0f};
-            res.contact_point = glms_vec2_add(mid_a, (vec2s){0, e_a.y});
-        }
-    }
+//     // y axis overlap is smaller
+//     else
+//     {
+//         res.depth = dy;
+//         if (d.y < 0)
+//         {
+//             res.n = (vec2s){0, -1.0f};
+//             res.contact_point = glms_vec2_sub(mid_a, (vec2s){0, e_a.y});
+//         }
+//         else
+//         {
+//             res.n = (vec2s){0, 1.0f};
+//             res.contact_point = glms_vec2_add(mid_a, (vec2s){0, e_a.y});
+//         }
+//     }
 
-    return res;
-}
+//     return res;
+// }
 
 void DrawCircle(SDL_Renderer* renderer, const int32_t cx, const int32_t cy, const int32_t r) {
 	int32_t x = r;
