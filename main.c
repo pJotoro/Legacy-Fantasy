@@ -592,12 +592,20 @@ void UpdatePlayer(Context* ctx) {
 		ctx->player.pos = glms_vec2_add(ctx->player.pos, glms_vec2_sub(ctx->player.vel, overlap));
 		if (overlap.x != 0.0f) ctx->player.vel.x = 0.0f;
 		if (overlap.y != 0.0f) ctx->player.vel.y = 0.0f;
-
-		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 	}
 
-	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
-		ResetGame(ctx);
+	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+
+	if (ctx->player.touching_floor) {
+		if (ctx->player.vel.x == 0.0f) {
+			SetSprite(&ctx->player, player_idle);
+		} else {
+			SetSprite(&ctx->player, player_run);
+		}
+	} else if (ctx->player.vel.y < 0.0f) {
+		SetSprite(&ctx->player, player_jump_start);
+	} else {
+		SetSprite(&ctx->player, player_jump_end);
 	}
 
 	bool loop = true;
@@ -606,4 +614,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &ctx->player.anim, loop);
 	
+	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
+		ResetGame(ctx);
+	}
 }
