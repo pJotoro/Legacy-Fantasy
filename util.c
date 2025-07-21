@@ -40,18 +40,15 @@ FORCEINLINE bool RectsIntersectBasic(Level* level, Rect a, Rect b) {
 
 typedef struct CollisionRes
 {
-    size_t n_depths;
-    float depths[2];
-    vec2s contact_points[2];
+    float depth;
+    vec2s contact_point;
 
     // always points from a to b
     vec2s n;
 } CollisionRes;
 
-CollisionRes RectsIntersect(Level* level, Rect a, Rect b)
+CollisionRes RectsIntersect(Rect a, Rect b)
 {
-    (void)level;
-
     CollisionRes res = {0};
 
     vec2s mid_a = glms_vec2_scale(glms_vec2_add(a.min, a.max), 0.5f);
@@ -66,46 +63,37 @@ CollisionRes RectsIntersect(Level* level, Rect a, Rect b)
     float dy = e_a.y + e_b.y - SDL_fabsf(d.y);
     if (dy < 0) return res;
 
-    vec2s n;
-    float depth;
-    vec2s p;
-
     // x axis overlap is smaller
     if (dx < dy)
     {
-        depth = dx;
+        res.depth = dx;
         if (d.x < 0)
         {
-            n = (vec2s){-1.0f, 0};
-            p = glms_vec2_sub(mid_a, (vec2s){e_a.x, 0});
+            res.n = (vec2s){-1.0f, 0};
+            res.contact_point = glms_vec2_sub(mid_a, (vec2s){e_a.x, 0});
         }
         else
         {
-            n = (vec2s){1.0f, 0};
-            p = glms_vec2_add(mid_a, (vec2s){e_a.x, 0});
+            res.n = (vec2s){1.0f, 0};
+            res.contact_point = glms_vec2_add(mid_a, (vec2s){e_a.x, 0});
         }
     }
 
     // y axis overlap is smaller
     else
     {
-        depth = dy;
+        res.depth = dy;
         if (d.y < 0)
         {
-            n = (vec2s){0, -1.0f};
-            p = glms_vec2_sub(mid_a, (vec2s){0, e_a.y});
+            res.n = (vec2s){0, -1.0f};
+            res.contact_point = glms_vec2_sub(mid_a, (vec2s){0, e_a.y});
         }
         else
         {
-            n = (vec2s){0, 1.0f};
-            p = glms_vec2_add(mid_a, (vec2s){0, e_a.y});
+            res.n = (vec2s){0, 1.0f};
+            res.contact_point = glms_vec2_add(mid_a, (vec2s){0, e_a.y});
         }
     }
-
-    res.n_depths = 1;
-    res.contact_points[0] = p;
-    res.depths[0] = depth;
-    res.n = n;
 
     return res;
 }
