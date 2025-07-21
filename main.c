@@ -601,6 +601,7 @@ void UpdatePlayer(Context* ctx) {
 			SetSprite(&ctx->player, player_idle);
 		} else {
 			SetSprite(&ctx->player, player_run);
+			ctx->player.dir = glm_signf(ctx->player.vel.x);
 		}
 	} else if (ctx->player.vel.y < 0.0f) {
 		SetSprite(&ctx->player, player_jump_start);
