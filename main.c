@@ -456,6 +456,7 @@ void UpdatePlayer(Context* ctx) {
 						}
 						if (ctx->player.vel.y > 0.0f) {
 							overlap.y = player_rect.max.y - tile_rect.min.y;
+							ctx->player.touching_floor = 10;
 						} else if (ctx->player.vel.y < 0.0f) {
 							overlap.y = tile_rect.max.y - player_rect.min.y;
 						}
@@ -472,7 +473,6 @@ void UpdatePlayer(Context* ctx) {
 							player_rect.max.y = player_rect.min.y + (float)sd->h;
 
 							ctx->player.vel.y = 0.0f;
-							ctx->player.touching_floor = 10;
 						}
 					}
 				}
