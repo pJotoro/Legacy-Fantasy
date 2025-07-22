@@ -458,7 +458,9 @@ void UpdatePlayer(Context* ctx) {
 					if (RectsIntersect(player_rect, tile_rect)) {
 						if (ctx->player.vel.x != 0.0f && RectsIntersect(player_rect_x, tile_rect)) {
 							if (ctx->player.vel.x > 0.0f) {
-								overlap.x = SDL_max(overlap.x, player_rect_x.max.x - tile_rect.min.x);
+								if (!ctx->player.touching_floor) {
+									overlap.x = SDL_max(overlap.x, player_rect_x.max.x - tile_rect.min.x);
+								}
 							} else {
 								overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect_x.min.x);
 							}
