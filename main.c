@@ -145,6 +145,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		nk_input_begin(&ctx->nk.ctx);
 
 		ctx->button_jump = false;
+		ctx->button_attack = false;
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			NK_HandleEvent(ctx, &event);
@@ -158,6 +159,9 @@ int32_t main(int32_t argc, char* argv[]) {
 						ctx->selected_anim.sprite.idx += 1;
 						if (ctx->selected_anim.sprite.idx >= MAX_SPRITES) ctx->selected_anim.sprite.idx = 0;
 					} while (!ctx->sprites[ctx->selected_anim.sprite.idx].path);
+					break;
+				case SDLK_X:
+					ctx->button_attack = true;
 					break;
 				case SDLK_SPACE:
 					break;
@@ -405,6 +409,7 @@ void UpdatePlayer(Context* ctx) {
 	static Sprite player_run;
 	static Sprite player_jump_start;
 	static Sprite player_jump_end;
+	static Sprite player_attack;
 
 	static bool sprites_initialized = false;
 	if (!sprites_initialized) {
@@ -414,25 +419,30 @@ void UpdatePlayer(Context* ctx) {
 		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
 	}
-
-	if (ctx->player.touching_floor && ctx->button_jump) {
-		ctx->player.vel.y -= PLAYER_JUMP;
-		ctx->player.touching_floor = 0;
-	}
-	ctx->player.vel.y += GRAVITY;
 
 	if (ctx->player.touching_floor) {
-		int32_t input_x = ctx->button_right - ctx->button_left;
-		float acc = (float)input_x * PLAYER_ACC;
-		ctx->player.vel.x += acc;
-		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+		if (ctx->button_attack) {
+			SetSprite(&ctx->player, player_attack);
+		} else if (ctx->button_jump) {
+			ctx->player.vel.y -= PLAYER_JUMP;
+			ctx->player.touching_floor = 0;			
+		}
 	}
 
-	// Collision
-	{
+	if (ctx->player.anim.sprite.idx != player_attack.idx) {
+		ctx->player.vel.y += GRAVITY;
+
+		if (ctx->player.touching_floor) {
+			int32_t input_x = ctx->button_right - ctx->button_left;
+			float acc = (float)input_x * PLAYER_ACC;
+			ctx->player.vel.x += acc;
+			if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+			else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+			ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+		}
+
 		ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
 
@@ -477,28 +487,37 @@ void UpdatePlayer(Context* ctx) {
 					}
 				}
 			}
+		}
+
+		if (ctx->player.touching_floor) {
+			if (ctx->player.vel.x == 0.0f) {
+				SetSprite(&ctx->player, player_idle);
+			} else {
+				SetSprite(&ctx->player, player_run);
+				ctx->player.dir = glm_signf(ctx->player.vel.x);
+			}
+		} else if (ctx->player.vel.y < 0.0f) {
+			SetSprite(&ctx->player, player_jump_start);
+		} else {
+			SetSprite(&ctx->player, player_jump_end);
 		}		
 	}
 
-	if (ctx->player.touching_floor) {
+	bool loop = true;
+	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx || ctx->player.anim.sprite.idx == player_attack.idx) {
+		loop = false;
+	}
+	UpdateAnim(ctx, &ctx->player.anim, loop);
+
+	if (ctx->player.anim.sprite.idx == player_attack.idx && ctx->player.anim.ended) {
 		if (ctx->player.vel.x == 0.0f) {
 			SetSprite(&ctx->player, player_idle);
 		} else {
 			SetSprite(&ctx->player, player_run);
 			ctx->player.dir = glm_signf(ctx->player.vel.x);
 		}
-	} else if (ctx->player.vel.y < 0.0f) {
-		SetSprite(&ctx->player, player_jump_start);
-	} else {
-		SetSprite(&ctx->player, player_jump_end);
 	}
 
-	bool loop = true;
-	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx) {
-		loop = false;
-	}
-	UpdateAnim(ctx, &ctx->player.anim, loop);
-	
 	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
 		ResetGame(ctx);
 	}
