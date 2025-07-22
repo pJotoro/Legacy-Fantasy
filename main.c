@@ -429,70 +429,63 @@ void UpdatePlayer(Context* ctx) {
 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 	}
-	
-	// Collision
-	// {
-	// 	vec2s player_next_pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
-	// 	vec2s player_next_pos_x = (vec2s){ctx->player.pos.x + ctx->player.vel.x, ctx->player.pos.y};
-	// 	vec2s player_next_pos_y = (vec2s){ctx->player.pos.x + 1.0f, ctx->player.pos.y + ctx->player.vel.y};
-	// 	SpriteDesc* sd = GetSpriteDesc(ctx, ctx->player.anim.sprite);			
-	// 	Rect player_rect = {
-	// 		.min = player_next_pos,
-	// 		.max = (vec2s){player_next_pos.x + (float)sd->w, player_next_pos.y + (float)sd->h},
-	// 	};
-	// 	Rect player_rect_x = {
-	// 		.min = player_next_pos_x,
-	// 		.max = (vec2s){player_next_pos_x.x + (float)sd->w, player_next_pos_x.y + (float)sd->h},
-	// 	};
-	// 	Rect player_rect_y = {
-	// 		.min = player_next_pos_y,
-	// 		.max = (vec2s){player_next_pos_y.x + (float)sd->w, player_next_pos_y.y + (float)sd->h},
-	// 	};
-	// 	vec2s overlap = {0.0f, 0.0f};
-	// 	bool break_all = false;
-	// 	for (size_t y = 0; y < ctx->level.h && !break_all; y += 1) {
-	// 		for (size_t x = 0; x < ctx->level.w && !break_all; x += 1) {
-	// 			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
-	// 				ivec2s tile = {(int32_t)x, (int32_t)y};
-	// 				Rect tile_rect = RectFromTile(tile);
-	// 				if (RectsIntersect(player_rect, tile_rect)) {
-	// 					if (ctx->player.vel.x != 0.0f && RectsIntersect(player_rect_x, tile_rect)) {
-	// 						if (ctx->player.vel.x > 0.0f) {
-	// 							overlap.x = SDL_max(overlap.x, player_rect_x.max.x - tile_rect.min.x);
-	// 						} else {
-	// 							overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect_x.min.x);
-	// 						}
-	// 					}
-	// 					if (ctx->player.vel.y != 0.0f && RectsIntersect(player_rect_y, tile_rect)) {
-	// 						if (ctx->player.vel.y > 0.0f) {
-	// 							if (!ctx->player.touching_floor) {
-	// 								overlap.y = SDL_max(overlap.y, player_rect_y.max.y - tile_rect.min.y);									
-	// 							} else {
-	// 								overlap.y = 0.0f;
-	// 								ctx->player.vel.y = 0.0f;
-	// 							}
-	// 							ctx->player.touching_floor = 10;
-	// 						} else {
-	// 							overlap.y = SDL_min(overlap.y, tile_rect.max.y - player_rect_y.min.y);
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-
-	// 	
-	// 	if (overlap.x != 0.0f) ctx->player.vel.x = 0.0f;
-	// 	if (overlap.y != 0.0f) ctx->player.vel.y = 0.0f;
-	// }
-
-	// Collision (I'm going to try one more time!)
-	{
-		
-	}
 
 	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
 	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+	
+	// Collision
+	{
+		SpriteDesc* sd = GetSpriteDesc(ctx, ctx->player.anim.sprite);			
+		Rect player_rect = {
+			.min = ctx->player.pos,
+			.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
+		};
+		bool break_all = false;
+		for (size_t y = 0; y < ctx->level.h && !break_all; y += 1) {
+			for (size_t x = 0; x < ctx->level.w && !break_all; x += 1) {
+				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
+					ivec2s tile = {(int32_t)x, (int32_t)y};
+					Rect tile_rect = RectFromTile(tile);
+					vec2s overlap = {0.0f, 0.0f};
+					if (RectsIntersect(player_rect, tile_rect)) {
+						if (ctx->player.vel.x != 0.0f && RectsIntersect(player_rect, tile_rect)) {
+							if (ctx->player.vel.x > 0.0f) {
+								overlap.x = SDL_max(overlap.x, player_rect.max.x - tile_rect.min.x);
+							} else {
+								overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect.min.x);
+							}
+						}
+						if (ctx->player.vel.y != 0.0f && RectsIntersect(player_rect, tile_rect)) {
+							if (ctx->player.vel.y > 0.0f) {
+								if (!ctx->player.touching_floor) {
+									overlap.y = SDL_max(overlap.y, player_rect.max.y - tile_rect.min.y);									
+								} else {
+									overlap.y = 0.0f;
+									ctx->player.vel.y = 0.0f;
+								}
+								ctx->player.touching_floor = 10;
+							} else {
+								overlap.y = SDL_min(overlap.y, tile_rect.max.y - player_rect.min.y);
+							}
+						}
+						if (overlap.x < overlap.y) {
+							ctx->player.pos.x -= overlap.x;
+							player_rect.min.x = ctx->player.pos.x;
+							player_rect.max.x = player_rect.min.x + (float)sd->w;
+
+							ctx->player.vel.x = 0.0f;
+						} else if (overlap.y < overlap.x) {
+							ctx->player.pos.y -= overlap.y;
+							player_rect.min.y = ctx->player.pos.y;
+							player_rect.max.y = player_rect.min.y + (float)sd->h;
+
+							ctx->player.vel.y = 0.0f;
+						}
+					}
+				}
+			}
+		}		
+	}
 
 	if (ctx->player.touching_floor) {
 		if (ctx->player.vel.x == 0.0f) {
