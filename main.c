@@ -33,8 +33,9 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*1.0f, 
-		.pos.y = TILE_SIZE*0.0f,
+		.pos.y = TILE_SIZE*11.0f,
 		.dir = 1.0f,
+		.touching_floor = 10,
 	};
 	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
@@ -430,12 +431,12 @@ void UpdatePlayer(Context* ctx) {
 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 	}
 
-	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
-	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
-	
 	// Collision
 	{
-		SpriteDesc* sd = GetSpriteDesc(ctx, ctx->player.anim.sprite);			
+		ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
+		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+
+		SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);			
 		Rect player_rect = {
 			.min = ctx->player.pos,
 			.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
@@ -448,26 +449,17 @@ void UpdatePlayer(Context* ctx) {
 					Rect tile_rect = RectFromTile(tile);
 					vec2s overlap = {0.0f, 0.0f};
 					if (RectsIntersect(player_rect, tile_rect)) {
-						if (ctx->player.vel.x != 0.0f && RectsIntersect(player_rect, tile_rect)) {
-							if (ctx->player.vel.x > 0.0f) {
-								overlap.x = SDL_max(overlap.x, player_rect.max.x - tile_rect.min.x);
-							} else {
-								overlap.x = SDL_min(overlap.x, tile_rect.max.x - player_rect.min.x);
-							}
+						if (ctx->player.vel.x > 0.0f) {
+							overlap.x = player_rect.max.x - tile_rect.min.x;
+						} else if (ctx->player.vel.x < 0.0f) {
+							overlap.x = tile_rect.max.x - player_rect.min.x;
 						}
-						if (ctx->player.vel.y != 0.0f && RectsIntersect(player_rect, tile_rect)) {
-							if (ctx->player.vel.y > 0.0f) {
-								if (!ctx->player.touching_floor) {
-									overlap.y = SDL_max(overlap.y, player_rect.max.y - tile_rect.min.y);									
-								} else {
-									overlap.y = 0.0f;
-									ctx->player.vel.y = 0.0f;
-								}
-								ctx->player.touching_floor = 10;
-							} else {
-								overlap.y = SDL_min(overlap.y, tile_rect.max.y - player_rect.min.y);
-							}
+						if (ctx->player.vel.y > 0.0f) {
+							overlap.y = player_rect.max.y - tile_rect.min.y;
+						} else if (ctx->player.vel.y < 0.0f) {
+							overlap.y = tile_rect.max.y - player_rect.min.y;
 						}
+
 						if (overlap.x < overlap.y) {
 							ctx->player.pos.x -= overlap.x;
 							player_rect.min.x = ctx->player.pos.x;
@@ -480,6 +472,7 @@ void UpdatePlayer(Context* ctx) {
 							player_rect.max.y = player_rect.min.y + (float)sd->h;
 
 							ctx->player.vel.y = 0.0f;
+							ctx->player.touching_floor = 10;
 						}
 					}
 				}
