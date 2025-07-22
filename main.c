@@ -62,7 +62,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 0
+#if 1
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -460,13 +460,13 @@ void UpdatePlayer(Context* ctx) {
 							overlap.y = tile_rect.max.y - player_rect.min.y;
 						}
 
-						if (overlap.x < overlap.y) {
+						if ((overlap.x < overlap.y && overlap.x > 0.0f) || (overlap.x > 0.0f && overlap.y == 0.0f && !ctx->player.touching_floor)) {
 							ctx->player.pos.x -= overlap.x;
 							player_rect.min.x = ctx->player.pos.x;
 							player_rect.max.x = player_rect.min.x + (float)sd->w;
 
 							ctx->player.vel.x = 0.0f;
-						} else if (overlap.y < overlap.x) {
+						} else if ((overlap.y < overlap.x && overlap.y > 0.0f) || (overlap.y > 0.0f && overlap.x == 0.0f)) {
 							ctx->player.pos.y -= overlap.y;
 							player_rect.min.y = ctx->player.pos.y;
 							player_rect.max.y = player_rect.min.y + (float)sd->h;
