@@ -78,12 +78,12 @@ typedef struct Rect {
 } Rect;
 
 typedef struct Entity {
-	vec2s pos;
+	ivec2s pos;
+	vec2s pos_remainder;
 	ivec2s size;
 	vec2s vel;
 	float dir;
 	Anim anim;
-	// ssize_t jump_frames;
 	ssize_t touching_floor;
 } Entity;
 
@@ -157,21 +157,21 @@ void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, float dir);
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, float dir);
 void DrawEntity(Context* ctx, Entity* entity);
-void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir);
+void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);
-void DrawCircle(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
-void DrawCircleFilled(SDL_Renderer* renderer, int32_t cx, int32_t cy, int32_t r);
+void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
+void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
-float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int len);
+float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int32_t len);
 void NK_UpdateUI(Context* ctx);
 struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx);
 

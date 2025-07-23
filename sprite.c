@@ -199,7 +199,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 // 	}
 // }
 
-// void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, vec2s pos) {
+// void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, ivec2s pos) {
 // 	const SDL_FRect srcrect = {0.0f, 0.0f, (float)(sd->w*sd->n_frames), (float)sd->h};
 // 	const SDL_FRect dstrect = {pos.x, pos.y, (float)(sd->w*sd->n_frames), (float)sd->h};
 // 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
@@ -207,7 +207,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 // 	}
 // }
 
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir) {
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, float dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
@@ -258,7 +258,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     
 }
 
-void DrawAnim(Context* ctx, Anim* anim, vec2s pos, float dir) {
+void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir) {
 	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 

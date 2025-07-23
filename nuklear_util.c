@@ -47,12 +47,12 @@ void NK_Render(Context* ctx) {
 		    case NK_COMMAND_CIRCLE: {
 	        	const struct nk_command_circle* c = (const struct nk_command_circle*)cmd;
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	DrawCircle(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);
+	        	DrawCircle(ctx->renderer, (ivec2s){c->x + c->w/2, c->y + c->h/2}, c->w/2);
 		    } break;
 		    case NK_COMMAND_CIRCLE_FILLED: {
 	        	const struct nk_command_circle_filled* c = (const struct nk_command_circle_filled*)cmd;
 	        	SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, c->color.r, c->color.g, c->color.b, c->color.a));
-	        	DrawCircleFilled(ctx->renderer, c->x + c->w/2, c->y + c->h/2, c->w/2);	        	
+	        	DrawCircleFilled(ctx->renderer, (ivec2s){c->x + c->w/2, c->y + c->h/2}, c->w/2);	        	
 		    } break;
 		    case NK_COMMAND_ARC: {
 	        	SDL_assert(false);

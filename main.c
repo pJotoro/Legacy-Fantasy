@@ -32,8 +32,8 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
-		.pos.x = TILE_SIZE*1.0f, 
-		.pos.y = TILE_SIZE*11.0f,
+		.pos.x = TILE_SIZE*1, 
+		.pos.y = TILE_SIZE*11,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -280,14 +280,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
 
-		int32_t rw, rh;
-		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &rw, &rh));
+		ivec2s render_area;
+		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
 
 		// RenderPlayer
 		{
-			vec2s save_pos = ctx->player.pos;
-			ctx->player.pos.x = (float)(rw/2);
-			ctx->player.pos.y = (float)(rh/2);
+			ivec2s save_pos = ctx->player.pos;
+			ctx->player.pos = glms_ivec2_divs(render_area, 2);
 			DrawEntity(ctx, &ctx->player);
 			ctx->player.pos = save_pos;
 		}
@@ -298,7 +297,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
 				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
 					if (GetTile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
-						SDL_FRect rect = { (float)(tile_x * TILE_SIZE) - ctx->player.pos.x + (float)(rw/2), (float)(tile_y * TILE_SIZE) - ctx->player.pos.y + (float)(rh/2), (float)TILE_SIZE, (float)TILE_SIZE };
+						SDL_FRect rect = { (float)(tile_x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile_y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
@@ -312,7 +311,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		if (ctx->draw_selected_anim) {
-			DrawAnim(ctx, &ctx->selected_anim, (vec2s){300.0f, 300.0f}, 1.0f);
+			DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
 		}
 
 		// RenderEnd
