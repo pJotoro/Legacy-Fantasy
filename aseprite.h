@@ -11,15 +11,8 @@ typedef struct ASE_String {
 	// uint8_t buf[];
 } ASE_String;
 
-typedef struct ASE_Point {
-	int32_t x;
-	int32_t y;
-} ASE_Point;
-
-typedef struct ASE_Size {
-	int32_t w;
-	int32_t h;
-} ASE_Size;
+typedef ivec2s ASE_Point;
+typedef ivec2s ASE_Size;
 
 typedef struct ASE_Rect {
 	ASE_Point origin;

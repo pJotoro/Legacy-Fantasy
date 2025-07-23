@@ -38,11 +38,9 @@ typedef struct SpriteLayer {
 typedef struct SpriteCell {
 	size_t layer_idx;
 	size_t frame_idx;
-	ssize_t x_offset;
-	ssize_t y_offset;
+	ivec2s offset;
+	ivec2s size;
 	ssize_t z_idx;
-	size_t w; // width relative to x offset
-	size_t h; // height relative to y offset
 	SDL_Texture* texture;
 	
 	SDL_Surface* surf;
@@ -56,7 +54,7 @@ typedef struct SpriteFrame {
 
 typedef struct SpriteDesc {
 	char* path;
-	size_t w, h;
+	ivec2s size;
 	SpriteLayer* layers; size_t n_layers;
 	SpriteFrame* frames; size_t n_frames;
 } SpriteDesc;
@@ -81,7 +79,7 @@ typedef struct Rect {
 
 typedef struct Entity {
 	vec2s pos;
-	vec2s size;
+	ivec2s size;
 	vec2s vel;
 	float dir;
 	Anim anim;

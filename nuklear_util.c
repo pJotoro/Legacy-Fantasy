@@ -265,8 +265,8 @@ void NK_UpdateUI(Context* gctx) {
 						int cols = 3;
 						nk_layout_row_static(ctx, height, item_width, cols);
 
-						nk_value_uint(ctx, "w", (uint32_t)sprite->w);
-						nk_value_uint(ctx, "h", (uint32_t)sprite->h);
+						nk_value_int(ctx, "w", sprite->size.x);
+						nk_value_int(ctx, "h", sprite->size.y);
 						nk_value_uint(ctx, "frames", (uint32_t)sprite->n_frames);
 
 						
@@ -293,8 +293,8 @@ void NK_UpdateUI(Context* gctx) {
 struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx) {
 	return (struct nk_image){
 		// .handle = {.ptr = (void*)sprite->texture},
-		.w = (nk_ushort)sprite->w,
-		.h = (nk_ushort)sprite->h,
-		.region = {0, 0, (nk_ushort)(sprite->w*frame_idx), (nk_ushort)sprite->h},
+		.w = (nk_ushort)sprite->size.x,
+		.h = (nk_ushort)sprite->size.y,
+		.region = {0, 0, (nk_ushort)((size_t)sprite->size.x*frame_idx), (nk_ushort)sprite->size.y},
 	};
 }

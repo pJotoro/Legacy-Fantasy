@@ -7,8 +7,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
 	SDL_assert(header.grid_w == 16 && header.grid_h == 16);
 	
-	sd->w = (size_t)header.w;
-	sd->h = (size_t)header.h;
+	sd->size.x = header.w;
+	sd->size.y = header.h;
 	sd->n_frames = (size_t)header.n_frames;
 	sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
 
@@ -88,8 +88,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				SpriteCell cell = {
 					.layer_idx = layer_idx,
 					.frame_idx = frame_idx,
-					.x_offset = (ssize_t)chunk->x,
-					.y_offset = (ssize_t)chunk->y,
+					.offset.x = chunk->x,
+					.offset.y = chunk->y,
 					.z_idx = (ssize_t)chunk->z_idx,
 				};
 				SDL_assert(chunk->type == ASE_CELL_TYPE_COMPRESSED_IMAGE);
@@ -99,19 +99,19 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				case ASE_CELL_TYPE_LINKED: {
 				} break;
 				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
-					cell.w = (size_t)chunk->compressed_image.w;
-					cell.h = (size_t)chunk->compressed_image.h;
+					cell.size.x = chunk->compressed_image.w;
+					cell.size.y = chunk->compressed_image.h;
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
 					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
 					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-					size_t dst_buf_size = sizeof(uint32_t)*cell.w*cell.h;
+					size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
 					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 
 					size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
 
-					SDL_Surface* surf = SDL_CreateSurfaceFrom((int32_t)cell.w, (int32_t)cell.h, SDL_PIXELFORMAT_RGBA32, dst_buf, (int32_t)(sizeof(uint32_t)*cell.w)); SDL_CHECK(surf);
+					SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
 					// SDL_DestroySurface(surf);
 					// SDL_free(dst_buf);
@@ -215,20 +215,20 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, float dir)
 		SDL_FRect srcrect = {
 			0.0f,
 			0.0f,
-			(float)(cell->w),
-			(float)(cell->h),
+			(float)(cell->size.x),
+			(float)(cell->size.y),
 		};
 		SDL_FRect dstrect = {
 			(float)(pos.x),
-			(float)(pos.y + cell->y_offset),
-			(float)(cell->w),
-			(float)(cell->h),
+			(float)(pos.y + cell->offset.y),
+			(float)(cell->size.x),
+			(float)(cell->size.y),
 		};
 		if (dir > 0.0f) {
-			dstrect.x += (float)cell->x_offset;
+			dstrect.x += (float)cell->offset.x;
 		} else {
-			dstrect.x -= (float)cell->x_offset;
-			dstrect.x += (float)sd->w;
+			dstrect.x -= (float)cell->offset.x;
+			dstrect.x += (float)sd->size.x;
 			dstrect.w = -dstrect.w;
 		}
 		SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
@@ -288,8 +288,7 @@ void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path) {
 	ResetAnim(&entity->anim);
 	entity->anim.sprite = GetSprite((char*)path);
 	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
-	entity->size.x = (float)sprite_desc->w;
-	entity->size.y = (float)sprite_desc->h;
+	entity->size = sprite_desc->size;
 }
 
 bool SetSprite(Entity* entity, Sprite sprite) {
