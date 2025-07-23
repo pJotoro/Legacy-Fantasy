@@ -20,7 +20,7 @@ FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
 }
 
 FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
-	return rect.min.x >= 0.0f && rect.min.x+rect.max.x < (level->size.x+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.min.y+rect.max.y < (level->size.y+1)*TILE_SIZE;
+	return rect.min.x >= 0.0f && rect.max.x < (level->size.x+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.max.y < (level->size.y+1)*TILE_SIZE;
 }
 
 FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
