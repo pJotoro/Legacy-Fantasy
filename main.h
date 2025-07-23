@@ -153,6 +153,13 @@ typedef struct Context {
 
 void UpdatePlayer(Context* ctx);
 
+typedef void (*Action)(Entity* entity);
+void PlayerOnCollideX(Entity* player);
+void PlayerOnCollideY(Entity* player);
+
+void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide);
+void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide);
+
 void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);

@@ -488,6 +488,18 @@ void UpdatePlayer(Context* ctx) {
 	// 		}
 	// 	}
 
+	{
+		int32_t input_x = ctx->button_right - ctx->button_left;
+		float acc = (float)input_x * PLAYER_ACC;
+		ctx->player.vel.x += acc;
+		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+
+		EntityMoveX(ctx, &ctx->player, ctx->player.vel.x, PlayerOnCollideX);	
+		EntityMoveY(ctx, &ctx->player, ctx->player.vel.y, PlayerOnCollideY);	
+	}
+
 	if (ctx->player.touching_floor) {
 		if (ctx->player.vel.x == 0.0f) {
 			SetSprite(&ctx->player, player_idle);
@@ -519,4 +531,74 @@ void UpdatePlayer(Context* ctx) {
 	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
 		ResetGame(ctx);
 	}
+}
+
+void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+	Rect player_rect = {
+		.min = entity->pos,
+		.max = glms_ivec2_add(entity->pos, sd->size),
+	};
+
+	entity->pos_remainder.x += amount;
+	int32_t iamount = (int32_t)SDL_floorf(entity->pos_remainder.x);
+	if (iamount) {
+		entity->pos_remainder.x -= (float)iamount;
+		int32_t sign = glm_sign(iamount);
+		bool break_all = false;
+		for (size_t y = 0; y < ctx->level.h && iamount && !break_all; y += 1) {
+			for (size_t x = 0; x < ctx->level.w && iamount && !break_all; x += 1) {
+				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
+					ivec2s tile = {(int32_t)x, (int32_t)y};
+					Rect tile_rect = RectFromTile(tile);
+					if (!RectsIntersect(player_rect, tile_rect)) {
+						entity->pos.x += sign;
+						iamount -= sign;
+					} else {
+						if (on_collide) on_collide(entity);
+						break_all = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+	Rect player_rect = {
+		.min = entity->pos,
+		.max = glms_ivec2_add(entity->pos, sd->size),
+	};
+
+	entity->pos_remainder.y += amount;
+	int32_t iamount = (int32_t)SDL_floorf(entity->pos_remainder.y);
+	if (iamount) {
+		entity->pos_remainder.y -= (float)iamount;
+		int32_t sign = glm_sign(iamount);
+		bool break_all = false;
+		for (size_t y = 0; y < ctx->level.h && iamount && !break_all; y += 1) {
+			for (size_t x = 0; x < ctx->level.w && iamount && !break_all; x += 1) {
+				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
+					ivec2s tile = {(int32_t)x, (int32_t)y};
+					Rect tile_rect = RectFromTile(tile);
+					if (!RectsIntersect(player_rect, tile_rect)) {
+						entity->pos.y += sign;
+						iamount -= sign;
+					} else {
+						if (on_collide) on_collide(entity);
+						break_all = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+void PlayerOnCollideX(Entity* player) {
+	player->vel.x = 0.0f;
+}
+
+void PlayerOnCollideY(Entity* player) {
+	player->vel.y = 0.0f;
 }
