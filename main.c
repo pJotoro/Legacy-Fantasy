@@ -62,7 +62,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 1
+#if 0
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -294,10 +294,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		// RenderLevel
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
-			for (size_t tile_y = 0; tile_y < ctx->level.h; tile_y += 1) {
-				for (size_t tile_x = 0; tile_x < ctx->level.w; tile_x += 1) {
-					if (GetTile(&ctx->level, tile_x, tile_y) == TILE_TYPE_GROUND) {
-						SDL_FRect rect = { (float)(tile_x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile_y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
+			for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y; tile.y += 1) {
+				for (tile.x = 0; tile.x < ctx->level.size.x; tile.x += 1) {
+					if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
+						SDL_FRect rect = { (float)(tile.x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile.y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
@@ -451,8 +451,8 @@ void UpdatePlayer(Context* ctx) {
 	// 		.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
 	// 	};
 	// 	bool break_all = false;
-	// 	for (size_t y = 0; y < ctx->level.h && !break_all; y += 1) {
-	// 		for (size_t x = 0; x < ctx->level.w && !break_all; x += 1) {
+	// 	for (size_t y = 0; y < ctx->level.size.y && !break_all; y += 1) {
+	// 		for (size_t x = 0; x < ctx->level.size.x && !break_all; x += 1) {
 	// 			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
 	// 				ivec2s tile = {(int32_t)x, (int32_t)y};
 	// 				Rect tile_rect = RectFromTile(tile);
@@ -528,7 +528,7 @@ void UpdatePlayer(Context* ctx) {
 		}
 	}
 
-	if (ctx->player.pos.y > (float)(ctx->level.h+500)) {
+	if (ctx->player.pos.y > (float)(ctx->level.size.y+500)) {
 		ResetGame(ctx);
 	}
 }
@@ -546,10 +546,9 @@ void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) 
 		entity->pos_remainder.x -= (float)iamount;
 		int32_t sign = glm_sign(iamount);
 		bool break_all = false;
-		for (size_t y = 0; y < ctx->level.h && iamount && !break_all; y += 1) {
-			for (size_t x = 0; x < ctx->level.w && iamount && !break_all; x += 1) {
-				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
-					ivec2s tile = {(int32_t)x, (int32_t)y};
+		for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y && iamount && !break_all; tile.y += 1) {
+			for (tile.x = 0; tile.x < ctx->level.size.x && iamount && !break_all; tile.x += 1) {
+				if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
 					Rect tile_rect = RectFromTile(tile);
 					if (!RectsIntersect(player_rect, tile_rect)) {
 						entity->pos.x += sign;
@@ -577,10 +576,9 @@ void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) 
 		entity->pos_remainder.y -= (float)iamount;
 		int32_t sign = glm_sign(iamount);
 		bool break_all = false;
-		for (size_t y = 0; y < ctx->level.h && iamount && !break_all; y += 1) {
-			for (size_t x = 0; x < ctx->level.w && iamount && !break_all; x += 1) {
-				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
-					ivec2s tile = {(int32_t)x, (int32_t)y};
+		for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y && iamount && !break_all; tile.y += 1) {
+			for (tile.x = 0; tile.x < ctx->level.size.x && iamount && !break_all; tile.x += 1) {
+				if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
 					Rect tile_rect = RectFromTile(tile);
 					if (!RectsIntersect(player_rect, tile_rect)) {
 						entity->pos.y += sign;

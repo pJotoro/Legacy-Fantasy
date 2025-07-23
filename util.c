@@ -16,11 +16,11 @@ FORCEINLINE Rect RectFromTile(Tile tile) {
 }
 
 FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
-	return tile.x >= 0 && tile.x < level->w && tile.y >= 0 && tile.y < level->h;
+	return tile.x >= 0 && tile.x < level->size.x && tile.y >= 0 && tile.y < level->size.y;
 }
 
 FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
-	return rect.min.x >= 0.0f && rect.min.x+rect.max.x < (level->w+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.min.y+rect.max.y < (level->h+1)*TILE_SIZE;
+	return rect.min.x >= 0.0f && rect.min.x+rect.max.x < (level->size.x+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.min.y+rect.max.y < (level->size.y+1)*TILE_SIZE;
 }
 
 FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
@@ -30,65 +30,6 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
     bool d3 = a.max.y < b.min.y;
     return !(d0 | d1 | d2 | d3);
 }
-
-// typedef struct CollisionRes
-// {
-//     float depth;
-//     vec2s contact_point;
-
-//     // always points from a to b
-//     vec2s n;
-// } CollisionRes;
-
-// // NOTE: This function assumes that RectsIntersectBasic(a, b) has already succeeded.
-// CollisionRes RectsIntersect(Rect a, Rect b)
-// {
-//     CollisionRes res;
-
-//     vec2s mid_a = glms_vec2_scale(glms_vec2_add(a.min, a.max), 0.5f);
-//     vec2s mid_b = glms_vec2_scale(glms_vec2_add(b.min, b.max), 0.5f);
-//     vec2s e_a = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(a.max, a.min), 0.5f));
-//     vec2s e_b = glms_vec2_normalize(glms_vec2_scale(glms_vec2_sub(b.max, b.min), 0.5f));
-//     vec2s d = glms_vec2_sub(mid_b, mid_a);
-
-//     // calc overlap on x and y axes
-//     float dx = e_a.x + e_b.x - SDL_fabsf(d.x);
-//     float dy = e_a.y + e_b.y - SDL_fabsf(d.y);
-
-//     // x axis overlap is smaller
-//     if (dx < dy)
-//     {
-//         res.depth = dx;
-//         if (d.x < 0)
-//         {
-//             res.n = (vec2s){-1.0f, 0};
-//             res.contact_point = glms_vec2_sub(mid_a, (vec2s){e_a.x, 0});
-//         }
-//         else
-//         {
-//             res.n = (vec2s){1.0f, 0};
-//             res.contact_point = glms_vec2_add(mid_a, (vec2s){e_a.x, 0});
-//         }
-//     }
-
-//     // y axis overlap is smaller
-//     else
-//     {
-//         res.depth = dy;
-//         if (d.y < 0)
-//         {
-//             res.n = (vec2s){0, -1.0f};
-//             res.contact_point = glms_vec2_sub(mid_a, (vec2s){0, e_a.y});
-//         }
-//         else
-//         {
-//             res.n = (vec2s){0, 1.0f};
-//             res.contact_point = glms_vec2_add(mid_a, (vec2s){0, e_a.y});
-//         }
-//     }
-
-//     return res;
-// }
 
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 	int32_t x = radius;

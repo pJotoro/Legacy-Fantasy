@@ -104,14 +104,12 @@ enum {
 
 typedef struct Level {
 	TileType* tiles;
-	size_t w;
-	size_t h;
+	ivec2s size;
 	SDL_Time modify_time;
 } Level;
 
-TileType GetTile(Level* level, size_t tile_x, size_t tile_y);
-
-void SetTile(Level* level, size_t tile_x, size_t tile_y, TileType tile);
+TileType GetTile(Level* level, ivec2s tile);
+void SetTile(Level* level, ivec2s tile, TileType type);
 
 typedef struct Context {
 	SDL_Window* window;
