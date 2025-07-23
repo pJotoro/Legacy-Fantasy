@@ -422,85 +422,84 @@ void UpdatePlayer(Context* ctx) {
 		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
 	}
 
+	// if (ctx->player.touching_floor) {
+	// 	if (ctx->button_attack) {
+	// 		SetSprite(&ctx->player, player_attack);
+	// 	} else if (ctx->button_jump) {
+	// 		ctx->player.vel.y -= PLAYER_JUMP;
+	// 		ctx->player.touching_floor = 0;			
+	// 	}
+	// }
+
+	// if (ctx->player.anim.sprite.idx != player_attack.idx) {
+	// 	ctx->player.vel.y += GRAVITY;
+
+	// 	if (ctx->player.touching_floor) {
+	// 		int32_t input_x = ctx->button_right - ctx->button_left;
+	// 		float acc = (float)input_x * PLAYER_ACC;
+	// 		ctx->player.vel.x += acc;
+	// 		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+	// 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+	// 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+	// 	}
+
+	// 	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
+	// 	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+
+	// 	SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);			
+	// 	Rect player_rect = {
+	// 		.min = ctx->player.pos,
+	// 		.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
+	// 	};
+	// 	bool break_all = false;
+	// 	for (size_t y = 0; y < ctx->level.h && !break_all; y += 1) {
+	// 		for (size_t x = 0; x < ctx->level.w && !break_all; x += 1) {
+	// 			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
+	// 				ivec2s tile = {(int32_t)x, (int32_t)y};
+	// 				Rect tile_rect = RectFromTile(tile);
+	// 				vec2s overlap = {0.0f, 0.0f};
+	// 				if (RectsIntersect(player_rect, tile_rect)) {
+	// 					if (ctx->player.vel.x > 0.0f) {
+	// 						overlap.x = player_rect.max.x - tile_rect.min.x;
+	// 					} else if (ctx->player.vel.x < 0.0f) {
+	// 						overlap.x = tile_rect.max.x - player_rect.min.x;
+	// 					}
+	// 					if (ctx->player.vel.y > 0.0f) {
+	// 						overlap.y = player_rect.max.y - tile_rect.min.y;
+	// 						ctx->player.touching_floor = 10;
+	// 					} else if (ctx->player.vel.y < 0.0f) {
+	// 						overlap.y = tile_rect.max.y - player_rect.min.y;
+	// 					}
+
+	// 					if ((overlap.x < overlap.y && overlap.x > 0.0f) || (overlap.x > 0.0f && overlap.y == 0.0f && !ctx->player.touching_floor)) {
+	// 						ctx->player.pos.x -= overlap.x;
+	// 						player_rect.min.x = ctx->player.pos.x;
+	// 						player_rect.max.x = player_rect.min.x + (float)sd->w;
+
+	// 						ctx->player.vel.x = 0.0f;
+	// 					} else if ((overlap.y < overlap.x && overlap.y > 0.0f) || (overlap.y > 0.0f && overlap.x == 0.0f)) {
+	// 						ctx->player.pos.y -= overlap.y;
+	// 						player_rect.min.y = ctx->player.pos.y;
+	// 						player_rect.max.y = player_rect.min.y + (float)sd->h;
+
+	// 						ctx->player.vel.y = 0.0f;
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+
 	if (ctx->player.touching_floor) {
-		if (ctx->button_attack) {
-			SetSprite(&ctx->player, player_attack);
-		} else if (ctx->button_jump) {
-			ctx->player.vel.y -= PLAYER_JUMP;
-			ctx->player.touching_floor = 0;			
-		}
-	}
-
-	if (ctx->player.anim.sprite.idx != player_attack.idx) {
-		ctx->player.vel.y += GRAVITY;
-
-		if (ctx->player.touching_floor) {
-			int32_t input_x = ctx->button_right - ctx->button_left;
-			float acc = (float)input_x * PLAYER_ACC;
-			ctx->player.vel.x += acc;
-			if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-			else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-			ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-		}
-
-		ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
-		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
-
-		SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);			
-		Rect player_rect = {
-			.min = ctx->player.pos,
-			.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
-		};
-		bool break_all = false;
-		for (size_t y = 0; y < ctx->level.h && !break_all; y += 1) {
-			for (size_t x = 0; x < ctx->level.w && !break_all; x += 1) {
-				if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
-					ivec2s tile = {(int32_t)x, (int32_t)y};
-					Rect tile_rect = RectFromTile(tile);
-					vec2s overlap = {0.0f, 0.0f};
-					if (RectsIntersect(player_rect, tile_rect)) {
-						if (ctx->player.vel.x > 0.0f) {
-							overlap.x = player_rect.max.x - tile_rect.min.x;
-						} else if (ctx->player.vel.x < 0.0f) {
-							overlap.x = tile_rect.max.x - player_rect.min.x;
-						}
-						if (ctx->player.vel.y > 0.0f) {
-							overlap.y = player_rect.max.y - tile_rect.min.y;
-							ctx->player.touching_floor = 10;
-						} else if (ctx->player.vel.y < 0.0f) {
-							overlap.y = tile_rect.max.y - player_rect.min.y;
-						}
-
-						if ((overlap.x < overlap.y && overlap.x > 0.0f) || (overlap.x > 0.0f && overlap.y == 0.0f && !ctx->player.touching_floor)) {
-							ctx->player.pos.x -= overlap.x;
-							player_rect.min.x = ctx->player.pos.x;
-							player_rect.max.x = player_rect.min.x + (float)sd->w;
-
-							ctx->player.vel.x = 0.0f;
-						} else if ((overlap.y < overlap.x && overlap.y > 0.0f) || (overlap.y > 0.0f && overlap.x == 0.0f)) {
-							ctx->player.pos.y -= overlap.y;
-							player_rect.min.y = ctx->player.pos.y;
-							player_rect.max.y = player_rect.min.y + (float)sd->h;
-
-							ctx->player.vel.y = 0.0f;
-						}
-					}
-				}
-			}
-		}
-
-		if (ctx->player.touching_floor) {
-			if (ctx->player.vel.x == 0.0f) {
-				SetSprite(&ctx->player, player_idle);
-			} else {
-				SetSprite(&ctx->player, player_run);
-				ctx->player.dir = glm_signf(ctx->player.vel.x);
-			}
-		} else if (ctx->player.vel.y < 0.0f) {
-			SetSprite(&ctx->player, player_jump_start);
+		if (ctx->player.vel.x == 0.0f) {
+			SetSprite(&ctx->player, player_idle);
 		} else {
-			SetSprite(&ctx->player, player_jump_end);
-		}		
+			SetSprite(&ctx->player, player_run);
+			ctx->player.dir = glm_signf(ctx->player.vel.x);
+		}
+	} else if (ctx->player.vel.y < 0.0f) {
+		SetSprite(&ctx->player, player_jump_start);
+	} else {
+		SetSprite(&ctx->player, player_jump_end);
 	}
 
 	bool loop = true;

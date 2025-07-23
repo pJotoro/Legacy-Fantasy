@@ -75,8 +75,8 @@ typedef struct Anim {
 } Anim;
 
 typedef struct Rect {
-	vec2s min;
-	vec2s max;
+	ivec2s min;
+	ivec2s max;
 } Rect;
 
 typedef struct Entity {

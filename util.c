@@ -10,14 +10,9 @@ typedef ivec2s Tile;
 
 FORCEINLINE Rect RectFromTile(Tile tile) {
     Rect res;
-    res.min = glms_vec2_scale(vec2_from_ivec2(tile), (float)TILE_SIZE);
-    res.max = glms_vec2_adds(res.min, (float)TILE_SIZE);
+    res.min = glms_ivec2_scale(tile, TILE_SIZE);
+    res.max = glms_ivec2_adds(res.min, TILE_SIZE);
 	return res;
-}
-
-FORCEINLINE void TileFromRect(Rect rect, Tile tile) {
-	rect.min = glms_vec2_floor(rect.min);
-	tile = ivec2_from_vec2(rect.min);
 }
 
 FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
