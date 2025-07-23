@@ -32,8 +32,8 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
-		.pos.x = TILE_SIZE*1, 
-		.pos.y = TILE_SIZE*11,
+		.pos.x = TILE_SIZE*9, 
+		.pos.y = TILE_SIZE*8,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -541,23 +541,20 @@ void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) 
 	};
 
 	entity->pos_remainder.x += amount;
-	int32_t iamount = (int32_t)SDL_floorf(entity->pos_remainder.x);
-	if (iamount) {
-		entity->pos_remainder.x -= (float)iamount;
-		int32_t sign = glm_sign(iamount);
-		bool break_all = false;
-		for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y && iamount && !break_all; tile.y += 1) {
-			for (tile.x = 0; tile.x < ctx->level.size.x && iamount && !break_all; tile.x += 1) {
-				if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
-					Rect tile_rect = RectFromTile(tile);
-					if (!RectsIntersect(player_rect, tile_rect)) {
-						entity->pos.x += sign;
-						iamount -= sign;
-					} else {
-						if (on_collide) on_collide(entity);
-						break_all = true;
-					}
-				}
+	int32_t move = (int32_t)SDL_floorf(entity->pos_remainder.x);
+	if (move) {
+		entity->pos_remainder.x -= (float)move;
+		int32_t sign = glm_sign(move);
+		while (move) {
+			Rect maybe_player_rect = player_rect;
+			maybe_player_rect.min.x += sign;
+			maybe_player_rect.max.x += sign;
+			if (!RectIntersectsLevel(&ctx->level, maybe_player_rect)) {
+				player_rect = maybe_player_rect;
+				move -= sign;
+			} else {
+				if (on_collide) on_collide(entity);
+				break;
 			}
 		}
 	}
@@ -571,23 +568,20 @@ void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) 
 	};
 
 	entity->pos_remainder.y += amount;
-	int32_t iamount = (int32_t)SDL_floorf(entity->pos_remainder.y);
-	if (iamount) {
-		entity->pos_remainder.y -= (float)iamount;
-		int32_t sign = glm_sign(iamount);
-		bool break_all = false;
-		for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y && iamount && !break_all; tile.y += 1) {
-			for (tile.x = 0; tile.x < ctx->level.size.x && iamount && !break_all; tile.x += 1) {
-				if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
-					Rect tile_rect = RectFromTile(tile);
-					if (!RectsIntersect(player_rect, tile_rect)) {
-						entity->pos.y += sign;
-						iamount -= sign;
-					} else {
-						if (on_collide) on_collide(entity);
-						break_all = true;
-					}
-				}
+	int32_t move = (int32_t)SDL_floorf(entity->pos_remainder.y);
+	if (move) {
+		entity->pos_remainder.y -= (float)move;
+		int32_t sign = glm_sign(move);
+		while (move) {
+			Rect maybe_player_rect = player_rect;
+			maybe_player_rect.min.y += sign;
+			maybe_player_rect.max.y += sign;
+			if (!RectIntersectsLevel(&ctx->level, maybe_player_rect)) {
+				player_rect = maybe_player_rect;
+				move -= sign;
+			} else {
+				if (on_collide) on_collide(entity);
+				break;
 			}
 		}
 	}
