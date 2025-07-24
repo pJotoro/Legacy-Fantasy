@@ -421,9 +421,9 @@ void UpdatePlayer(Context* ctx) {
 		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
 	}
 
-	// ctx->player.vel.y += GRAVITY;
+	ctx->player.vel.y += GRAVITY;
 
-	// ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
 	int32_t input_x = 0;
 	if (ctx->player.touching_floor) {
 		input_x = ctx->button_right - ctx->button_left;
@@ -485,6 +485,7 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
 				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
+				ctx->player.touching_floor = 10;
 			}
 		}
 	}
