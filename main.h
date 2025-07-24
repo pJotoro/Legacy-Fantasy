@@ -85,6 +85,7 @@ typedef struct Entity {
 	float dir;
 	Anim anim;
 	ssize_t touching_floor;
+	bool jump_released;
 } Entity;
 
 void ResetAnim(Anim* anim);

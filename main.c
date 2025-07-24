@@ -431,14 +431,19 @@ void UpdatePlayer(Context* ctx) {
 		if (ctx->button_jump) {
 			ctx->player.touching_floor = 0;
 			ctx->player.vel.y = -PLAYER_JUMP;
-		}
-
-		input_x = ctx->button_right - ctx->button_left;
-		float acc = (float)input_x * PLAYER_ACC;
-		ctx->player.vel.x += acc;
-		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+			SetSprite(&ctx->player, player_jump_start);
+		} else {
+			input_x = ctx->button_right - ctx->button_left;
+			float acc = (float)input_x * PLAYER_ACC;
+			ctx->player.vel.x += acc;
+			if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
+			else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
+			ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+		
+		}	
+	} else if (ctx->button_jump_released && !ctx->player.jump_released && ctx->player.vel.y < 0.0f) {
+		ctx->player.jump_released = true;
+		ctx->player.vel.y /= 2.0f;
 	}
 
 	// PlayerCollision
@@ -497,6 +502,7 @@ void UpdatePlayer(Context* ctx) {
 				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
 				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
 				ctx->player.touching_floor = 10;
+				ctx->player.jump_released = false;
 			}
 		}
 	}
@@ -515,12 +521,21 @@ void UpdatePlayer(Context* ctx) {
 			SetSprite(&ctx->player, player_run);
 			ctx->player.dir = glm_signf(ctx->player.vel.x);
 		}
-	} else if (ctx->player.vel.y < 0.0f) {
-		SetSprite(&ctx->player, player_jump_start);
 	} else {
-		SetSprite(&ctx->player, player_jump_end);
-	}
+		if (ctx->player.anim.sprite.idx == player_jump_start.idx && ctx->player.anim.ended) {
+			SetSprite(&ctx->player, player_jump_end);
+		}
 
+		// if (ctx->button_jump_released && ctx->player.anim.sprite.idx == player_jump_start.idx) {
+		// 	SetSprite(&ctx->player, player_jump_end);
+		// 	ctx->player.vel.y /= 2.0f;
+		// } else if (ctx->player.vel.y < 0.0f) {
+		// 	SetSprite(&ctx->player, player_jump_start);
+		// } else {
+		// 	SetSprite(&ctx->player, player_jump_end);
+		// }
+	}
+	
 	bool loop = true;
 	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx || ctx->player.anim.sprite.idx == player_attack.idx) {
 		loop = false;
