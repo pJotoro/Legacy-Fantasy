@@ -426,11 +426,12 @@ void UpdatePlayer(Context* ctx) {
 		SetSprite(&ctx->player, player_attack);
 	}
 
+	int32_t input_x = 0;
+
 	if (ctx->player.anim.sprite.idx != player_attack.idx) {
 		ctx->player.vel.y += GRAVITY;
 		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 
-		int32_t input_x = 0;
 		if (ctx->player.touching_floor) {
 			if (ctx->button_jump) {
 				ctx->player.touching_floor = 0;
@@ -521,7 +522,11 @@ void UpdatePlayer(Context* ctx) {
 				SetSprite(&ctx->player, player_idle);
 			} else {
 				SetSprite(&ctx->player, player_run);
-				ctx->player.dir = glm_signf(ctx->player.vel.x);
+				if (ctx->player.vel.x != 0.0f) {
+					ctx->player.dir = glm_signf(ctx->player.vel.x);
+				} else if (input_x != 0) {
+					ctx->player.dir = (float)input_x;
+				}
 			}
 		} else {
 			if (ctx->player.anim.sprite.idx == player_jump_start.idx && ctx->player.anim.ended) {
@@ -537,11 +542,15 @@ void UpdatePlayer(Context* ctx) {
 	UpdateAnim(ctx, &ctx->player.anim, loop);
 
 	if (ctx->player.anim.sprite.idx == player_attack.idx && ctx->player.anim.ended) {
-		if (ctx->player.vel.x == 0.0f) {
+		if (input_x == 0 && ctx->player.vel.x == 0.0f) {
 			SetSprite(&ctx->player, player_idle);
 		} else {
 			SetSprite(&ctx->player, player_run);
-			ctx->player.dir = glm_signf(ctx->player.vel.x);
+			if (ctx->player.vel.x != 0.0f) {
+				ctx->player.dir = glm_signf(ctx->player.vel.x);
+			} else if (input_x != 0) {
+				ctx->player.dir = (float)input_x;
+			}
 		}
 	}
 
