@@ -541,7 +541,7 @@ void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) 
 	};
 
 	entity->pos_remainder.x += amount;
-	int32_t move = (int32_t)SDL_floorf(entity->pos_remainder.x);
+	int32_t move = (int32_t)SDL_roundf(entity->pos_remainder.x);
 	if (move) {
 		entity->pos_remainder.x -= (float)move;
 		int32_t sign = glm_sign(move);
@@ -558,6 +558,8 @@ void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) 
 			}
 		}
 	}
+
+	entity->pos = player_rect.min;
 }
 
 void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) {
@@ -568,7 +570,7 @@ void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) 
 	};
 
 	entity->pos_remainder.y += amount;
-	int32_t move = (int32_t)SDL_floorf(entity->pos_remainder.y);
+	int32_t move = (int32_t)SDL_roundf(entity->pos_remainder.y);
 	if (move) {
 		entity->pos_remainder.y -= (float)move;
 		int32_t sign = glm_sign(move);
@@ -585,6 +587,8 @@ void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) 
 			}
 		}
 	}
+
+	entity->pos = player_rect.min;
 }
 
 void PlayerOnCollideX(Entity* player) {
