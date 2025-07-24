@@ -444,8 +444,10 @@ void UpdatePlayer(Context* ctx) {
 			side.max.y = side.min.y + ctx->player.size.y - 2;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.x = tile.min.x + ctx->player.size.x;
-				ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+				int32_t old_pos = ctx->player.pos.x;
+				ctx->player.pos.x = tile.max.x;
+				SDL_assert(ctx->player.pos.x <= old_pos);
+				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
 			Rect side;
@@ -455,8 +457,10 @@ void UpdatePlayer(Context* ctx) {
 			side.max.y = side.min.y + ctx->player.size.y - 2;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				int32_t old_pos = ctx->player.pos.x;
 				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
-				ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+				SDL_assert(ctx->player.pos.x >= old_pos);
+				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
 			}
 		}
 
@@ -469,7 +473,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
-				ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
 			}
 		} else if (ctx->player.vel.y > 0.0f) {
 			Rect side;
@@ -480,7 +484,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
-				ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
 			}
 		}
 	}
