@@ -31,11 +31,14 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
     return !(d0 | d1 | d2 | d3);
 }
 
-FORCEINLINE bool RectIntersectsLevel(Level* level, Rect rect) {
+FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
     for (ivec2s tile = {0, 0}; tile.y < level->size.y; tile.y += 1) {
         for (tile.x = 0; tile.x < level->size.x; tile.x += 1) {
             Rect tile_rect = RectFromTile(tile);
-            if (RectsIntersect(rect, tile_rect)) return true;
+            if (RectsIntersect(a, tile_rect)) {
+                if (b) *b = tile_rect;
+                return true;
+            }
         }
     }
     return false;

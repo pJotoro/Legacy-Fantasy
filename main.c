@@ -421,87 +421,79 @@ void UpdatePlayer(Context* ctx) {
 		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
 	}
 
-	// if (ctx->player.touching_floor) {
-	// 	if (ctx->button_attack) {
-	// 		SetSprite(&ctx->player, player_attack);
-	// 	} else if (ctx->button_jump) {
-	// 		ctx->player.vel.y -= PLAYER_JUMP;
-	// 		ctx->player.touching_floor = 0;			
-	// 	}
-	// }
+	// ctx->player.vel.y += GRAVITY;
 
-	// if (ctx->player.anim.sprite.idx != player_attack.idx) {
-	// 	ctx->player.vel.y += GRAVITY;
-
-	// 	if (ctx->player.touching_floor) {
-	// 		int32_t input_x = ctx->button_right - ctx->button_left;
-	// 		float acc = (float)input_x * PLAYER_ACC;
-	// 		ctx->player.vel.x += acc;
-	// 		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
-	// 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
-	// 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
-	// 	}
-
-	// 	ctx->player.pos = glms_vec2_add(ctx->player.pos, ctx->player.vel);
-	// 	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
-
-	// 	SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);			
-	// 	Rect player_rect = {
-	// 		.min = ctx->player.pos,
-	// 		.max = (vec2s){ctx->player.pos.x + (float)sd->w, ctx->player.pos.y + (float)sd->h},
-	// 	};
-	// 	bool break_all = false;
-	// 	for (size_t y = 0; y < ctx->level.size.y && !break_all; y += 1) {
-	// 		for (size_t x = 0; x < ctx->level.size.x && !break_all; x += 1) {
-	// 			if (GetTile(&ctx->level, x, y) == TILE_TYPE_GROUND) {
-	// 				ivec2s tile = {(int32_t)x, (int32_t)y};
-	// 				Rect tile_rect = RectFromTile(tile);
-	// 				vec2s overlap = {0.0f, 0.0f};
-	// 				if (RectsIntersect(player_rect, tile_rect)) {
-	// 					if (ctx->player.vel.x > 0.0f) {
-	// 						overlap.x = player_rect.max.x - tile_rect.min.x;
-	// 					} else if (ctx->player.vel.x < 0.0f) {
-	// 						overlap.x = tile_rect.max.x - player_rect.min.x;
-	// 					}
-	// 					if (ctx->player.vel.y > 0.0f) {
-	// 						overlap.y = player_rect.max.y - tile_rect.min.y;
-	// 						ctx->player.touching_floor = 10;
-	// 					} else if (ctx->player.vel.y < 0.0f) {
-	// 						overlap.y = tile_rect.max.y - player_rect.min.y;
-	// 					}
-
-	// 					if ((overlap.x < overlap.y && overlap.x > 0.0f) || (overlap.x > 0.0f && overlap.y == 0.0f && !ctx->player.touching_floor)) {
-	// 						ctx->player.pos.x -= overlap.x;
-	// 						player_rect.min.x = ctx->player.pos.x;
-	// 						player_rect.max.x = player_rect.min.x + (float)sd->w;
-
-	// 						ctx->player.vel.x = 0.0f;
-	// 					} else if ((overlap.y < overlap.x && overlap.y > 0.0f) || (overlap.y > 0.0f && overlap.x == 0.0f)) {
-	// 						ctx->player.pos.y -= overlap.y;
-	// 						player_rect.min.y = ctx->player.pos.y;
-	// 						player_rect.max.y = player_rect.min.y + (float)sd->h;
-
-	// 						ctx->player.vel.y = 0.0f;
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-
-	{
-		int32_t input_x = ctx->button_right - ctx->button_left;
+	// ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
+	int32_t input_x = 0;
+	if (ctx->player.touching_floor) {
+		input_x = ctx->button_right - ctx->button_left;
 		float acc = (float)input_x * PLAYER_ACC;
 		ctx->player.vel.x += acc;
 		if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 		else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
 		ctx->player.vel.x = SDL_clamp(ctx->player.vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+	}
 
-		EntityMoveX(ctx, &ctx->player, ctx->player.vel.x, PlayerOnCollideX);	
-		EntityMoveY(ctx, &ctx->player, ctx->player.vel.y, PlayerOnCollideY);	
+	// PlayerCollision
+	{
+		if (ctx->player.vel.x < 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.min.y = ctx->player.pos.y + 1;
+			side.max.x = side.min.x + 1;
+			side.max.y = side.min.y + ctx->player.size.y - 2;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.x = tile.min.x + ctx->player.size.x;
+				ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+			}
+		} else if (ctx->player.vel.x > 0.0f) {
+			Rect side;
+			side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.min.y = ctx->player.pos.y + 1;
+			side.max.x = side.min.x + 1;
+			side.max.y = side.min.y + ctx->player.size.y - 2;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
+				ctx->player.vel.x = -ctx->player.vel.y * PLAYER_BOUNCE;
+			}
+		}
+
+		if (ctx->player.vel.y < 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + 1; 
+			side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
+			side.max.x = side.min.x + ctx->player.size.x - 2;
+			side.max.y = side.min.y + 1;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
+				ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+			}
+		} else if (ctx->player.vel.y > 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + 1; 
+			side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
+			side.max.x = side.min.x + ctx->player.size.x - 2;
+			side.max.y = side.min.y + 1;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
+				ctx->player.vel.y = -ctx->player.vel.y * PLAYER_BOUNCE;
+			}
+		}
+	}
+
+	{
+		ctx->player.pos_remainder = glms_vec2_add(ctx->player.pos_remainder, ctx->player.vel);
+		vec2s move = glms_vec2_floor(ctx->player.pos_remainder);
+		ctx->player.pos = glms_ivec2_add(ctx->player.pos, ivec2_from_vec2(move));
+		ctx->player.pos_remainder = glms_vec2_sub(ctx->player.pos_remainder, move);
 	}
 
 	if (ctx->player.touching_floor) {
-		if (ctx->player.vel.x == 0.0f) {
+		if (input_x == 0) {
 			SetSprite(&ctx->player, player_idle);
 		} else {
 			SetSprite(&ctx->player, player_run);
@@ -531,70 +523,4 @@ void UpdatePlayer(Context* ctx) {
 	if (ctx->player.pos.y > (float)(ctx->level.size.y+500)) {
 		ResetGame(ctx);
 	}
-}
-
-void EntityMoveX(Context* ctx, Entity* entity, float amount, Action on_collide) {
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-	Rect player_rect = {
-		.min = entity->pos,
-		.max = glms_ivec2_add(entity->pos, sd->size),
-	};
-
-	entity->pos_remainder.x += amount;
-	int32_t move = (int32_t)SDL_roundf(entity->pos_remainder.x);
-	if (move) {
-		entity->pos_remainder.x -= (float)move;
-		int32_t sign = glm_sign(move);
-		while (move) {
-			Rect maybe_player_rect = player_rect;
-			maybe_player_rect.min.x += sign;
-			maybe_player_rect.max.x += sign;
-			if (!RectIntersectsLevel(&ctx->level, maybe_player_rect)) {
-				player_rect = maybe_player_rect;
-				move -= sign;
-			} else {
-				if (on_collide) on_collide(entity);
-				break;
-			}
-		}
-	}
-
-	entity->pos = player_rect.min;
-}
-
-void EntityMoveY(Context* ctx, Entity* entity, float amount, Action on_collide) {
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-	Rect player_rect = {
-		.min = entity->pos,
-		.max = glms_ivec2_add(entity->pos, sd->size),
-	};
-
-	entity->pos_remainder.y += amount;
-	int32_t move = (int32_t)SDL_roundf(entity->pos_remainder.y);
-	if (move) {
-		entity->pos_remainder.y -= (float)move;
-		int32_t sign = glm_sign(move);
-		while (move) {
-			Rect maybe_player_rect = player_rect;
-			maybe_player_rect.min.y += sign;
-			maybe_player_rect.max.y += sign;
-			if (!RectIntersectsLevel(&ctx->level, maybe_player_rect)) {
-				player_rect = maybe_player_rect;
-				move -= sign;
-			} else {
-				if (on_collide) on_collide(entity);
-				break;
-			}
-		}
-	}
-
-	entity->pos = player_rect.min;
-}
-
-void PlayerOnCollideX(Entity* player) {
-	player->vel.x = 0.0f;
-}
-
-void PlayerOnCollideY(Entity* player) {
-	player->vel.y = 0.0f;
 }
