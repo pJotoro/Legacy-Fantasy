@@ -123,7 +123,9 @@ typedef struct Context {
 	TTF_TextEngine* text_engine;
 	TTF_Font* font_roboto_regular;
 
-	// SDL_Gamepad* gamepad;
+	SDL_Gamepad* gamepad;
+	vec2s gamepad_left_stick;
+
 	int32_t button_left;
 	int32_t button_right;
 	bool button_jump;

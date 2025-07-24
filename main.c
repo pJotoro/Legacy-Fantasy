@@ -142,88 +142,120 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
+		if (!ctx->gamepad) {
+			int joystick_count = 0;
+			SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
+			if (joystick_count != 0) {
+				ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
+			}
+		}
+
 		nk_input_begin(&ctx->nk.ctx);
 
 		ctx->button_jump = false;
 		ctx->button_jump_released = false;
 		ctx->button_attack = false;
+
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			NK_HandleEvent(ctx, &event);
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
-				switch (event.key.key) {
-				case SDLK_0:
+			#if 1
+				if (event.key.key == SDLK_ESCAPE) {
+					ctx->running = false;
+				}
+				else if (event.key.key == SDLK_0) {
 					ctx->draw_selected_anim = true;
 					ResetAnim(&ctx->selected_anim);
 					do {
 						ctx->selected_anim.sprite.idx += 1;
 						if (ctx->selected_anim.sprite.idx >= MAX_SPRITES) ctx->selected_anim.sprite.idx = 0;
 					} while (!ctx->sprites[ctx->selected_anim.sprite.idx].path);
-					break;
-				case SDLK_X:
-					ctx->button_attack = true;
-					break;
-				case SDLK_SPACE:
-					break;
-				case SDLK_ESCAPE:
-					ctx->running = false;
-					break;
-				case SDLK_LEFT:
-					if (!event.key.repeat) {
-						ctx->button_left = 1;
+				}
+			#endif
+				if (!ctx->gamepad) {
+					switch (event.key.key) {
+					case SDLK_0:
+						break;
+					case SDLK_X:
+						ctx->button_attack = true;
+						break;
+					case SDLK_SPACE:
+						break;
+					case SDLK_LEFT:
+						if (!event.key.repeat) {
+							ctx->button_left = 1;
+						}
+						break;
+					case SDLK_RIGHT:
+						if (!event.key.repeat) {
+							ctx->button_right = 1;
+						}
+						break;
+					case SDLK_UP:
+						if (!event.key.repeat) {
+							ctx->button_jump = true;
+						}
+						break;
+					case SDLK_DOWN:
+						break;
+					case SDLK_R:
+						ResetGame(ctx);
+						break;
 					}
-					break;
-				case SDLK_RIGHT:
-					if (!event.key.repeat) {
-						ctx->button_right = 1;
-					}
-					break;
-				case SDLK_UP:
-					if (!event.key.repeat) {
-						ctx->button_jump = true;
-					}
-					break;
-				case SDLK_DOWN:
-					break;
-				case SDLK_R:
-					ResetGame(ctx);
-					break;
 				}
 				break;
 			case SDL_EVENT_KEY_UP:
-				switch (event.key.key) {
-				case SDLK_LEFT:
-					ctx->button_left = 0;
+				if (!ctx->gamepad) {
+					switch (event.key.key) {
+					case SDLK_LEFT:
+						ctx->button_left = 0;
+						break;
+					case SDLK_RIGHT:
+						ctx->button_right = 0;
+						break;
+					case SDLK_UP:
+						ctx->button_jump_released = true;
+						break;
+					}					
+				}
+				break;
+			case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+				switch (event.gaxis.axis) {
+				case SDL_GAMEPAD_AXIS_LEFTX:
+					ctx->gamepad_left_stick.x = (float)event.gaxis.value / 32767.0f;
 					break;
-				case SDLK_RIGHT:
-					ctx->button_right = 0;
+				case SDL_GAMEPAD_AXIS_LEFTY:
+					ctx->gamepad_left_stick.y = (float)event.gaxis.value / 32767.0f;
 					break;
-				case SDLK_UP:
+				}
+				break;
+			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+				switch (event.gbutton.button) {
+				case SDL_GAMEPAD_BUTTON_SOUTH:
+					ctx->button_jump = true;
+					break;
+				case SDL_GAMEPAD_BUTTON_WEST:
+					ctx->button_attack = true;
+					break;
+				}
+				break;
+			case SDL_EVENT_GAMEPAD_BUTTON_UP:
+				switch (event.gbutton.button) {
+				case SDL_GAMEPAD_BUTTON_SOUTH:
 					ctx->button_jump_released = true;
 					break;
 				}
 				break;
-			// case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-			// 	if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
-			// 				ctx->player.acc = (float)event.gaxis.value / 32767.0f;
-			// 	}
-
-			// 	break;
-			// case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-			// 	if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-			// 		ctx->jump = true;
-			// 	}
-			// 	break;
-			// case SDL_EVENT_GAMEPAD_BUTTON_UP:
-			// 	if (event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH) {
-			// 		ctx->jump = false;
-			// 	}
-			// 	break;
 			case SDL_EVENT_QUIT:
 				ctx->running = false;
 				break;
 			}		
+		}
+
+		if (ctx->gamepad_left_stick.x < 0.5f && ctx->gamepad_left_stick.x > -0.5f) {
+			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
 		nk_input_end(&ctx->nk.ctx);
@@ -428,6 +460,13 @@ void UpdatePlayer(Context* ctx) {
 
 	int32_t input_x = 0;
 	vec2s conserved_vel = {0.0f, 0.0f};
+	if (ctx->gamepad) {
+		if (ctx->gamepad_left_stick.x == 0.0f) input_x = 0;
+		else if (ctx->gamepad_left_stick.x > 0.0f) input_x = 1;
+		else if (ctx->gamepad_left_stick.x < 0.0f) input_x = -1;
+	} else {
+		input_x = ctx->button_right - ctx->button_left;
+	}
 
 	if (ctx->player.anim.sprite.idx != player_attack.idx) {
 		ctx->player.vel.y += GRAVITY;
@@ -439,8 +478,12 @@ void UpdatePlayer(Context* ctx) {
 				ctx->player.vel.y = -PLAYER_JUMP;
 				SetSprite(&ctx->player, player_jump_start);
 			} else {
-				input_x = ctx->button_right - ctx->button_left;
-				float acc = (float)input_x * PLAYER_ACC;
+				float acc;
+				if (!ctx->gamepad) {
+					acc = (float)input_x * PLAYER_ACC;
+				} else {
+					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+				}
 				ctx->player.vel.x += acc;
 				if (ctx->player.vel.x < 0.0f) ctx->player.vel.x = SDL_min(0.0f, ctx->player.vel.x + PLAYER_FRIC);
 				else if (ctx->player.vel.x > 0.0f) ctx->player.vel.x = SDL_max(0.0f, ctx->player.vel.x - PLAYER_FRIC);
