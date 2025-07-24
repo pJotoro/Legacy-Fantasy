@@ -427,6 +427,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	int32_t input_x = 0;
+	vec2s conserved_vel = {0.0f, 0.0f};
 
 	if (ctx->player.anim.sprite.idx != player_attack.idx) {
 		ctx->player.vel.y += GRAVITY;
@@ -465,6 +466,7 @@ void UpdatePlayer(Context* ctx) {
 				if (ctx->player.pos.x > old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
+				conserved_vel.x = ctx->player.vel.x;
 				ctx->player.vel.x = 0.0f;
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
@@ -480,6 +482,7 @@ void UpdatePlayer(Context* ctx) {
 				if (ctx->player.pos.x < old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
+				conserved_vel.x = ctx->player.vel.x;
 				ctx->player.vel.x = 0.0f;
 			}
 		}
@@ -553,6 +556,9 @@ void UpdatePlayer(Context* ctx) {
 			}
 		}
 	}
+
+	if (conserved_vel.x != 0.0f) ctx->player.vel.x = conserved_vel.x;
+	if (conserved_vel.y != 0.0f) ctx->player.vel.y = conserved_vel.y;
 
 	if (ctx->player.pos.y > (float)(ctx->level.size.y+500)) {
 		ResetGame(ctx);
