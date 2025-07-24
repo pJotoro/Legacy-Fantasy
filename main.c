@@ -342,7 +342,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_IOWriteVarF(fs, PLAYER_FRIC);
 		SDL_IOWriteVarF(fs, PLAYER_MAX_VEL);
 		SDL_IOWriteVarF(fs, PLAYER_JUMP);
-		SDL_IOWriteVarF(fs, PLAYER_BOUNCE);
 		SDL_CloseIO(fs);
 	}
 	
@@ -461,7 +460,7 @@ void UpdatePlayer(Context* ctx) {
 				if (ctx->player.pos.x > old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
-				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
+				ctx->player.vel.x = 0.0f;
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
 			Rect side;
@@ -476,7 +475,7 @@ void UpdatePlayer(Context* ctx) {
 				if (ctx->player.pos.x < old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
-				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
+				ctx->player.vel.x = 0.0f;
 			}
 		}
 
@@ -489,7 +488,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
-				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
+				ctx->player.vel.y = 0.0f;
 			}
 		} else if (ctx->player.vel.y > 0.0f) {
 			Rect side;
@@ -500,7 +499,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
-				ctx->player.vel.y = 0.0f;//-ctx->player.vel.y * PLAYER_BOUNCE;
+				ctx->player.vel.y = 0.0f;
 				ctx->player.touching_floor = 10;
 				ctx->player.jump_released = false;
 			}

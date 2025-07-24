@@ -244,7 +244,6 @@ void NK_UpdateUI(Context* gctx) {
 			nk_varf(ctx, PLAYER_FRIC, 0.0f, 1.0f, 0.01f);
 			nk_varf(ctx, PLAYER_MAX_VEL, 0.0f, 10.0f, 0.1f);
 			nk_varf(ctx, PLAYER_JUMP, 0.0f, 30.0f, 0.5f);
-			nk_varf(ctx, PLAYER_BOUNCE, 0.0f, 1.0f, 0.01f);
 			nk_vari(ctx, TILE_SIZE, 0, 256, 2);
 			nk_vari(ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
 			
