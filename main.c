@@ -145,6 +145,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		nk_input_begin(&ctx->nk.ctx);
 
 		ctx->button_jump = false;
+		ctx->button_jump_released = false;
 		ctx->button_attack = false;
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -199,6 +200,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->button_right = 0;
 					break;
 				case SDLK_UP:
+					ctx->button_jump_released = true;
 					break;
 				}
 				break;
@@ -422,10 +424,15 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	ctx->player.vel.y += GRAVITY;
+	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 
-	ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);	
 	int32_t input_x = 0;
 	if (ctx->player.touching_floor) {
+		if (ctx->button_jump) {
+			ctx->player.touching_floor = 0;
+			ctx->player.vel.y = -PLAYER_JUMP;
+		}
+
 		input_x = ctx->button_right - ctx->button_left;
 		float acc = (float)input_x * PLAYER_ACC;
 		ctx->player.vel.x += acc;
@@ -446,7 +453,9 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				int32_t old_pos = ctx->player.pos.x;
 				ctx->player.pos.x = tile.max.x;
-				SDL_assert(ctx->player.pos.x <= old_pos);
+				if (ctx->player.pos.x > old_pos) {
+					ctx->player.pos.x = old_pos;
+				}
 				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
@@ -459,7 +468,9 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				int32_t old_pos = ctx->player.pos.x;
 				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
-				SDL_assert(ctx->player.pos.x >= old_pos);
+				if (ctx->player.pos.x < old_pos) {
+					ctx->player.pos.x = old_pos;
+				}
 				ctx->player.vel.x = 0.0f;//-ctx->player.vel.x * PLAYER_BOUNCE;
 			}
 		}

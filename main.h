@@ -126,6 +126,7 @@ typedef struct Context {
 	int32_t button_left;
 	int32_t button_right;
 	bool button_jump;
+	bool button_jump_released;
 	bool button_attack;
 
 	SDL_Time time;
