@@ -217,6 +217,22 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
     }  
 }
 
+typedef struct NK_DrawTileCallbackData {
+	Context* ctx;
+	Sprite sprite;
+	ivec2s tile;
+	vec2s pos;
+} NK_DrawTileCallbackData;
+
+void NK_DrawTileCallback(void* canvas, int16_t x, int16_t y, uint16_t w, uint16_t h, nk_handle callback_data) {
+	(void)canvas; (void)x; (void)y; (void)w; (void)h;
+
+	NK_DrawTileCallbackData* data = (NK_DrawTileCallbackData*)callback_data.ptr;
+	DrawSpriteTile(data->ctx, data->sprite, data->tile, data->pos);
+
+	SDL_free(data);
+}
+
 void NK_UpdateUI(Context* gctx) {
 	struct nk_context* ctx = &gctx->nk.ctx;
 
@@ -264,13 +280,18 @@ void NK_UpdateUI(Context* gctx) {
 			}
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					// if (!printed) {
-					// 	
-					// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
-					// }
-					struct nk_vec2 current_pos = nk_layout_space_to_screen(ctx, (struct nk_vec2){(float)tile.x*16.0f, (float)tile.y*16.0f});
-					DrawSpriteTile(gctx, tiles, tile, (vec2s){current_pos.x, current_pos.y});
 					nk_layout_space_push(ctx, (struct nk_rect){(float)tile.x, (float)tile.y, 16.0f, 16.0f});
+
+					struct nk_vec2 current_pos = nk_layout_space_to_screen(ctx, (struct nk_vec2){(float)tile.x*16.0f, (float)tile.y*16.0f});
+
+					struct nk_command_buffer* cb = nk_window_get_canvas(ctx);
+					NK_DrawTileCallbackData* data = SDL_malloc(sizeof(NK_DrawTileCallbackData)); // TODO: This is really bad.
+					*data = (NK_DrawTileCallbackData){gctx, tiles, tile, (vec2s){current_pos.x, current_pos.y}};
+
+					nk_push_custom(cb, (struct nk_rect){0}, NK_DrawTileCallback, nk_handle_ptr((void*)data));
+
+					
+
 				}
 			}
 			// printed = true;

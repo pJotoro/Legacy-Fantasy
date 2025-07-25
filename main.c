@@ -292,6 +292,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		NK_UpdateUI(ctx);
+
 		UpdatePlayer(ctx);
 		
 		if (ctx->draw_selected_anim) {
@@ -303,7 +305,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
-
 
 		ivec2s render_area;
 		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
@@ -358,8 +359,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		#endif
-
-		NK_UpdateUI(ctx);
 
 		// RenderEnd
 		{
