@@ -230,6 +230,8 @@ void NK_DrawTileCallback(void* canvas, int16_t x, int16_t y, uint16_t w, uint16_
 	NK_DrawTileCallbackData* data = (NK_DrawTileCallbackData*)callback_data.ptr;
 	DrawSpriteTile(data->ctx, data->sprite, data->tile, data->pos);
 
+	SDL_Log("Doing this");
+
 	SDL_free(data);
 }
 
