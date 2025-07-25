@@ -352,7 +352,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
 		}
 
-		#if 0
 		{
 			static Sprite tiles;
 			static bool initialized_tiles = false;
@@ -362,15 +361,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					// if (!printed) {
-					// 	
-					// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
-					// }
 					DrawSpriteTile(ctx, tiles, tile, (vec2s){(float)tile.x*16.0f, (float)tile.y*16.0f});
 				}
 			}
 		}
-		#endif
 
 		// RenderEnd
 		{
