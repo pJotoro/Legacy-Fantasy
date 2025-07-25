@@ -252,12 +252,17 @@ void NK_UpdateUI(Context* gctx) {
 
 		if (nk_group_begin(ctx, "Tiles", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
 			nk_layout_space_begin(ctx, NK_LAYOUT_STATIC, 16, 25);
+			// static bool printed = false;
 			for (int32_t y = 0; y < 25; ++y) {
 				for (int32_t x = 0; x < 25; ++x) {
-
+					// if (!printed) {
+					// 	struct nk_vec2 current_pos = nk_layout_space_to_screen(ctx, (struct nk_vec2){(float)x*16.0f, (float)y*16.0f});
+					// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
+					// }
 					nk_layout_space_push(ctx, (struct nk_rect){(float)x, (float)y, 16.0f, 16.0f});
 				}
 			}
+			// printed = true;
 			nk_layout_space_end(ctx);
 
 			nk_group_end(ctx);
