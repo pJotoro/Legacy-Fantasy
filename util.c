@@ -3,7 +3,7 @@ FORCEINLINE vec2s vec2_from_ivec2(ivec2s v) {
 }
 
 FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
-	return (ivec2s){(int)v.x, (int)v.y};
+	return (ivec2s){(int32_t)SDL_floorf(v.x), (int32_t)SDL_floorf(v.y)};
 }
 
 typedef ivec2s Tile;

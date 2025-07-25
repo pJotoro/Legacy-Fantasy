@@ -136,6 +136,9 @@ typedef struct Context {
 	bool button_jump_released;
 	bool button_attack;
 
+	bool left_mouse_pressed;
+	vec2s mouse_pos;
+
 	SDL_Time time;
 	float dt;
 	
@@ -157,6 +160,8 @@ typedef struct Context {
 
 	bool draw_selected_anim;
 	Anim selected_anim;
+
+	ivec2s selected_tile;
 } Context;
 
 void UpdatePlayer(Context* ctx);

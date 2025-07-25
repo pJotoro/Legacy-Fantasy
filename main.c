@@ -78,6 +78,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
+
+		SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND);
 	}
 
 	// InitTextEngine
@@ -162,6 +164,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->button_jump_released = false;
 		ctx->button_attack = false;
 
+		ctx->left_mouse_pressed = false;
+
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			#if 0
@@ -212,6 +216,15 @@ int32_t main(int32_t argc, char* argv[]) {
 						ResetGame(ctx);
 						break;
 					}
+				}
+				break;
+			case SDL_EVENT_MOUSE_MOTION:
+				ctx->mouse_pos.x = event.motion.x;
+				ctx->mouse_pos.y = event.motion.y;
+				break;
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
+				if (event.button.button == SDL_BUTTON_LEFT) {
+					ctx->left_mouse_pressed = true;
 				}
 				break;
 			case SDL_EVENT_KEY_UP:
@@ -331,7 +344,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderLevel
 		{
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 255));
 			for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y; tile.y += 1) {
 				for (tile.x = 0; tile.x < ctx->level.size.x; tile.x += 1) {
 					if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
@@ -359,18 +372,23 @@ int32_t main(int32_t argc, char* argv[]) {
 				initialized_tiles = true;
 				tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
-			vec2s mouse;
-			SDL_GetMouseState(&mouse.x, &mouse.y);
+			ivec2s mouse = ivec2_from_vec2(ctx->mouse_pos);
+			SDL_RenderRect(ctx->renderer, &(SDL_FRect){(float)(mouse.x - mouse.x%TILE_SIZE - 1), (float)(mouse.y - mouse.y%TILE_SIZE - 1), (float)(TILE_SIZE+2), (float)(TILE_SIZE+2)});
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
 					vec2s tile_pos = {(float)(tile.x*TILE_SIZE), (float)(tile.y*TILE_SIZE)};
 					DrawSpriteTile(ctx, tiles, tile, tile_pos);
 					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
-						SDL_RenderRect(ctx->renderer, &(SDL_FRect){tile_pos.x, tile_pos.y, (float)TILE_SIZE, (float)TILE_SIZE});
+						if (ctx->left_mouse_pressed) {
+							ctx->selected_tile = tile;
+							SDL_Log("{%d, %d}", ctx->selected_tile.x, ctx->selected_tile.y);
+						}
 					}
 
 				}
 			}
+
+			DrawSpriteTile(ctx, tiles, ctx->selected_tile, glms_vec2_sub(ctx->mouse_pos, glms_vec2_mods(ctx->mouse_pos, (float)TILE_SIZE)));
 		}
 
 		// RenderEnd
