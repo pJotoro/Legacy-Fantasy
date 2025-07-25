@@ -250,20 +250,31 @@ void NK_UpdateUI(Context* gctx) {
 			nk_group_end(ctx);
 		}
 
+		height = 400.0f;
+		nk_layout_row_static(ctx, height, 400, cols);
+
 		if (nk_group_begin(ctx, "Tiles", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
-			nk_layout_space_begin(ctx, NK_LAYOUT_STATIC, 16, 25);
-			// static bool printed = false;
-			for (int32_t y = 0; y < 25; ++y) {
-				for (int32_t x = 0; x < 25; ++x) {
-					// if (!printed) {
-					// 	struct nk_vec2 current_pos = nk_layout_space_to_screen(ctx, (struct nk_vec2){(float)x*16.0f, (float)y*16.0f});
-					// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
-					// }
-					nk_layout_space_push(ctx, (struct nk_rect){(float)x, (float)y, 16.0f, 16.0f});
-				}
-			}
-			// printed = true;
-			nk_layout_space_end(ctx);
+			// nk_layout_space_begin(ctx, NK_LAYOUT_STATIC, 16, 25*25);
+			// // static bool printed = false;
+			// static Sprite tiles;
+			// static bool initialized_tiles = false;
+			// if (!initialized_tiles) {
+			// 	initialized_tiles = true;
+			// 	tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+			// }
+			// for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
+			// 	for (tile.x = 0; tile.x < 25; ++tile.x) {
+			// 		// if (!printed) {
+			// 		// 	
+			// 		// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
+			// 		// }
+			// 		struct nk_vec2 current_pos = nk_layout_space_to_screen(ctx, (struct nk_vec2){(float)tile.x*16.0f, (float)tile.y*16.0f});
+			// 		DrawSpriteTile(gctx, tiles, tile, (vec2s){current_pos.x, current_pos.y});
+			// 		nk_layout_space_push(ctx, (struct nk_rect){(float)tile.x, (float)tile.y, 16.0f, 16.0f});
+			// 	}
+			// }
+			// // printed = true;
+			// nk_layout_space_end(ctx);
 
 			nk_group_end(ctx);
 		}

@@ -340,6 +340,24 @@ int32_t main(int32_t argc, char* argv[]) {
 			DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
 		}
 
+		{
+			static Sprite tiles;
+			static bool initialized_tiles = false;
+			if (!initialized_tiles) {
+				initialized_tiles = true;
+				tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+			}
+			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
+				for (tile.x = 0; tile.x < 25; ++tile.x) {
+					// if (!printed) {
+					// 	
+					// 	SDL_Log("{%f, %f}", current_pos.x, current_pos.y);
+					// }
+					DrawSpriteTile(ctx, tiles, tile, (vec2s){(float)tile.x*16.0f, (float)tile.y*16.0f});
+				}
+			}
+		}
+
 		// RenderEnd
 		{
 			NK_Render(ctx);

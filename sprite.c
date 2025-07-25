@@ -5,10 +5,13 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	SDL_assert(header.magic_number == 0xA5E0);
 	SDL_assert(header.color_depth == 32);
 	SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
-	SDL_assert(header.grid_w == 16 && header.grid_h == 16);
 	
-	sd->size.x = header.w;
-	sd->size.y = header.h;
+	sd->size.x = (int32_t)header.w;
+	sd->size.y = (int32_t)header.h;
+	sd->grid_offset.x = (int32_t)header.grid_x;
+	sd->grid_offset.y = (int32_t)header.grid_y;
+	sd->grid_size.x = (int32_t)header.grid_w; if (sd->grid_size.x == 0) sd->grid_size.x = 16;
+	sd->grid_size.y = (int32_t)header.grid_h; if (sd->grid_size.y == 0) sd->grid_size.y = 16;
 	sd->n_frames = (size_t)header.n_frames;
 	sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
 
@@ -262,6 +265,31 @@ void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir) {
 	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, vec2s pos) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SDL_assert(sd->n_layers == 1);
+	SDL_assert(sd->n_frames == 1);
+	SDL_assert(sd->frames[0].n_cells == 1);
+	SDL_assert(tile.x >= 0 && tile.x*sd->grid_size.x < sd->size.x);
+	SDL_assert(tile.y >= 0 && tile.y*sd->grid_size.y < sd->size.y);
+
+	SDL_Texture* texture = sd->frames[0].cells[0].texture;
+	SDL_FRect srcrect = {
+		(float)(tile.x*sd->grid_size.x + sd->grid_offset.x),
+		(float)(tile.y*sd->grid_size.y + sd->grid_offset.y),
+		(float)sd->grid_size.x,
+		(float)sd->grid_size.y,
+	};
+	SDL_FRect dstrect = {
+		pos.x,
+		pos.y,
+		(float)(sd->grid_size.x),
+		(float)(sd->grid_size.y),
+	};
+
+	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
+}
+
 // This is really stupid and could be written in like two lines probably.
 int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b) {
 	ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
@@ -281,6 +309,7 @@ void ResetAnim(Anim* anim) {
 }
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
+	SDL_assert(sprite.idx >= 0 && sprite.idx < MAX_SPRITES);
 	return &ctx->sprites[sprite.idx];
 }
 

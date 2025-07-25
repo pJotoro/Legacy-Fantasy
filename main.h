@@ -55,6 +55,8 @@ typedef struct SpriteFrame {
 typedef struct SpriteDesc {
 	char* path;
 	ivec2s size;
+	ivec2s grid_offset;
+	ivec2s grid_size;
 	SpriteLayer* layers; size_t n_layers;
 	SpriteFrame* frames; size_t n_frames;
 } SpriteDesc;
@@ -160,6 +162,7 @@ bool SetSprite(Entity* entity, Sprite sprite);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, float dir);
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, vec2s pos);
 void DrawEntity(Context* ctx, Entity* entity);
 void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
