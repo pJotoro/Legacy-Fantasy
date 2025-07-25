@@ -222,7 +222,7 @@ void NK_UpdateUI(Context* gctx) {
 
 	if (nk_begin(ctx, "UI", nk_rect(10, 10, 500, 220),
 	    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_MINIMIZABLE)) {
-		float height = 300.0f;
+		float height = 250.0f;
 		int cols = 1;
 	    nk_layout_row_dynamic(ctx, height, cols);
 
@@ -250,41 +250,41 @@ void NK_UpdateUI(Context* gctx) {
 			nk_group_end(ctx);
 		}
 
-		if (nk_group_begin(ctx, "Sprites", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
-			float height = 200.0f;
-			int cols = 1;
-		    nk_layout_row_dynamic(ctx, height, cols);
+		// if (nk_group_begin(ctx, "Sprites", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
+		// 	float height = 70.0f;
+		// 	int cols = 1;
+		//     nk_layout_row_dynamic(ctx, height, cols);
 
-			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-				SpriteDesc* sprite = &gctx->sprites[sprite_idx];
-				if (sprite->path) {
-					if (nk_group_begin(ctx, sprite->path, NK_WINDOW_TITLE|NK_WINDOW_NO_SCROLLBAR)) {
-						float height = 20.0f;
-						int item_width = 80;
-						int cols = 3;
-						nk_layout_row_static(ctx, height, item_width, cols);
+		// 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		// 		SpriteDesc* sprite = &gctx->sprites[sprite_idx];
+		// 		if (sprite->path) {
+		// 			if (nk_group_begin(ctx, sprite->path, NK_WINDOW_TITLE|NK_WINDOW_NO_SCROLLBAR)) {
+		// 				float height = 20.0f;
+		// 				int item_width = 80;
+		// 				int cols = 3;
+		// 				nk_layout_row_static(ctx, height, item_width, cols);
 
-						nk_value_int(ctx, "w", sprite->size.x);
-						nk_value_int(ctx, "h", sprite->size.y);
-						nk_value_uint(ctx, "frames", (uint32_t)sprite->n_frames);
+		// 				nk_value_int(ctx, "w", sprite->size.x);
+		// 				nk_value_int(ctx, "h", sprite->size.y);
+		// 				nk_value_uint(ctx, "frames", (uint32_t)sprite->n_frames);
 
 						
 
-						// cols = 1;
-						// nk_layout_row_static(ctx, height, item_width, cols);
+		// 				// cols = 1;
+		// 				// nk_layout_row_static(ctx, height, item_width, cols);
 
-						// nk_label(ctx, "Layers:", NK_TEXT_LEFT);
-						// for (size_t layer_idx = 0; layer_idx < sprite->n_layers; layer_idx += 1) {
-						// 	nk_label(ctx, sprite->layers[layer_idx].name, NK_TEXT_CENTERED);
-						// }
+		// 				// nk_label(ctx, "Layers:", NK_TEXT_LEFT);
+		// 				// for (size_t layer_idx = 0; layer_idx < sprite->n_layers; layer_idx += 1) {
+		// 				// 	nk_label(ctx, sprite->layers[layer_idx].name, NK_TEXT_CENTERED);
+		// 				// }
 
-						nk_group_end(ctx);
-					}
-				}
-			}
+		// 				nk_group_end(ctx);
+		// 			}
+		// 		}
+		// 	}
 
-			nk_group_end(ctx);
-		}
+		// 	nk_group_end(ctx);
+		// }
 	}
 	nk_end(ctx);
 }

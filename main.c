@@ -62,7 +62,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 0
+#if 1
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -281,14 +281,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (!ctx->vsync) {
 			SDL_Delay(16); // TODO
 		}
-
-		// if (!ctx->gamepad) {
-		// 	int joystick_count = 0;
-		// 	SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
-		// 	if (joystick_count != 0) {
-		// 		ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
-		// 	}
-		// }
 
 		// UpdateLevel
 		{

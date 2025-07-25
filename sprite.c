@@ -171,7 +171,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				}
 			} break;
 			case ASE_CHUNK_TYPE_PALETTE: {
-				ASE_PaletteChunk* chunk = raw_chunk;
+				ASE_PaletteChunk* chunk = raw_chunk; // TODO: Do I have to do anything with this?
 				(void)chunk;
 			} break;
 			case ASE_CHUNK_TYPE_USER_DATA: {
