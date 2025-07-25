@@ -359,9 +359,17 @@ int32_t main(int32_t argc, char* argv[]) {
 				initialized_tiles = true;
 				tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
+			vec2s mouse;
+			SDL_GetMouseState(&mouse.x, &mouse.y);
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					DrawSpriteTile(ctx, tiles, tile, (vec2s){(float)tile.x*16.0f, (float)tile.y*16.0f});
+					const float GRID_SIZE = 16.0f;
+					vec2s tile_pos = {(float)tile.x*GRID_SIZE, (float)tile.y*GRID_SIZE};
+					DrawSpriteTile(ctx, tiles, tile, tile_pos);
+					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + GRID_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + GRID_SIZE) {
+						SDL_RenderRect(ctx->renderer, &(SDL_FRect){tile_pos.x, tile_pos.y, GRID_SIZE, GRID_SIZE});
+					}
+
 				}
 			}
 		}
