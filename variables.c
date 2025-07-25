@@ -1,4 +1,4 @@
-static int32_t TILE_SIZE = 32;
+static int32_t TILE_SIZE = 16;
 static int32_t PLAYER_JUMP_PERIOD = 3;
 static float GRAVITY = 0.580000f;
 static float PLAYER_ACC = 0.600000f;

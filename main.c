@@ -363,11 +363,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_GetMouseState(&mouse.x, &mouse.y);
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					const float GRID_SIZE = 16.0f;
-					vec2s tile_pos = {(float)tile.x*GRID_SIZE, (float)tile.y*GRID_SIZE};
+					vec2s tile_pos = {(float)(tile.x*TILE_SIZE), (float)(tile.y*TILE_SIZE)};
 					DrawSpriteTile(ctx, tiles, tile, tile_pos);
-					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + GRID_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + GRID_SIZE) {
-						SDL_RenderRect(ctx->renderer, &(SDL_FRect){tile_pos.x, tile_pos.y, GRID_SIZE, GRID_SIZE});
+					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
+						SDL_RenderRect(ctx->renderer, &(SDL_FRect){tile_pos.x, tile_pos.y, (float)TILE_SIZE, (float)TILE_SIZE});
 					}
 
 				}
