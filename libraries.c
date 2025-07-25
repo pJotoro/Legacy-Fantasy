@@ -4,6 +4,7 @@
 #include <SDL3/SDL_assert.h>
 #include <SDL3/SDL_stdinc.h>
 
+#if 0
 #define NK_IMPLEMENTATION
 #include "nuklear_defines.h"
 #define NK_MEMSET SDL_memset
@@ -13,6 +14,7 @@
 #define NK_STRTOD SDL_strtod
 #define NK_VSNPRINTF(s,n,f,a) SDL_vsnprintf(s,n,f,a)
 #include <nuklear.h>
+#endif
 
 #define RADDBG_MARKUP_IMPLEMENTATION
 #include <raddbg_markup.h>

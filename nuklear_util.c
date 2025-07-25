@@ -1,3 +1,4 @@
+#if 0
 float NK_TextWidthCallback(nk_handle handle, float height, const char* text, int32_t len) {
 	(void)height;
 	TTF_Font* font = handle.ptr;
@@ -349,3 +350,4 @@ struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx) {
 		.region = {0, 0, (nk_ushort)((size_t)sprite->size.x*frame_idx), (nk_ushort)sprite->size.y},
 	};
 }
+#endif

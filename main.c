@@ -4,10 +4,12 @@
 
 #include <cglm/struct.h>
 
+#if 0
 #include "nuklear_defines.h"
 #pragma warning(push, 0)
 #include <nuklear.h>
 #pragma warning(pop)
+#endif
 
 #include <raddbg_markup.h>
 
@@ -96,12 +98,14 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// InitNuklear
 	{
+		#if 0
 		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
 		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
 		ctx->nk.font.width = NK_TextWidthCallback;
 		const size_t MEM_SIZE = MEGABYTE(64);
 		void* mem = SDL_malloc(MEM_SIZE); SDL_CHECK(mem);
 		bool ok = nk_init_fixed(&ctx->nk.ctx, mem, MEM_SIZE, &ctx->nk.font); SDL_assert(ok);
+		#endif
 	}
 
 	LoadLevel(ctx);
@@ -150,7 +154,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+#if 0
 		nk_input_begin(&ctx->nk.ctx);
+#endif
 
 		ctx->button_jump = false;
 		ctx->button_jump_released = false;
@@ -158,7 +164,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
+			#if 0
 			NK_HandleEvent(ctx, &event);
+			#endif
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
 			#if 1
@@ -258,7 +266,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
+#if 0
 		nk_input_end(&ctx->nk.ctx);
+#endif
 
 	#if 0
 	#ifndef _DEBUG
@@ -292,7 +302,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+#if 0
 		NK_UpdateUI(ctx);
+#endif
 
 		UpdatePlayer(ctx);
 		
@@ -362,11 +374,15 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderEnd
 		{
+			#if 0
 			NK_Render(ctx);
+			#endif
 
 			SDL_RenderPresent(ctx->renderer);
 
+#if 0
 			nk_clear(&ctx->nk.ctx);
+#endif
 
 			if (!ctx->vsync) {
 				// TODO
@@ -376,6 +392,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// WriteVariables
 	{
+		#if 0
 		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
 		#define SDL_IOWriteVarI(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var) != 0)
 		#define SDL_IOWriteVarF(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var) != 0)
@@ -387,6 +404,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_IOWriteVarF(fs, PLAYER_MAX_VEL);
 		SDL_IOWriteVarF(fs, PLAYER_JUMP);
 		SDL_CloseIO(fs);
+		#endif
 	}
 	
 	return 0;

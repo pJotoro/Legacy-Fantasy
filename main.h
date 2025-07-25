@@ -94,10 +94,12 @@ void ResetAnim(Anim* anim);
 
 #define MAX_SPRITES 256
 
+#if 0
 typedef struct Nuklear {
 	struct nk_context ctx;
 	struct nk_user_font font;
 } Nuklear;
+#endif
 
 typedef uint8_t TileType;
 enum {
@@ -140,7 +142,9 @@ typedef struct Context {
 	Entity player;
 	Level level;
 
+#if 0
 	Nuklear nk;
+#endif
 
 	bool running;
 
@@ -174,11 +178,13 @@ void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 
+#if 0
 void NK_HandleEvent(Context* ctx, SDL_Event* event);
 void NK_Render(Context* ctx);
 float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int32_t len);
 void NK_UpdateUI(Context* ctx);
 struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx);
+#endif
 
 size_t HashString(char* key, size_t len);
 
