@@ -220,7 +220,7 @@ void NK_HandleEvent(Context* ctx, SDL_Event* event)
 void NK_UpdateUI(Context* gctx) {
 	struct nk_context* ctx = &gctx->nk.ctx;
 
-	if (nk_begin(ctx, "UI", nk_rect(10, 10, 500, 220),
+	if (nk_begin(ctx, "UI", nk_rect(5, 5, 600, 1000),
 	    NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|NK_WINDOW_MINIMIZABLE)) {
 		float height = 250.0f;
 		int cols = 1;
@@ -247,6 +247,19 @@ void NK_UpdateUI(Context* gctx) {
 			nk_vari(ctx, TILE_SIZE, 0, 256, 2);
 			nk_vari(ctx, PLAYER_JUMP_PERIOD, 0, 10, 1);
 			
+			nk_group_end(ctx);
+		}
+
+		if (nk_group_begin(ctx, "Tiles", NK_WINDOW_TITLE|NK_WINDOW_BORDER)) {
+			nk_layout_space_begin(ctx, NK_LAYOUT_STATIC, 16, 25);
+			for (int32_t y = 0; y < 25; ++y) {
+				for (int32_t x = 0; x < 25; ++x) {
+
+					nk_layout_space_push(ctx, (struct nk_rect){(float)x, (float)y, 16.0f, 16.0f});
+				}
+			}
+			nk_layout_space_end(ctx);
+
 			nk_group_end(ctx);
 		}
 
