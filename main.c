@@ -376,7 +376,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_RenderRect(ctx->renderer, &(SDL_FRect){(float)(mouse.x - mouse.x%TILE_SIZE - 1), (float)(mouse.y - mouse.y%TILE_SIZE - 1), (float)(TILE_SIZE+2), (float)(TILE_SIZE+2)});
 			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
 				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					vec2s tile_pos = {(float)(tile.x*TILE_SIZE), (float)(tile.y*TILE_SIZE)};
+					vec2s tile_pos = vec2_from_ivec2(glms_ivec2_scale(tile, TILE_SIZE));
 					DrawSpriteTile(ctx, tiles, tile, tile_pos);
 					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
 						if (ctx->left_mouse_pressed) {
