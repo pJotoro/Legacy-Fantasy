@@ -7,7 +7,10 @@ void SetTile(Level* level, ivec2s tile, TileType tile_type) {
 	level->tiles[tile.y*level->size.x + tile.x] = tile_type;
 }
 
+#define OLD_LEVEL_SYSTEM 0
+
 void LoadLevel(Context* ctx) {
+#if OLD_LEVEL_SYSTEM
 	size_t file_size;
 	char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
 	ctx->level.size.y = 1;
@@ -46,4 +49,24 @@ void LoadLevel(Context* ctx) {
 	ctx->level.modify_time = info.modify_time;
 
 	SDL_free(file);
+#else
+	static Sprite spr_tiles;
+	static bool initialized_sprites = false;
+	if (!initialized_sprites) {
+		initialized_sprites = true;
+		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+	}
+	SpriteDesc* sprdesc_tiles = GetSpriteDesc(ctx, spr_tiles);
+	SDL_Surface* surf = sprdesc_tiles->frames[0].cells[0].surf;
+	for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
+		for (tile.x = 0; tile.x < 25; ++tile.x) {
+			uint32_t* pixels = (uint32_t*)surf->pixels;
+			uint32_t* tile_start = pixels + 25*tile.y + tile.x;
+			for (size_t row = 0; row < 16; ++row) {
+				uint32_t* tile_cur = tile_start + 25*row;
+				
+			}
+		}
+	}
+#endif
 }

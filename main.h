@@ -101,11 +101,7 @@ typedef struct Nuklear {
 } Nuklear;
 #endif
 
-typedef uint8_t TileType;
-enum {
-	TILE_TYPE_EMPTY,
-	TILE_TYPE_GROUND,
-};
+typedef uint16_t TileType;
 
 typedef struct Level {
 	TileType* tiles;
