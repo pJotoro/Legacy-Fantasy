@@ -327,7 +327,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderBegin
 		{
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 255));
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
 
@@ -630,12 +630,6 @@ void UpdatePlayer(Context* ctx) {
 		}
 	}
 
-	bool loop = true;
-	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx || ctx->player.anim.sprite.idx == player_attack.idx) {
-		loop = false;
-	}
-	UpdateAnim(ctx, &ctx->player.anim, loop);
-
 	if (ctx->player.anim.sprite.idx == player_attack.idx && ctx->player.anim.ended) {
 		if (input_x == 0 && ctx->player.vel.x == 0.0f) {
 			SetSprite(&ctx->player, player_idle);
@@ -651,6 +645,12 @@ void UpdatePlayer(Context* ctx) {
 
 	if (conserved_vel.x != 0.0f) ctx->player.vel.x = conserved_vel.x;
 	if (conserved_vel.y != 0.0f) ctx->player.vel.y = conserved_vel.y;
+
+	bool loop = true;
+	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx || ctx->player.anim.sprite.idx == player_attack.idx) {
+		loop = false;
+	}
+	UpdateAnim(ctx, &ctx->player.anim, loop);
 
 	if (ctx->player.pos.y > (float)(ctx->level.size.y+500)) {
 		ResetGame(ctx);
