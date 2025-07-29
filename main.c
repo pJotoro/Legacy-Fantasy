@@ -354,7 +354,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			for (ivec2s tile_pos = {0, 0}; tile_pos.y < ctx->level.size.y; tile_pos.y += 1) {
 				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
 					Tile tile = GetTile(&ctx->level, tile_pos);
-					DrawSpriteTile(ctx, spr_tiles, (ivec2s){0, 17}, tile_pos);
+					DrawSpriteTile(ctx, spr_tiles, tile, tile_pos);
 				}
 			}
 		}

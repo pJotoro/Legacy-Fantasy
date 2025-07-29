@@ -31,17 +31,17 @@ void LoadLevel(Context* ctx) {
 		ok = SDL_ReadU8(fs, &b);
 		if (b == 'N') {
 			uint8_t data[4];
-			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == "}" && data[3] == ',');
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}' && data[3] == ',');
 		} else {
 			for (size_t i = 0; i < 16; ++i) {
 				ok = SDL_ReadU8(fs, &b);
-				if (data[i] == ',') {
+				if (b == ',') {
 					break;
 				}
 			}
 			for (size_t i = 0; i < 16; ++i) {
 				ok = SDL_ReadU8(fs, &b);
-				if (data[i] == '}') {
+				if (b == '}') {
 					break;
 				}
 			}
@@ -68,7 +68,7 @@ void LoadLevel(Context* ctx) {
 		ok = SDL_ReadU8(fs, &b);
 		if (b == 'N') {
 			uint8_t data[4];
-			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == "}" && data[3] == ',');
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}' && data[3] == ',');
 			SetTile(&ctx->level, grid_pos, (Tile){-1, -1});
 		} else {
 			Tile tile;
