@@ -13,71 +13,89 @@ bool IsSolid(Level* level, ivec2s grid_pos) {
 }
 
 void LoadLevel(Context* ctx) {
-	ctx->level.size.x = 25;
-	ctx->level.size.y = 25;
+	SDL_IOStream* fs = SDL_IOFromFile("level", "r");
+	bool ok = true;
+	ivec2s grid_pos = {0, 0};
+	while (ok) {
+		uint8_t b;
+		ok = SDL_ReadU8(fs, &b);
+		if (b == '\r') {
+			ok = SDL_ReadU8(fs, &b); SDL_assert(b == '\n');
+			ctx->level.size.x = SDL_max(ctx->level.size.x, grid_pos.x);
+			ctx->level.size.y += 1;
+			grid_pos.x = 0;
+			grid_pos.y += 1;
+		} else {
+			SDL_assert(b == '{');
+		}
+		ok = SDL_ReadU8(fs, &b);
+		if (b == 'N') {
+			uint8_t data[4];
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == "}" && data[3] == ',');
+		} else {
+			for (size_t i = 0; i < 16; ++i) {
+				ok = SDL_ReadU8(fs, &b);
+				if (data[i] == ',') {
+					break;
+				}
+			}
+			for (size_t i = 0; i < 16; ++i) {
+				ok = SDL_ReadU8(fs, &b);
+				if (data[i] == '}') {
+					break;
+				}
+			}
+			ok = SDL_ReadU8(fs, &b); SDL_assert(b == ',');
+		}
+
+	}
+
 	ctx->level.tiles = SDL_calloc(ctx->level.size.x * ctx->level.size.y, sizeof(Tile)); SDL_CHECK(ctx->level.tiles);
 
-	// size_t file_size;
-	// char* file = (char*)SDL_LoadFile("level", &file_size); SDL_CHECK(file);
-	// ctx->level.size.y = 1;
-	// for (size_t file_i = 0, x = 0; file_i < file_size;) {
-	// 	x += 1;
-	// 	file_i += 2;
-	// 	if (file[file_i] == '\r') {
-	// 		ctx->level.size.x = SDL_max((int32_t)x, ctx->level.size.x);
-	// 		x = 0;
-	// 		ctx->level.size.y += 1;
-	// 	}
-	// }
+	SDL_SeekIO(fs, 0, SDL_IO_SEEK_SET);
+	ok = true;
+	grid_pos = (ivec2s){0, 0};
+	while (ok) {
+		uint8_t b;
+		ok = SDL_ReadU8(fs, &b);
+		if (b == '\r') {
+			ok = SDL_ReadU8(fs, &b); SDL_assert(b == '\n');
+			grid_pos.x = 0;
+			grid_pos.y += 1;
+		} else {
+			SDL_assert(b == '{');
+		}
+		ok = SDL_ReadU8(fs, &b);
+		if (b == 'N') {
+			uint8_t data[4];
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == "}" && data[3] == ',');
+			SetTile(&ctx->level, grid_pos, (Tile){-1, -1});
+		} else {
+			Tile tile;
+			uint8_t data[8]; data[0] = b;
+			for (size_t i = 1; i < SDL_arraysize(data); ++i) {
+				ok = SDL_ReadU8(fs, &data[i]);
+				if (data[i] == ',') {
+					data[i] = '\0';
+					break;
+				}
+			}
+			tile.x = SDL_atoi((const char*)data);
 
-	// ctx->level.tiles = SDL_calloc(ctx->level.size.x * ctx->level.size.y, sizeof(Tile)); SDL_CHECK(ctx->level.tiles);
+			for (size_t i = 0; i < SDL_arraysize(data); ++i) {
+				ok = SDL_ReadU8(fs, &data[i]);
+				if (data[i] == '}') {
+					data[i] = '\0';
+					break;
+				}
+			}
+			tile.y = SDL_atoi((const char*)data);
 
-	// size_t file_i = 0;
-	// for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y; tile.y += 1) {
-	// 	for (tile.x = 0; tile.x < ctx->level.size.x; tile.x += 1) {
-	// 		if (file[file_i] == '\r') {
-	// 			file_i += 2;
-	// 			break;
-	// 		}
-	// 		switch (file[file_i]) {
-	// 		case '1':
-	// 			SetTile(&ctx->level, tile, TILE_TYPE_GROUND);
-	// 			break;
-	// 		}
-	// 		file_i += 1;
-	// 	}
-	// }
+			SetTile(&ctx->level, grid_pos, tile);
+		}
 
-	// SDL_PathInfo info;
-	// SDL_CHECK(SDL_GetPathInfo("level", &info));
-	// ctx->level.modify_time = info.modify_time;
+	}
 
-	// SDL_free(file);
-// #else
-// 	ctx->level.tiles = SDL_calloc(ctx->level.size.x * ctx->level.size.y, sizeof(Tile)); SDL_CHECK(ctx->level.tiles);
+	SDL_CloseIO(fs);
 
-// 	static Sprite spr_tiles;
-// 	static bool initialized_sprites = false;
-// 	if (!initialized_sprites) {
-// 		initialized_sprites = true;
-// 		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-// 	}
-// 	SpriteDesc* sprdesc_tiles = GetSpriteDesc(ctx, spr_tiles);
-// 	SDL_Surface* surf = sprdesc_tiles->frames[0].cells[0].surf;
-
-// 	bool break_all = false;
-// 	uint32_t zeros = {0};
-// 	for (ivec2s tile = {0, 0}; tile.y < 25 && !break_all; ++tile.y) {
-// 		for (tile.x = 0; tile.x < 25 && !break_all; ++tile.x) {
-// 			uint32_t* pixels = (uint32_t*)surf->pixels;
-// 			uint32_t* tile_start = pixels + 25*tile.y + tile.x;
-// 			for (size_t row = 0; row < 16; ++row) {
-// 				uint32_t* tile_cur = tile_start + 25*row;
-// 				if (SDL_memcmp(tile_cur, zeros, sizeof(uint32_t)*16) == 0) {
-
-// 				}
-// 			}
-// 		}
-// 	}
-// #endif
 }
