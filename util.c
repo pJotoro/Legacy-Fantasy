@@ -8,9 +8,9 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 
 typedef ivec2s Tile;
 
-FORCEINLINE Rect RectFromTile(Tile tile) {
+FORCEINLINE Rect RectFromTile(ivec2s tile_pos) {
     Rect res;
-    res.min = glms_ivec2_scale(tile, TILE_SIZE);
+    res.min = glms_ivec2_scale(tile_pos, TILE_SIZE);
     res.max = glms_ivec2_adds(res.min, TILE_SIZE);
 	return res;
 }
@@ -32,10 +32,10 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 }
 
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (ivec2s tile = {0, 0}; tile.y < level->size.y; tile.y += 1) {
-        for (tile.x = 0; tile.x < level->size.x; tile.x += 1) {
-            if (level->tiles[tile.y*level->size.x + tile.x] == TILE_TYPE_GROUND) {
-                Rect tile_rect = RectFromTile(tile);
+    for (ivec2s tile_pos = {0, 0}; tile_pos.y < level->size.y; tile_pos.y += 1) {
+        for (tile_pos.x = 0; tile_pos.x < level->size.x; tile_pos.x += 1) {
+            if (IsSolid(level, tile_pos)) {
+                Rect tile_rect = RectFromTile(tile_pos);
                 if (RectsIntersect(a, tile_rect)) {
                     if (b) *b = tile_rect;
                     return true;

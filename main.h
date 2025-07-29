@@ -101,16 +101,18 @@ typedef struct Nuklear {
 } Nuklear;
 #endif
 
-typedef uint16_t TileType;
+typedef ivec2s Tile;
 
 typedef struct Level {
-	TileType* tiles;
+	Tile* tiles; 
 	ivec2s size;
 	SDL_Time modify_time;
 } Level;
 
-TileType GetTile(Level* level, ivec2s tile);
-void SetTile(Level* level, ivec2s tile, TileType type);
+Tile GetTile(Level* level, ivec2s grid_pos);
+void SetTile(Level* level, ivec2s grid_pos, Tile tile);
+
+bool IsSolid(Level* level, ivec2s grid_pos);
 
 typedef struct Context {
 	SDL_Window* window;

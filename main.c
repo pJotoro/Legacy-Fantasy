@@ -345,10 +345,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		// RenderLevel
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 255));
-			for (ivec2s tile = {0, 0}; tile.y < ctx->level.size.y; tile.y += 1) {
-				for (tile.x = 0; tile.x < ctx->level.size.x; tile.x += 1) {
-					if (GetTile(&ctx->level, tile) == TILE_TYPE_GROUND) {
-						SDL_FRect rect = { (float)(tile.x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile.y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
+			for (ivec2s tile_pos = {0, 0}; tile_pos.y < ctx->level.size.y; tile_pos.y += 1) {
+				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
+					if (IsSolid(&ctx->level, tile_pos)) {
+						SDL_FRect rect = { (float)(tile_pos.x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile_pos.y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 					}
 				}
