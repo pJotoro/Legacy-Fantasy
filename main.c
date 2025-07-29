@@ -344,13 +344,20 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderLevel
 		{
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 255));
+			static Sprite spr_tiles;
+			static bool initialized_sprites = false;
+			if (!initialized_sprites) {
+				initialized_sprites = true;
+				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+			}
+
 			for (ivec2s tile_pos = {0, 0}; tile_pos.y < ctx->level.size.y; tile_pos.y += 1) {
 				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
-					if (IsSolid(&ctx->level, tile_pos)) {
+					DrawSpriteTile(ctx, spr_tiles, (ivec2s){0, 17}, tile_pos);
+					/*if (IsSolid(&ctx->level, tile_pos)) {
 						SDL_FRect rect = { (float)(tile_pos.x*TILE_SIZE - ctx->player.pos.x + render_area.x/2), (float)(tile_pos.y*TILE_SIZE - ctx->player.pos.y + render_area.y/2), (float)TILE_SIZE, (float)TILE_SIZE };
 						SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
-					}
+					}*/
 				}
 			}
 		}
@@ -365,31 +372,31 @@ int32_t main(int32_t argc, char* argv[]) {
 			DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
 		}
 
-		{
-			static Sprite tiles;
-			static bool initialized_tiles = false;
-			if (!initialized_tiles) {
-				initialized_tiles = true;
-				tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-			}
-			ivec2s mouse = ivec2_from_vec2(ctx->mouse_pos);
-			SDL_RenderRect(ctx->renderer, &(SDL_FRect){(float)(mouse.x - mouse.x%TILE_SIZE - 1), (float)(mouse.y - mouse.y%TILE_SIZE - 1), (float)(TILE_SIZE+2), (float)(TILE_SIZE+2)});
-			for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
-				for (tile.x = 0; tile.x < 25; ++tile.x) {
-					vec2s tile_pos = vec2_from_ivec2(glms_ivec2_scale(tile, TILE_SIZE));
-					DrawSpriteTile(ctx, tiles, tile, tile_pos);
-					if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
-						if (ctx->left_mouse_pressed) {
-							ctx->selected_tile = tile;
-							SDL_Log("{%d, %d}", ctx->selected_tile.x, ctx->selected_tile.y);
-						}
-					}
+		// {
+		// 	static Sprite tiles;
+		// 	static bool initialized_tiles = false;
+		// 	if (!initialized_tiles) {
+		// 		initialized_tiles = true;
+		// 		tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+		// 	}
+		// 	ivec2s mouse = ivec2_from_vec2(ctx->mouse_pos);
+		// 	SDL_RenderRect(ctx->renderer, &(SDL_FRect){(float)(mouse.x - mouse.x%TILE_SIZE - 1), (float)(mouse.y - mouse.y%TILE_SIZE - 1), (float)(TILE_SIZE+2), (float)(TILE_SIZE+2)});
+		// 	for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
+		// 		for (tile.x = 0; tile.x < 25; ++tile.x) {
+		// 			vec2s tile_pos = vec2_from_ivec2(glms_ivec2_scale(tile, TILE_SIZE));
+		// 			DrawSpriteTile(ctx, tiles, tile, tile_pos);
+		// 			if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
+		// 				if (ctx->left_mouse_pressed) {
+		// 					ctx->selected_tile = tile;
+		// 					SDL_Log("{%d, %d}", ctx->selected_tile.x, ctx->selected_tile.y);
+		// 				}
+		// 			}
 
-				}
-			}
+		// 		}
+		// 	}
 
-			DrawSpriteTile(ctx, tiles, ctx->selected_tile, glms_vec2_sub(ctx->mouse_pos, glms_vec2_mods(ctx->mouse_pos, (float)TILE_SIZE)));
-		}
+		// 	DrawSpriteTile(ctx, tiles, ctx->selected_tile, glms_vec2_sub(ctx->mouse_pos, glms_vec2_mods(ctx->mouse_pos, (float)TILE_SIZE)));
+		// }
 
 		// RenderEnd
 		{
