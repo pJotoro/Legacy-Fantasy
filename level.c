@@ -25,6 +25,8 @@ void LoadLevel(Context* ctx) {
 			ctx->level.size.y += 1;
 			grid_pos.x = 0;
 			grid_pos.y += 1;
+		} else if (b == ',') {
+			b = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
 		} else {
 			SDL_assert(b == '{');
 		}
@@ -62,8 +64,8 @@ void LoadLevel(Context* ctx) {
 			ok = SDL_ReadU8(fs, &b); SDL_assert(b == '\n');
 			grid_pos.x = 0;
 			grid_pos.y += 1;
-		} else {
-			SDL_assert(b == '{');
+		} else if (b == ',') {
+			b = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
 		}
 		ok = SDL_ReadU8(fs, &b);
 		if (b == 'N') {
