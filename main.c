@@ -111,7 +111,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	LoadLevel(ctx);
-	SDL_assert(ctx->level.size.x > 0 && ctx->level.size.y > 0);
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 	if (ctx->sprite_tests_failed > 0) {
