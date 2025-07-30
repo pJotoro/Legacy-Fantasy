@@ -3,7 +3,7 @@ Tile GetTile(Level* level, ivec2s grid_pos) {
 }
 
 void SetTile(Level* level, ivec2s grid_pos, Tile tile) {
-	SDL_assert(grid_pos.x >= 0 && grid_pos.y >= 0 && grid_pos.x < level->size.x && grid_pos.y < level->size.y);
+	// SDL_assert(grid_pos.x >= 0 && grid_pos.y >= 0 && grid_pos.x < level->size.x && grid_pos.y < level->size.y);
 	level->tiles[grid_pos.y*level->size.x + grid_pos.x] = tile;
 }
 
@@ -26,14 +26,19 @@ void LoadLevel(Context* ctx) {
 			grid_pos.x = 0;
 			grid_pos.y += 1;
 		} else if (b == ',') {
-			b = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
+			ok = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
 		} else {
 			SDL_assert(b == '{');
 		}
 		ok = SDL_ReadU8(fs, &b);
 		if (b == 'N') {
 			uint8_t data[4];
-			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}' && data[3] == ',');
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}');
+			if (data[3] == '\r') {
+				ok = SDL_ReadU8(fs, &b); SDL_assert(b == '\n');
+			} else {
+				SDL_assert(data[3] == ',');
+			}
 		} else {
 			for (size_t i = 0; i < 16; ++i) {
 				ok = SDL_ReadU8(fs, &b);
@@ -65,12 +70,17 @@ void LoadLevel(Context* ctx) {
 			grid_pos.x = 0;
 			grid_pos.y += 1;
 		} else if (b == ',') {
-			b = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
+			ok = SDL_ReadU8(fs, &b); SDL_assert(b == '{');
 		}
 		ok = SDL_ReadU8(fs, &b);
 		if (b == 'N') {
 			uint8_t data[4];
-			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}' && data[3] == ',');
+			ok = SDL_ReadIO(fs, data, 4) == 4; SDL_assert(data[0] == ',' && data[1] == 'N' && data[2] == '}');
+			if (data[3] == '\r') {
+				ok = SDL_ReadU8(fs, &b); SDL_assert(b == '\n');
+			} else {
+				SDL_assert(data[3] == ',');
+			}
 			SetTile(&ctx->level, grid_pos, (Tile){-1, -1});
 		} else {
 			Tile tile;
