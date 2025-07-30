@@ -34,8 +34,8 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
-		.pos.x = TILE_SIZE*9, 
-		.pos.y = TILE_SIZE*8,
+		.pos.x = TILE_SIZE*0, 
+		.pos.y = TILE_SIZE*0,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -333,11 +333,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 100));
-			for (ivec2s tile_pos = {0, 0}; tile_pos.y < ctx->level.size.y; tile_pos.y += 1) {
-				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
-					Tile tile = GetTile(&ctx->level, tile_pos);
-					DrawSpriteTile(ctx, spr_tiles, tile, tile_pos);
+			for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
+				for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
+					Tile tile = GetTile(&ctx->level, level_pos);
+					ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
+					DrawSpriteTile(ctx, spr_tiles, tile, pos);
 				}
 			}
 		}
@@ -505,7 +505,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	if (ctx->player.anim.sprite.idx != player_attack.idx) {
-		ctx->player.vel.y += GRAVITY;
+		//ctx->player.vel.y += GRAVITY;
 		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 
 		if (ctx->player.touching_floor) {
