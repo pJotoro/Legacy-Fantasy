@@ -54,7 +54,9 @@ void LoadLevel(Context* ctx) {
 			}
 			ok = SDL_ReadU8(fs, &b); SDL_assert(b == ',');
 		}
-
+		if (ok) {
+			grid_pos.x += 1;
+		}
 	}
 
 	ctx->level.tiles = SDL_calloc(ctx->level.size.x * ctx->level.size.y, sizeof(Tile)); SDL_CHECK(ctx->level.tiles);

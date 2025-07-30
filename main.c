@@ -111,6 +111,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	LoadLevel(ctx);
+	SDL_assert(ctx->level.size.x > 0 && ctx->level.size.y > 0);
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 	if (ctx->sprite_tests_failed > 0) {
@@ -351,10 +352,17 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 100, 100, 100, 100));
 			for (ivec2s tile_pos = {0, 0}; tile_pos.y < ctx->level.size.y; tile_pos.y += 1) {
 				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
 					Tile tile = GetTile(&ctx->level, tile_pos);
 					DrawSpriteTile(ctx, spr_tiles, tile, tile_pos);
+					SDL_RenderFillRect(ctx->renderer, &(SDL_FRect){
+						(float)(tile_pos.x*16),
+						(float)(tile_pos.y*16),
+						16.0f,
+						16.0f
+					});
 				}
 			}
 		}
