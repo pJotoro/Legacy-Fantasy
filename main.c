@@ -116,14 +116,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	if (ctx->sprite_tests_failed > 0) {
 		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
 	}
-	// for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-	// 	SpriteDesc* sd = &ctx->sprites[sprite_idx];
-	// 	if (!sd->path) continue;
-
-	// 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
-
-	// 	}
-	// }
 
 	// SortSpriteCells (uses insertion sort)
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
@@ -305,16 +297,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		// UpdateLevel
-		{
-			SDL_PathInfo info;
-			SDL_CHECK(SDL_GetPathInfo("level", &info));
-			if (info.modify_time != ctx->level.modify_time) {
-				LoadLevel(ctx);
-				ctx->level.modify_time = info.modify_time;
-			}
-		}
-
 #if 0
 		NK_UpdateUI(ctx);
 #endif
@@ -356,12 +338,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				for (tile_pos.x = 0; tile_pos.x < ctx->level.size.x; tile_pos.x += 1) {
 					Tile tile = GetTile(&ctx->level, tile_pos);
 					DrawSpriteTile(ctx, spr_tiles, tile, tile_pos);
-					SDL_RenderFillRect(ctx->renderer, &(SDL_FRect){
-						(float)(tile_pos.x*16),
-						(float)(tile_pos.y*16),
-						16.0f,
-						16.0f
-					});
 				}
 			}
 		}

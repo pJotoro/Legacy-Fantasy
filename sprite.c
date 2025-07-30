@@ -266,6 +266,8 @@ void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir) {
 }
 
 void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos) {
+	if (tile.x == -1) return;
+
 	vec2s pos = vec2_from_ivec2(glms_ivec2_scale(ipos, TILE_SIZE));
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->n_layers == 1);
