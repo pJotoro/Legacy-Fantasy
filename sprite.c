@@ -33,10 +33,10 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
 			switch (chunk_header.type) {
-			case ASE_CHUNK_TYPE_LAYER: {
+			case ASE_ChunkType_Layer: {
 				sd->n_layers += 1;
 			} break;
-			case ASE_CHUNK_TYPE_CELL: {
+			case ASE_ChunkType_Cell: {
 				sd->frames[frame_idx].n_cells += 1;
 			} break;
 			}
@@ -74,11 +74,11 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			SDL_ReadIOChecked(fs, raw_chunk, chunk_size);
 
 			switch (chunk_header.type) {
-			case ASE_CHUNK_TYPE_OLD_PALETTE: {
+			case ASE_ChunkType_OldPalette: {
 			} break;
-			case ASE_CHUNK_TYPE_OLD_PALETTE2: {
+			case ASE_ChunkType_OldPalette2: {
 			} break;
-			case ASE_CHUNK_TYPE_LAYER: {
+			case ASE_ChunkType_Layer: {
 				// TODO: tileset_idx and uuid
 				ASE_LayerChunk* chunk = raw_chunk;
 				SpriteLayer sprite_layer = {0};
@@ -86,7 +86,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 				sd->layers[layer_idx] = sprite_layer; layer_idx += 1;
 			} break;
-			case ASE_CHUNK_TYPE_CELL: {
+			case ASE_ChunkType_Cell: {
 				ASE_CellChunk* chunk = raw_chunk;
 				SpriteCell cell = {
 					.layer_idx = layer_idx,
@@ -95,13 +95,13 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					.offset.y = chunk->y,
 					.z_idx = (ssize_t)chunk->z_idx,
 				};
-				SDL_assert(chunk->type == ASE_CELL_TYPE_COMPRESSED_IMAGE);
+				SDL_assert(chunk->type == ASE_CellType_CompressedImage);
 				switch (chunk->type) {
-				case ASE_CELL_TYPE_RAW: {
+				case ASE_CellType_Raw: {
 				} break;
-				case ASE_CELL_TYPE_LINKED: {
+				case ASE_CellType_Linked: {
 				} break;
-				case ASE_CELL_TYPE_COMPRESSED_IMAGE: {
+				case ASE_CellType_CompressedImage: {
 					cell.size.x = chunk->compressed_image.w;
 					cell.size.y = chunk->compressed_image.h;
 
@@ -121,27 +121,27 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					cell.surf = surf;
 					cell.surf_backing = dst_buf;
 				} break;
-				case ASE_CELL_TYPE_COMPRESSED_TILEMAP: {
+				case ASE_CellType_CompressedTilemap: {
 				} break;
 				}
 				sd->frames[frame_idx].cells[cell_idx] = cell; cell_idx += 1;
 			} break;
-			case ASE_CHUNK_TYPE_CELL_EXTRA: {
+			case ASE_ChunkType_CellExtra: {
 				ASE_CellChunk* chunk = raw_chunk;
 				(void)chunk;
 				ASE_CellExtraChunk* extra_chunk = (ASE_CellExtraChunk*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellExtraChunk));
 				(void)extra_chunk;
 			} break;
-			case ASE_CHUNK_TYPE_COLOR_PROFILE: {
+			case ASE_ChunkType_ColorProfile: {
 				ASE_ColorProfileChunk* chunk = raw_chunk;
 				switch (chunk->type) {
-				case ASE_COLOR_PROFILE_TYPE_NONE: {
+				case ASE_ColorProfileType_None: {
 
 				} break;
-				case ASE_COLOR_PROFILE_TYPE_SRGB: {
+				case ASE_ColorProfileType_SRGB: {
 
 				} break;
-				case ASE_COLOR_PROFILE_TYPE_EMBEDDED_ICC: {
+				case ASE_ColorProfileType_EmbeddedICC: {
 
 				} break;
 				default: {
@@ -149,17 +149,17 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				} break;
 				}
 			} break;
-			case ASE_CHUNK_TYPE_EXTERNAL_FILES: {
+			case ASE_ChunkType_ExternalFiles: {
 				ASE_ExternalFilesChunk* chunk = raw_chunk;
 				(void)chunk;
 				SDL_Log("ASE_CHUNK_TYPE_EXTERNAL_FILES");
 			} break;
-			case ASE_CHUNK_TYPE_DEPRECATED_MASK: {
+			case ASE_ChunkType_DeprecatedMask: {
 			} break;
-			case ASE_CHUNK_TYPE_PATH: {
+			case ASE_ChunkType_Path: {
 				SDL_Log("ASE_CHUNK_TYPE_PATH");
 			} break;
-			case ASE_CHUNK_TYPE_TAGS: {
+			case ASE_ChunkType_Tags: {
 				ASE_TagsChunk* chunk = raw_chunk;
 				ASE_Tag* tags = (ASE_Tag*)(chunk+1);
 				for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
@@ -173,17 +173,17 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 					#endif
 				}
 			} break;
-			case ASE_CHUNK_TYPE_PALETTE: {
+			case ASE_ChunkType_Palette: {
 				ASE_PaletteChunk* chunk = raw_chunk; // TODO: Do I have to do anything with this?
 				(void)chunk;
 			} break;
-			case ASE_CHUNK_TYPE_USER_DATA: {
+			case ASE_ChunkType_UserData: {
 				SDL_Log("ASE_CHUNK_TYPE_USER_DATA");
 			} break;
-			case ASE_CHUNK_TYPE_SLICE: {
+			case ASE_ChunkType_Slice: {
 				SDL_Log("ASE_CHUNK_TYPE_SLICE");
 			} break;
-			case ASE_CHUNK_TYPE_TILESET: {
+			case ASE_ChunkType_Tileset: {
 				SDL_Log("ASE_CHUNK_TYPE_TILESET");
 			} break;
 			default: {
