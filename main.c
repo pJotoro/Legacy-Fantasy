@@ -54,6 +54,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
+	{
+		size_t file_len;
+		void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
+		ctx->ldtk = JSON_ParseWithLength((const char*)file_data, file_len);
+		SDL_free(file_data);
+	}
+
 	// InitTime
 	{
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
