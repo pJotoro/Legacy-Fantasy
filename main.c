@@ -54,11 +54,83 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
+	// LoadLevelJSON
 	{
-		size_t file_len;
-		void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
-		ctx->ldtk = JSON_ParseWithLength((const char*)file_data, file_len);
-		SDL_free(file_data);
+		JSON_Node* head;
+		{
+			size_t file_len;
+			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
+			head = JSON_ParseWithLength((const char*)file_data, file_len);
+			SDL_free(file_data);
+		}
+		
+		SDL_assert(HAS_FLAG(head->type, JSON_Object));
+
+		JSON_Node* cur;
+		JSON_ArrayForEach(cur, head->child) {
+			if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "levels") == 0) {
+				JSON_Node* levels = cur;
+				JSON_ArrayForEach(cur, levels->child) {
+					SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+					JSON_Node* level = cur;
+					JSON_ArrayForEach(cur, level->child) {
+						if (HAS_FLAG(cur->type, JSON_Array)) {
+							
+						}
+					}
+					cur = level;
+				}
+				cur = levels;
+			}
+			switch (cur->type) {
+			case JSON_Invalid: {
+				
+			} break;
+			case JSON_False: {
+				
+			} break;
+			case JSON_True: {
+				
+			} break;
+			case JSON_NULL: {
+				
+			} break;
+			case JSON_Number: {
+				
+			} break;
+			case JSON_String: {
+				
+			} break;
+			case JSON_Array: {
+
+			} break;
+			case JSON_Object: {
+				if () {
+					JSON_Node* levels_cur;
+					JSON_ArrayForEach(levels_cur, cur->child) {
+						bool is_reference = HAS_FLAG(levels_cur->type, JSON_IsReference); levels_cur->type &= ~JSON_IsReference;
+						bool string_is_const = HAS_FLAG(levels_cur->type, JSON_StringIsConst); levels_cur->type &= ~JSON_StringIsConst;
+
+						(void)is_reference; (void)string_is_const;
+
+						if (levels_cur->type == JSON_String) {
+							JSON_Node* cur;
+							JSON_ArrayForEach(cur, levels_cur->child) {
+								LoadLevelElement(ctx, cur); // I only call this function here becaues the nesting is getting so crazy.
+							}
+						}
+					}
+				}
+			} break;
+			case JSON_Raw: {
+
+			} break;
+			default: {
+				SDL_assert(false);
+			} break;
+		}
+
+		JSON_Delete(head);
 	}
 
 	// InitTime

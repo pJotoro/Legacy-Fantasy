@@ -160,8 +160,6 @@ typedef struct Context {
 	Anim selected_anim;
 
 	ivec2s selected_tile;
-
-	JSON_Node* ldtk;
 } Context;
 
 void UpdatePlayer(Context* ctx);
