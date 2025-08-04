@@ -161,7 +161,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		#endif
 	}
 
-	LoadLevel(ctx);
+	// LoadLevel(ctx);
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 	if (ctx->sprite_tests_failed > 0) {
@@ -376,22 +376,22 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		// RenderLevel
-		{
-			static Sprite spr_tiles;
-			static bool initialized_sprites = false;
-			if (!initialized_sprites) {
-				initialized_sprites = true;
-				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-			}
+		// {
+		// 	static Sprite spr_tiles;
+		// 	static bool initialized_sprites = false;
+		// 	if (!initialized_sprites) {
+		// 		initialized_sprites = true;
+		// 		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+		// 	}
 
-			for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
-				for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
-					Tile tile = GetTile(&ctx->level, level_pos);
-					ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
-					DrawSpriteTile(ctx, spr_tiles, tile, pos);
-				}
-			}
-		}
+		// 	for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
+		// 		for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
+		// 			Tile tile = GetTile(&ctx->level, level_pos);
+		// 			ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
+		// 			DrawSpriteTile(ctx, spr_tiles, tile, pos);
+		// 		}
+		// 	}
+		// }
 
 		// RenderSelectedTexture
 		{
@@ -583,65 +583,65 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		// PlayerCollision
-		if (ctx->player.vel.x < 0.0f) {
-			Rect side;
-			side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
-			side.min.y = ctx->player.pos.y + 1;
-			side.max.x = side.min.x + 1;
-			side.max.y = side.min.y + ctx->player.size.y - 2;
-			Rect tile;
-			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				int32_t old_pos = ctx->player.pos.x;
-				ctx->player.pos.x = tile.max.x;
-				if (ctx->player.pos.x > old_pos) {
-					ctx->player.pos.x = old_pos;
-				}
-				conserved_vel.x = ctx->player.vel.x;
-				ctx->player.vel.x = 0.0f;
-			}
-		} else if (ctx->player.vel.x > 0.0f) {
-			Rect side;
-			side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
-			side.min.y = ctx->player.pos.y + 1;
-			side.max.x = side.min.x + 1;
-			side.max.y = side.min.y + ctx->player.size.y - 2;
-			Rect tile;
-			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				int32_t old_pos = ctx->player.pos.x;
-				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
-				if (ctx->player.pos.x < old_pos) {
-					ctx->player.pos.x = old_pos;
-				}
-				conserved_vel.x = ctx->player.vel.x;
-				ctx->player.vel.x = 0.0f;
-			}
-		}
+		// if (ctx->player.vel.x < 0.0f) {
+		// 	Rect side;
+		// 	side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
+		// 	side.min.y = ctx->player.pos.y + 1;
+		// 	side.max.x = side.min.x + 1;
+		// 	side.max.y = side.min.y + ctx->player.size.y - 2;
+		// 	Rect tile;
+		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+		// 		int32_t old_pos = ctx->player.pos.x;
+		// 		ctx->player.pos.x = tile.max.x;
+		// 		if (ctx->player.pos.x > old_pos) {
+		// 			ctx->player.pos.x = old_pos;
+		// 		}
+		// 		conserved_vel.x = ctx->player.vel.x;
+		// 		ctx->player.vel.x = 0.0f;
+		// 	}
+		// } else if (ctx->player.vel.x > 0.0f) {
+		// 	Rect side;
+		// 	side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
+		// 	side.min.y = ctx->player.pos.y + 1;
+		// 	side.max.x = side.min.x + 1;
+		// 	side.max.y = side.min.y + ctx->player.size.y - 2;
+		// 	Rect tile;
+		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+		// 		int32_t old_pos = ctx->player.pos.x;
+		// 		ctx->player.pos.x = tile.min.x - ctx->player.size.x;
+		// 		if (ctx->player.pos.x < old_pos) {
+		// 			ctx->player.pos.x = old_pos;
+		// 		}
+		// 		conserved_vel.x = ctx->player.vel.x;
+		// 		ctx->player.vel.x = 0.0f;
+		// 	}
+		// }
 
-		if (ctx->player.vel.y < 0.0f) {
-			Rect side;
-			side.min.x = ctx->player.pos.x + 1; 
-			side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
-			side.max.x = side.min.x + ctx->player.size.x - 2;
-			side.max.y = side.min.y + 1;
-			Rect tile;
-			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
-				ctx->player.vel.y = 0.0f;
-			}
-		} else if (ctx->player.vel.y > 0.0f) {
-			Rect side;
-			side.min.x = ctx->player.pos.x + 1; 
-			side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
-			side.max.x = side.min.x + ctx->player.size.x - 2;
-			side.max.y = side.min.y + 1;
-			Rect tile;
-			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
-				ctx->player.vel.y = 0.0f;
-				ctx->player.touching_floor = 10;
-				ctx->player.jump_released = false;
-			}
-		}
+		// if (ctx->player.vel.y < 0.0f) {
+		// 	Rect side;
+		// 	side.min.x = ctx->player.pos.x + 1; 
+		// 	side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
+		// 	side.max.x = side.min.x + ctx->player.size.x - 2;
+		// 	side.max.y = side.min.y + 1;
+		// 	Rect tile;
+		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+		// 		ctx->player.pos.y = tile.min.y + ctx->player.size.y;
+		// 		ctx->player.vel.y = 0.0f;
+		// 	}
+		// } else if (ctx->player.vel.y > 0.0f) {
+		// 	Rect side;
+		// 	side.min.x = ctx->player.pos.x + 1; 
+		// 	side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
+		// 	side.max.x = side.min.x + ctx->player.size.x - 2;
+		// 	side.max.y = side.min.y + 1;
+		// 	Rect tile;
+		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+		// 		ctx->player.pos.y = tile.min.y - ctx->player.size.y;
+		// 		ctx->player.vel.y = 0.0f;
+		// 		ctx->player.touching_floor = 10;
+		// 		ctx->player.jump_released = false;
+		// 	}
+		// }
 
 		{
 			ctx->player.pos_remainder = glms_vec2_add(ctx->player.pos_remainder, ctx->player.vel);

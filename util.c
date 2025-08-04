@@ -31,20 +31,20 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
     return !(d0 | d1 | d2 | d3);
 }
 
-FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (ivec2s tile_pos = {0, 0}; tile_pos.y < level->size.y; tile_pos.y += 1) {
-        for (tile_pos.x = 0; tile_pos.x < level->size.x; tile_pos.x += 1) {
-            if (IsSolid(level, tile_pos)) {
-                Rect tile_rect = RectFromTile(tile_pos);
-                if (RectsIntersect(a, tile_rect)) {
-                    if (b) *b = tile_rect;
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
+// FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
+//     for (ivec2s tile_pos = {0, 0}; tile_pos.y < level->size.y; tile_pos.y += 1) {
+//         for (tile_pos.x = 0; tile_pos.x < level->size.x; tile_pos.x += 1) {
+//             if (IsSolid(level, tile_pos)) {
+//                 Rect tile_rect = RectFromTile(tile_pos);
+//                 if (RectsIntersect(a, tile_rect)) {
+//                     if (b) *b = tile_rect;
+//                     return true;
+//                 }
+//             }
+//         }
+//     }
+//     return false;
+// }
 
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 	int32_t x = radius;
