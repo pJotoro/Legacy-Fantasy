@@ -74,7 +74,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					SDL_assert(HAS_FLAG(cur->type, JSON_Object));
 					JSON_Node* level = cur;
 					JSON_ArrayForEach(cur, level) {
-						if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "layerInstances")) {
+						if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "layerInstances") == 0) {
 							JSON_Node* layer = cur;
 							JSON_ArrayForEach(cur, layer) {
 								SDL_assert(HAS_FLAG(cur->type, JSON_Object));
