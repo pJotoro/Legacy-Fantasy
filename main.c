@@ -45,6 +45,16 @@ void ResetGame(Context* ctx) {
 	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
+void ParseTile(Context* ctx, JSON_Node* cur) {
+	(void)ctx;
+	(void)cur;
+}
+
+void ParseEntity(Context* ctx, JSON_Node* cur) {
+	(void)ctx;
+	(void)cur;	
+}
+
 int32_t main(int32_t argc, char* argv[]) {
 	(void)argc;
 	(void)argv;
@@ -80,12 +90,23 @@ int32_t main(int32_t argc, char* argv[]) {
 								SDL_assert(HAS_FLAG(cur->type, JSON_Object));
 								JSON_Node* layer_prop = cur;
 								JSON_ArrayForEach(cur, layer_prop) {
-									if (SDL_strcmp(cur->string, "gridTiles") == 0) {
-										// TODO: parse grid tiles.
-										SDL_Log("gridTiles");
-									} else if (SDL_strcmp(cur->string, "entityInstances") == 0) {
-										// TODO: parse entity info.
-										SDL_Log("entityInstances");
+									if (HAS_FLAG(cur->type, JSON_Array)) {
+										if (SDL_strcmp(cur->string, "gridTiles") == 0) {
+											JSON_Node* tiles = cur;
+											JSON_ArrayForEach(cur, tiles) {
+												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+												ParseTile(ctx, cur);
+											}
+											cur = tiles;
+										} else if (SDL_strcmp(cur->string, "entityInstances") == 0) {
+											JSON_Node* entities = cur;
+											JSON_ArrayForEach(cur, entities) {
+												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+												ParseEntity(ctx, cur);
+											}
+											cur = entities;
+										}
+
 									}
 								}
 								cur = layer_prop;
