@@ -423,22 +423,26 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		// RenderLevel
-		// {
-		// 	static Sprite spr_tiles;
-		// 	static bool initialized_sprites = false;
-		// 	if (!initialized_sprites) {
-		// 		initialized_sprites = true;
-		// 		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-		// 	}
+		{
+			static Sprite spr_tiles;
+			static bool initialized_sprites = false;
+			if (!initialized_sprites) {
+				initialized_sprites = true;
+				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+			}
 
-		// 	for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
-		// 		for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
-		// 			Tile tile = GetTile(&ctx->level, level_pos);
-		// 			ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
-		// 			DrawSpriteTile(ctx, spr_tiles, tile, pos);
-		// 		}
-		// 	}
-		// }
+			for (size_t tile_idx = 0; tile_idx < ctx->level.n_tiles; tile_idx += 1) {
+				DrawSpriteTile(ctx, spr_tiles, ctx->level.tiles[tile_idx].src, ctx->level.tiles[tile_idx].dst);
+			}
+
+			// for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
+			// 	for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
+			// 		Tile tile = GetTile(&ctx->level, level_pos);
+			// 		ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
+			// 		DrawSpriteTile(ctx, spr_tiles, tile, pos);
+			// 	}
+			// }
+		}
 
 		// RenderSelectedTexture
 		{

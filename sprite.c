@@ -263,27 +263,26 @@ void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir) {
 	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
-void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos) {
-	if (tile.x == -1) return;
-
-	vec2s pos = vec2_from_ivec2(glms_ivec2_scale(ipos, TILE_SIZE));
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
 	SDL_assert(sd->frames[0].n_cells == 1);
-	SDL_assert(tile.x >= 0 && tile.x*sd->grid_size.x < sd->size.x);
-	SDL_assert(tile.y >= 0 && tile.y*sd->grid_size.y < sd->size.y);
+
+	// SDL_assert(src.x >= 0 && src.x*sd->grid_size.x < sd->size.x);
+	// SDL_assert(src.y >= 0 && src.y*sd->grid_size.y < sd->size.y);
 
 	SDL_Texture* texture = sd->frames[0].cells[0].texture;
+
 	SDL_FRect srcrect = {
-		(float)(tile.x*sd->grid_size.x + sd->grid_offset.x),
-		(float)(tile.y*sd->grid_size.y + sd->grid_offset.y),
+		(float)src.x,
+		(float)src.y,
 		(float)sd->grid_size.x,
 		(float)sd->grid_size.y,
 	};
 	SDL_FRect dstrect = {
-		pos.x,
-		pos.y,
+		(float)dst.x,
+		(float)dst.y,
 		(float)(sd->grid_size.x),
 		(float)(sd->grid_size.y),
 	};

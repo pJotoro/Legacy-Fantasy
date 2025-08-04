@@ -108,6 +108,7 @@ typedef struct Tile {
 typedef struct Level {
 	Tile* tiles; 
 	size_t n_tiles;
+	ivec2s size;
 	SDL_Time modify_time;
 } Level;
 
