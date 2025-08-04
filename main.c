@@ -46,9 +46,19 @@ void ResetGame(Context* ctx) {
 }
 
 // https://ldtk.io/json/#ldtk-Tile
-void ParseTile(Level* level, JSON_Node* cur) {
-	UNUSED(level);
-	UNUSED(cur);
+void ParseTile(Level* level, JSON_Node* cur, size_t tile_idx) {
+	JSON_Node* px = cur->child; SDL_assert(px); SDL_assert(HAS_FLAG(px->type, JSON_Array));
+	JSON_Node* px_x = px->child; SDL_assert(px_x);
+	JSON_Node* px_y = px_x->next; SDL_assert(px_y);
+
+	JSON_Node* src = px->next; SDL_assert(src); SDL_assert(HAS_FLAG(src->type, JSON_Array));
+	JSON_Node* src_x = src->child; SDL_assert(src_x);
+	JSON_Node* src_y = src_x->next; SDL_assert(src_y);
+
+	level->tiles[tile_idx].src.x = src_x->valueint;
+	level->tiles[tile_idx].src.y = src_y->valueint;
+	level->tiles[tile_idx].dst.x = px_x->valueint;
+	level->tiles[tile_idx].dst.y = px_y->valueint;
 }
 
 // Really ParsePlayer for now
@@ -78,6 +88,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		SDL_assert(HAS_FLAG(head->type, JSON_Object));
 
+		bool parsed_tiles = false;
+		bool parsed_entities = false;
+
 		JSON_Node* cur;
 		JSON_ArrayForEach(cur, head) {
 			if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "levels") == 0) {
@@ -93,7 +106,9 @@ int32_t main(int32_t argc, char* argv[]) {
 								JSON_Node* layer_prop = cur;
 								JSON_ArrayForEach(cur, layer_prop) {
 									if (HAS_FLAG(cur->type, JSON_Array)) {
-										if (SDL_strcmp(cur->string, "gridTiles") == 0) {
+										if (!parsed_tiles && SDL_strcmp(cur->string, "gridTiles") == 0) {
+											parsed_tiles = true;
+
 											JSON_Node* tiles = cur;
 											JSON_ArrayForEach(cur, tiles) {
 												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
@@ -101,11 +116,15 @@ int32_t main(int32_t argc, char* argv[]) {
 											}
 											ctx->level.tiles = SDL_malloc(sizeof(Tile) * ctx->level.n_tiles); SDL_CHECK(ctx->level.tiles);
 											cur = tiles;
+											size_t tile_idx = 0;
 											JSON_ArrayForEach(cur, tiles) {
-												ParseTile(&ctx->level, cur);
+												ParseTile(&ctx->level, cur, tile_idx);
+												tile_idx += 1;
 											}
 											cur = tiles;
-										} else if (SDL_strcmp(cur->string, "entityInstances") == 0) {
+										} else if (!parsed_entities && SDL_strcmp(cur->string, "entityInstances") == 0) {
+											parsed_entities = true;
+
 											JSON_Node* entities = cur;
 											JSON_ArrayForEach(cur, entities) {
 												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
