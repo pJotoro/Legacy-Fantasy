@@ -67,67 +67,36 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_assert(HAS_FLAG(head->type, JSON_Object));
 
 		JSON_Node* cur;
-		JSON_ArrayForEach(cur, head->child) {
+		JSON_ArrayForEach(cur, head) {
 			if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "levels") == 0) {
 				JSON_Node* levels = cur;
-				JSON_ArrayForEach(cur, levels->child) {
+				JSON_ArrayForEach(cur, levels) {
 					SDL_assert(HAS_FLAG(cur->type, JSON_Object));
 					JSON_Node* level = cur;
-					JSON_ArrayForEach(cur, level->child) {
-						if (HAS_FLAG(cur->type, JSON_Array)) {
-							
+					JSON_ArrayForEach(cur, level) {
+						if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "layerInstances")) {
+							JSON_Node* layer = cur;
+							JSON_ArrayForEach(cur, layer) {
+								SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+								JSON_Node* layer_prop = cur;
+								JSON_ArrayForEach(cur, layer_prop) {
+									if (SDL_strcmp(cur->string, "gridTiles") == 0) {
+										// TODO: parse grid tiles.
+										SDL_Log("gridTiles");
+									} else if (SDL_strcmp(cur->string, "entityInstances") == 0) {
+										// TODO: parse entity info.
+										SDL_Log("entityInstances");
+									}
+								}
+								cur = layer_prop;
+							}
+							cur = layer;
 						}
 					}
 					cur = level;
 				}
 				cur = levels;
 			}
-			switch (cur->type) {
-			case JSON_Invalid: {
-				
-			} break;
-			case JSON_False: {
-				
-			} break;
-			case JSON_True: {
-				
-			} break;
-			case JSON_NULL: {
-				
-			} break;
-			case JSON_Number: {
-				
-			} break;
-			case JSON_String: {
-				
-			} break;
-			case JSON_Array: {
-
-			} break;
-			case JSON_Object: {
-				if () {
-					JSON_Node* levels_cur;
-					JSON_ArrayForEach(levels_cur, cur->child) {
-						bool is_reference = HAS_FLAG(levels_cur->type, JSON_IsReference); levels_cur->type &= ~JSON_IsReference;
-						bool string_is_const = HAS_FLAG(levels_cur->type, JSON_StringIsConst); levels_cur->type &= ~JSON_StringIsConst;
-
-						(void)is_reference; (void)string_is_const;
-
-						if (levels_cur->type == JSON_String) {
-							JSON_Node* cur;
-							JSON_ArrayForEach(cur, levels_cur->child) {
-								LoadLevelElement(ctx, cur); // I only call this function here becaues the nesting is getting so crazy.
-							}
-						}
-					}
-				}
-			} break;
-			case JSON_Raw: {
-
-			} break;
-			default: {
-				SDL_assert(false);
-			} break;
 		}
 
 		JSON_Delete(head);
@@ -146,7 +115,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 1
+#if 0
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
