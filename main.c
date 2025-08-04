@@ -46,13 +46,14 @@ void ResetGame(Context* ctx) {
 }
 
 // https://ldtk.io/json/#ldtk-Tile
-void ParseTile(Context* ctx, JSON_Node* cur) {
-	UNUSED(ctx);
+void ParseTile(Level* level, JSON_Node* cur) {
+	UNUSED(level);
 	UNUSED(cur);
 }
 
-void ParseEntity(Context* ctx, JSON_Node* cur) {
-	UNUSED(ctx);
+// Really ParsePlayer for now
+void ParseEntity(Entity* entity, JSON_Node* cur) {
+	UNUSED(entity);
 	UNUSED(cur);	
 }
 
@@ -65,7 +66,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
-	// LoadLevelJSON
+	// LoadLevel
 	{
 		JSON_Node* head;
 		{
@@ -96,14 +97,19 @@ int32_t main(int32_t argc, char* argv[]) {
 											JSON_Node* tiles = cur;
 											JSON_ArrayForEach(cur, tiles) {
 												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-												ParseTile(ctx, cur);
+												ctx->level.n_tiles += 1;
+											}
+											ctx->level.tiles = SDL_malloc(sizeof(Tile) * ctx->level.n_tiles); SDL_CHECK(ctx->level.tiles);
+											cur = tiles;
+											JSON_ArrayForEach(cur, tiles) {
+												ParseTile(&ctx->level, cur);
 											}
 											cur = tiles;
 										} else if (SDL_strcmp(cur->string, "entityInstances") == 0) {
 											JSON_Node* entities = cur;
 											JSON_ArrayForEach(cur, entities) {
 												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-												ParseEntity(ctx, cur);
+												ParseEntity(&ctx->player, cur);
 											}
 											cur = entities;
 										}
@@ -712,7 +718,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &ctx->player.anim, loop);
 
-	if (ctx->player.pos.y > (float)(ctx->level.size.y+500)) {
+	if (ctx->player.pos.y > 1000.0f) {
 		ResetGame(ctx);
 	}
 }

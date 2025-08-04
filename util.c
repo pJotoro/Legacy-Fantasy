@@ -6,8 +6,6 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 	return (ivec2s){(int32_t)SDL_floorf(v.x), (int32_t)SDL_floorf(v.y)};
 }
 
-typedef ivec2s Tile;
-
 FORCEINLINE Rect RectFromTile(ivec2s tile_pos) {
     Rect res;
     res.min = glms_ivec2_scale(tile_pos, TILE_SIZE);
@@ -15,13 +13,13 @@ FORCEINLINE Rect RectFromTile(ivec2s tile_pos) {
 	return res;
 }
 
-FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
-	return tile.x >= 0 && tile.x < level->size.x && tile.y >= 0 && tile.y < level->size.y;
-}
+// FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
+// 	return tile.x >= 0 && tile.x < level->size.x && tile.y >= 0 && tile.y < level->size.y;
+// }
 
-FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
-	return rect.min.x >= 0.0f && rect.max.x < (level->size.x+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.max.y < (level->size.y+1)*TILE_SIZE;
-}
+// FORCEINLINE bool RectIsValid(Level* level, Rect rect) {
+// 	return rect.min.x >= 0.0f && rect.max.x < (level->size.x+1)*TILE_SIZE && rect.min.y >= 0.0f && rect.max.y < (level->size.y+1)*TILE_SIZE;
+// }
 
 FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 	bool d0 = b.max.x < a.min.x;
