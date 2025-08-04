@@ -46,18 +46,18 @@ void ResetGame(Context* ctx) {
 }
 
 void ParseTile(Context* ctx, JSON_Node* cur) {
-	(void)ctx;
-	(void)cur;
+	UNUSED(ctx);
+	UNUSED(cur);
 }
 
 void ParseEntity(Context* ctx, JSON_Node* cur) {
-	(void)ctx;
-	(void)cur;	
+	UNUSED(ctx);
+	UNUSED(cur);	
 }
 
 int32_t main(int32_t argc, char* argv[]) {
-	(void)argc;
-	(void)argv;
+	UNUSED(argc);
+	UNUSED(argv);
 
 	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 	SDL_CHECK(TTF_Init());

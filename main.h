@@ -10,6 +10,8 @@
 #define STRINGIFY(X) #X
 #define CONCAT(A,B) A##B
 
+#define UNUSED(X) (void)X
+
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 

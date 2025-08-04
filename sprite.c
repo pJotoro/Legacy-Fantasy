@@ -128,9 +128,9 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			} break;
 			case ASE_ChunkType_CellExtra: {
 				ASE_CellChunk* chunk = raw_chunk;
-				(void)chunk;
+				UNUSED(chunk);
 				ASE_CellExtraChunk* extra_chunk = (ASE_CellExtraChunk*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellExtraChunk));
-				(void)extra_chunk;
+				UNUSED(extra_chunk);
 			} break;
 			case ASE_ChunkType_ColorProfile: {
 				ASE_ColorProfileChunk* chunk = raw_chunk;
@@ -151,7 +151,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			} break;
 			case ASE_ChunkType_ExternalFiles: {
 				ASE_ExternalFilesChunk* chunk = raw_chunk;
-				(void)chunk;
+				UNUSED(chunk);
 				SDL_Log("ASE_CHUNK_TYPE_EXTERNAL_FILES");
 			} break;
 			case ASE_ChunkType_DeprecatedMask: {
@@ -163,7 +163,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				ASE_TagsChunk* chunk = raw_chunk;
 				ASE_Tag* tags = (ASE_Tag*)(chunk+1);
 				for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
-					ASE_Tag* tag = &tags[tag_idx]; (void)tag;
+					ASE_Tag* tag = &tags[tag_idx]; UNUSED(tag);
 					#if 0
 					char* name = SDL_malloc(tag->name.len + 1); SDL_CHECK(name);
 					SDL_strlcpy(name, (char*)(tag+1), tag->name.len + 1);
@@ -175,7 +175,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			} break;
 			case ASE_ChunkType_Palette: {
 				ASE_PaletteChunk* chunk = raw_chunk; // TODO: Do I have to do anything with this?
-				(void)chunk;
+				UNUSED(chunk);
 			} break;
 			case ASE_ChunkType_UserData: {
 				SDL_Log("ASE_CHUNK_TYPE_USER_DATA");
