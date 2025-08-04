@@ -116,10 +116,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 					SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
 					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
-					// SDL_DestroySurface(surf);
-					// SDL_free(dst_buf);
-					cell.surf = surf;
-					cell.surf_backing = dst_buf;
+					SDL_DestroySurface(surf);
+					SDL_free(dst_buf);
 				} break;
 				case ASE_CellType_CompressedTilemap: {
 				} break;

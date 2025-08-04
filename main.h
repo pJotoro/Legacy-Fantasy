@@ -43,10 +43,7 @@ typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
 	ssize_t z_idx;
-	SDL_Texture* texture;
-	
-	SDL_Surface* surf;
-	void* surf_backing;
+	SDL_Texture* texture;	
 } SpriteCell;
 
 typedef struct SpriteFrame {
