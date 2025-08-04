@@ -45,6 +45,7 @@ void ResetGame(Context* ctx) {
 	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
+// https://ldtk.io/json/#ldtk-Tile
 void ParseTile(Context* ctx, JSON_Node* cur) {
 	UNUSED(ctx);
 	UNUSED(cur);

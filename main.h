@@ -100,11 +100,14 @@ typedef struct Nuklear {
 } Nuklear;
 #endif
 
-typedef ivec2s Tile;
+typedef struct Tile {
+	ivec2s src; // position in sprite
+	ivec2s dst; // position in layer
+} Tile;
 
 typedef struct Level {
 	Tile* tiles; 
-	ivec2s size;
+	size_t n_tiles;
 	SDL_Time modify_time;
 } Level;
 
