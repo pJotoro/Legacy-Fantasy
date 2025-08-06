@@ -31,10 +31,12 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
     for (size_t tile_idx = 0; tile_idx < level->n_tiles; tile_idx += 1) {
-        Rect tile_rect = RectFromTile(level->tiles[tile_idx]);
-        if (RectsIntersect(a, tile_rect)) {
-            if (b) *b = tile_rect;
-            return true;
+        if (HAS_FLAG(level->tiles[tile_idx].flags, TileFlags_Solid)) {
+            Rect tile_rect = RectFromTile(level->tiles[tile_idx]);
+            if (RectsIntersect(a, tile_rect)) {
+                if (b) *b = tile_rect;
+                return true;
+            }
         }
     }
     return false;

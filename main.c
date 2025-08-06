@@ -91,61 +91,114 @@ int32_t main(int32_t argc, char* argv[]) {
 		bool parsed_tiles = false;
 		bool parsed_entities = false;
 
+		int32_t* tiles_collide = NULL;
+		size_t n_tiles_collide = 0;
+
 		JSON_Node* cur;
 		JSON_ArrayForEach(cur, head) {
 			if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "levels") == 0) {
-				JSON_Node* levels = cur;
-				JSON_ArrayForEach(cur, levels) {
-					SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-					JSON_Node* level = cur;
-					JSON_ArrayForEach(cur, level) {
-						if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "layerInstances") == 0) {
-							JSON_Node* layer = cur;
-							JSON_ArrayForEach(cur, layer) {
-								SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-								JSON_Node* layer_prop = cur;
-								JSON_ArrayForEach(cur, layer_prop) {
-									if (HAS_FLAG(cur->type, JSON_Array)) {
-										if (!parsed_tiles && SDL_strcmp(cur->string, "gridTiles") == 0) {
-											parsed_tiles = true;
-
-											JSON_Node* tiles = cur;
-											JSON_ArrayForEach(cur, tiles) {
-												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-												ctx->level.n_tiles += 1;
+				if (SDL_strcmp(cur->string, "defs") == 0) {
+					JSON_Node* defs = cur;
+					JSON_ArrayForEach(cur, defs) {
+						if (!cur->string) {
+							SDL_Log("empty string");
+						} else if (SDL_strcmp(cur->string, "tilesets") == 0) {
+							SDL_Log("tilesets");
+							JSON_Node* tilesets = cur;
+							JSON_ArrayForEach(cur, tilesets) {
+								JSON_Node* tileset = cur;
+								JSON_ArrayForEach(cur, tileset) {
+									if (SDL_strcmp(cur->string, "enumTags") == 0) {
+										JSON_Node* enum_tags = cur;
+										JSON_ArrayForEach(cur, enum_tags) {
+											JSON_Node* enum_tag = cur;
+											JSON_ArrayForEach(cur, enum_tag) {
+												if (SDL_strcmp(cur->string, "tileIds") == 0) {
+													JSON_Node* tile_ids = cur;
+													JSON_ArrayForEach(cur, tile_ids) {
+														n_tiles_collide += 1;
+													}
+													tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
+													cur = tile_ids;
+													size_t tile_idx = 0;
+													JSON_ArrayForEach(cur, tile_ids) {
+														tiles_collide[tile_idx++] = cur->valueint;
+													}
+													cur = tile_ids;
+												}
 											}
-											ctx->level.tiles = SDL_malloc(sizeof(Tile) * ctx->level.n_tiles); SDL_CHECK(ctx->level.tiles);
-											cur = tiles;
-											size_t tile_idx = 0;
-											JSON_ArrayForEach(cur, tiles) {
-												ParseTile(cur, &ctx->level.tiles[tile_idx]);
-												tile_idx += 1;
-											}
-											cur = tiles;
-										} else if (!parsed_entities && SDL_strcmp(cur->string, "entityInstances") == 0) {
-											parsed_entities = true;
-
-											JSON_Node* entities = cur;
-											JSON_ArrayForEach(cur, entities) {
-												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-												ParseEntity(cur, &ctx->player);
-											}
-											cur = entities;
+											cur = enum_tag;
 										}
-
+										cur = enum_tags;
 									}
 								}
-								cur = layer_prop;
+								cur = tileset;
 							}
-							cur = layer;
+							cur = tilesets;
 						}
 					}
-					cur = level;
+					cur = defs;
+				} else if (SDL_strcmp(cur->string, "levels") == 0) {
+					JSON_Node* levels = cur;
+					JSON_ArrayForEach(cur, levels) {
+						SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+						JSON_Node* level = cur;
+						JSON_ArrayForEach(cur, level) {
+							if (HAS_FLAG(cur->type, JSON_Array) && SDL_strcmp(cur->string, "layerInstances") == 0) {
+								JSON_Node* layer = cur;
+								JSON_ArrayForEach(cur, layer) {
+									SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+									JSON_Node* layer_prop = cur;
+									JSON_ArrayForEach(cur, layer_prop) {
+										if (HAS_FLAG(cur->type, JSON_Array)) {
+											if (!parsed_tiles && SDL_strcmp(cur->string, "gridTiles") == 0) {
+												parsed_tiles = true;
+
+												JSON_Node* tiles = cur;
+												JSON_ArrayForEach(cur, tiles) {
+													SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+													ctx->level.n_tiles += 1;
+												}
+												ctx->level.tiles = SDL_calloc(ctx->level.n_tiles, sizeof(Tile)); SDL_CHECK(ctx->level.tiles);
+												cur = tiles;
+												size_t tile_idx = 0;
+												JSON_ArrayForEach(cur, tiles) {
+													ParseTile(cur, &ctx->level.tiles[tile_idx]);
+													tile_idx += 1;
+												}
+												cur = tiles;
+											} else if (!parsed_entities && SDL_strcmp(cur->string, "entityInstances") == 0) {
+												parsed_entities = true;
+
+												JSON_Node* entities = cur;
+												JSON_ArrayForEach(cur, entities) {
+													SDL_assert(HAS_FLAG(cur->type, JSON_Object));
+													ParseEntity(cur, &ctx->player);
+												}
+												cur = entities;
+											}
+
+										}
+									}
+									cur = layer_prop;
+								}
+								cur = layer;
+							}
+						}
+						cur = level;
+					}
+					cur = levels;
 				}
-				cur = levels;
 			}
 		}
 
+		for (size_t i = 0; i < n_tiles_collide; i += 1) {
+			ssize_t tile_idx = (ssize_t)tiles_collide[i];
+			SDL_assert(tile_idx >= 0 && tile_idx < (ssize_t)ctx->level.n_tiles);
+			ctx->level.tiles[tile_idx].flags |= TileFlags_Solid;
+		}
+
+		SDL_free(tiles_collide);
 		JSON_Delete(head);
 	}
 
@@ -162,7 +215,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 1
+#if 0
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;

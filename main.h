@@ -100,9 +100,15 @@ typedef struct Nuklear {
 } Nuklear;
 #endif
 
+enum {
+	TileFlags_Solid = FLAG(0),
+};
+typedef uint32_t TileFlags;
+
 typedef struct Tile {
 	ivec2s src; // position in sprite
 	ivec2s dst; // position in layer
+	TileFlags flags;
 } Tile;
 
 typedef struct Level {
