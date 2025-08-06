@@ -113,11 +113,12 @@ int32_t main(int32_t argc, char* argv[]) {
 										JSON_ArrayForEach(cur, enum_tags) {
 											JSON_Node* enum_tag = cur;
 											JSON_ArrayForEach(cur, enum_tag) {
-												if (SDL_strcmp(cur->string, "tileIds") == 0) {
+												if (!n_tiles_collide && SDL_strcmp(cur->string, "tileIds") == 0) {
 													JSON_Node* tile_ids = cur;
 													JSON_ArrayForEach(cur, tile_ids) {
 														n_tiles_collide += 1;
 													}
+													if (!n_tiles_collide) continue;
 													tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
 													cur = tile_ids;
 													size_t tile_idx = 0;
