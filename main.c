@@ -46,7 +46,7 @@ void ResetGame(Context* ctx) {
 }
 
 // https://ldtk.io/json/#ldtk-Tile
-void ParseTile(Level* level, JSON_Node* cur, size_t tile_idx) {
+void ParseTile(JSON_Node* cur, Tile* tile) {
 	JSON_Node* px = cur->child; SDL_assert(px); SDL_assert(HAS_FLAG(px->type, JSON_Array));
 	JSON_Node* px_x = px->child; SDL_assert(px_x);
 	JSON_Node* px_y = px_x->next; SDL_assert(px_y);
@@ -55,14 +55,14 @@ void ParseTile(Level* level, JSON_Node* cur, size_t tile_idx) {
 	JSON_Node* src_x = src->child; SDL_assert(src_x);
 	JSON_Node* src_y = src_x->next; SDL_assert(src_y);
 
-	level->tiles[tile_idx].src.x = src_x->valueint;
-	level->tiles[tile_idx].src.y = src_y->valueint;
-	level->tiles[tile_idx].dst.x = px_x->valueint;
-	level->tiles[tile_idx].dst.y = px_y->valueint;
+	tile->src.x = src_x->valueint;
+	tile->src.y = src_y->valueint;
+	tile->dst.x = px_x->valueint;
+	tile->dst.y = px_y->valueint;
 }
 
 // Really ParsePlayer for now
-void ParseEntity(Entity* entity, JSON_Node* cur) {
+void ParseEntity(JSON_Node* cur, Entity* entity) {
 	UNUSED(entity);
 	UNUSED(cur);	
 }
@@ -118,7 +118,7 @@ int32_t main(int32_t argc, char* argv[]) {
 											cur = tiles;
 											size_t tile_idx = 0;
 											JSON_ArrayForEach(cur, tiles) {
-												ParseTile(&ctx->level, cur, tile_idx);
+												ParseTile(cur, &ctx->level.tiles[tile_idx]);
 												tile_idx += 1;
 											}
 											cur = tiles;
@@ -128,7 +128,7 @@ int32_t main(int32_t argc, char* argv[]) {
 											JSON_Node* entities = cur;
 											JSON_ArrayForEach(cur, entities) {
 												SDL_assert(HAS_FLAG(cur->type, JSON_Object));
-												ParseEntity(&ctx->player, cur);
+												ParseEntity(cur, &ctx->player);
 											}
 											cur = entities;
 										}
@@ -607,7 +607,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	if (ctx->player.anim.sprite.idx != player_attack.idx) {
-		//ctx->player.vel.y += GRAVITY;
+		ctx->player.vel.y += GRAVITY;
 		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 
 		if (ctx->player.touching_floor) {
