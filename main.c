@@ -38,7 +38,7 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
 		.pos.x = TILE_SIZE*0, 
-		.pos.y = TILE_SIZE*0,
+		.pos.y = -TILE_SIZE*3,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -162,7 +162,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 0
+#if 1
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -413,13 +413,14 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		ivec2s render_area;
 		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
+		// ivec2s center_pos = glms_ivec2_divs(render_area, 2);
 
 		// RenderPlayer
 		{
-			ivec2s save_pos = ctx->player.pos;
-			ctx->player.pos = glms_ivec2_divs(render_area, 2);
+			// ivec2s save_pos = ctx->player.pos;
+			// ctx->player.pos = center_pos;
 			DrawEntity(ctx, &ctx->player);
-			ctx->player.pos = save_pos;
+			// ctx->player.pos = save_pos;
 		}
 
 		// RenderLevel
@@ -634,65 +635,65 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		// PlayerCollision
-		// if (ctx->player.vel.x < 0.0f) {
-		// 	Rect side;
-		// 	side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
-		// 	side.min.y = ctx->player.pos.y + 1;
-		// 	side.max.x = side.min.x + 1;
-		// 	side.max.y = side.min.y + ctx->player.size.y - 2;
-		// 	Rect tile;
-		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-		// 		int32_t old_pos = ctx->player.pos.x;
-		// 		ctx->player.pos.x = tile.max.x;
-		// 		if (ctx->player.pos.x > old_pos) {
-		// 			ctx->player.pos.x = old_pos;
-		// 		}
-		// 		conserved_vel.x = ctx->player.vel.x;
-		// 		ctx->player.vel.x = 0.0f;
-		// 	}
-		// } else if (ctx->player.vel.x > 0.0f) {
-		// 	Rect side;
-		// 	side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
-		// 	side.min.y = ctx->player.pos.y + 1;
-		// 	side.max.x = side.min.x + 1;
-		// 	side.max.y = side.min.y + ctx->player.size.y - 2;
-		// 	Rect tile;
-		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-		// 		int32_t old_pos = ctx->player.pos.x;
-		// 		ctx->player.pos.x = tile.min.x - ctx->player.size.x;
-		// 		if (ctx->player.pos.x < old_pos) {
-		// 			ctx->player.pos.x = old_pos;
-		// 		}
-		// 		conserved_vel.x = ctx->player.vel.x;
-		// 		ctx->player.vel.x = 0.0f;
-		// 	}
-		// }
+		if (ctx->player.vel.x < 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.min.y = ctx->player.pos.y + 1;
+			side.max.x = side.min.x + 1;
+			side.max.y = side.min.y + ctx->player.size.y - 2;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				int32_t old_pos = ctx->player.pos.x;
+				ctx->player.pos.x = tile.max.x;
+				if (ctx->player.pos.x > old_pos) {
+					ctx->player.pos.x = old_pos;
+				}
+				conserved_vel.x = ctx->player.vel.x;
+				ctx->player.vel.x = 0.0f;
+			}
+		} else if (ctx->player.vel.x > 0.0f) {
+			Rect side;
+			side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.min.y = ctx->player.pos.y + 1;
+			side.max.x = side.min.x + 1;
+			side.max.y = side.min.y + ctx->player.size.y - 2;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				int32_t old_pos = ctx->player.pos.x;
+				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
+				if (ctx->player.pos.x < old_pos) {
+					ctx->player.pos.x = old_pos;
+				}
+				conserved_vel.x = ctx->player.vel.x;
+				ctx->player.vel.x = 0.0f;
+			}
+		}
 
-		// if (ctx->player.vel.y < 0.0f) {
-		// 	Rect side;
-		// 	side.min.x = ctx->player.pos.x + 1; 
-		// 	side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
-		// 	side.max.x = side.min.x + ctx->player.size.x - 2;
-		// 	side.max.y = side.min.y + 1;
-		// 	Rect tile;
-		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-		// 		ctx->player.pos.y = tile.min.y + ctx->player.size.y;
-		// 		ctx->player.vel.y = 0.0f;
-		// 	}
-		// } else if (ctx->player.vel.y > 0.0f) {
-		// 	Rect side;
-		// 	side.min.x = ctx->player.pos.x + 1; 
-		// 	side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
-		// 	side.max.x = side.min.x + ctx->player.size.x - 2;
-		// 	side.max.y = side.min.y + 1;
-		// 	Rect tile;
-		// 	if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-		// 		ctx->player.pos.y = tile.min.y - ctx->player.size.y;
-		// 		ctx->player.vel.y = 0.0f;
-		// 		ctx->player.touching_floor = 10;
-		// 		ctx->player.jump_released = false;
-		// 	}
-		// }
+		if (ctx->player.vel.y < 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + 1; 
+			side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
+			side.max.x = side.min.x + ctx->player.size.x - 2;
+			side.max.y = side.min.y + 1;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
+				ctx->player.vel.y = 0.0f;
+			}
+		} else if (ctx->player.vel.y > 0.0f) {
+			Rect side;
+			side.min.x = ctx->player.pos.x + 1; 
+			side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
+			side.max.x = side.min.x + ctx->player.size.x - 2;
+			side.max.y = side.min.y + 1;
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
+				ctx->player.vel.y = 0.0f;
+				ctx->player.touching_floor = 10;
+				ctx->player.jump_released = false;
+			}
+		}
 
 		{
 			ctx->player.pos_remainder = glms_vec2_add(ctx->player.pos_remainder, ctx->player.vel);

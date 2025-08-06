@@ -6,9 +6,9 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 	return (ivec2s){(int32_t)SDL_floorf(v.x), (int32_t)SDL_floorf(v.y)};
 }
 
-FORCEINLINE Rect RectFromTile(ivec2s tile_pos) {
+FORCEINLINE Rect RectFromTile(Tile tile) {
     Rect res;
-    res.min = glms_ivec2_scale(tile_pos, TILE_SIZE);
+    res.min = tile.dst;
     res.max = glms_ivec2_adds(res.min, TILE_SIZE);
 	return res;
 }
@@ -29,20 +29,16 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
     return !(d0 | d1 | d2 | d3);
 }
 
-// FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-//     for (ivec2s tile_pos = {0, 0}; tile_pos.y < level->size.y; tile_pos.y += 1) {
-//         for (tile_pos.x = 0; tile_pos.x < level->size.x; tile_pos.x += 1) {
-//             if (IsSolid(level, tile_pos)) {
-//                 Rect tile_rect = RectFromTile(tile_pos);
-//                 if (RectsIntersect(a, tile_rect)) {
-//                     if (b) *b = tile_rect;
-//                     return true;
-//                 }
-//             }
-//         }
-//     }
-//     return false;
-// }
+FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
+    for (size_t tile_idx = 0; tile_idx < level->n_tiles; tile_idx += 1) {
+        Rect tile_rect = RectFromTile(level->tiles[tile_idx]);
+        if (RectsIntersect(a, tile_rect)) {
+            if (b) *b = tile_rect;
+            return true;
+        }
+    }
+    return false;
+}
 
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 	int32_t x = radius;
