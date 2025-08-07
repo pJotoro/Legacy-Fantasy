@@ -193,20 +193,17 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 			// TODO
-			const int32_t LEVEL_W = 38;
-			const int32_t LEVEL_H = 24; UNUSED(LEVEL_H);
+			const int32_t LEVEL_W = 24; UNUSED(LEVEL_W);
+			const int32_t LEVEL_H = 38; UNUSED(LEVEL_H);
 
 			for (size_t tile_idx = 0; tile_idx < ctx->level.n_tiles; tile_idx += 1) {
 				ivec2s src = ctx->level.tiles[tile_idx].src;
 				int32_t i = tiles_collide[tiles_collide_idx];
-				int32_t j = src.x/TILE_SIZE + src.y/TILE_SIZE*LEVEL_W;
+				int32_t j = (src.x + src.y*LEVEL_W)/TILE_SIZE;
 				if (i == j) {
 					ctx->level.tiles[tile_idx].flags |= TileFlags_Solid;
-					break;
 				}
 			}
-
-
 		}
 
 		SDL_free(tiles_collide);
