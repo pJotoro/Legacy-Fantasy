@@ -99,10 +99,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (SDL_strcmp(cur->string, "defs") == 0) {
 				JSON_Node* defs = cur;
 				JSON_ArrayForEach(cur, defs) {
-					if (!cur->string) {
-						SDL_Log("empty string");
-					} else if (SDL_strcmp(cur->string, "tilesets") == 0) {
-						SDL_Log("tilesets");
+					if (cur->string && SDL_strcmp(cur->string, "tilesets") == 0) {
 						JSON_Node* tilesets = cur;
 						JSON_ArrayForEach(cur, tilesets) {
 							JSON_Node* tileset = cur;

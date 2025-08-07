@@ -34,6 +34,9 @@ FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
         if (HAS_FLAG(level->tiles[tile_idx].flags, TileFlags_Solid)) {
             Rect tile_rect = RectFromTile(level->tiles[tile_idx]);
             if (RectsIntersect(a, tile_rect)) {
+                if (tile_rect.min.x == 4 && tile_rect.min.y == 13) {
+                    SDL_TriggerBreakpoint();
+                }
                 if (b) *b = tile_rect;
                 return true;
             }
