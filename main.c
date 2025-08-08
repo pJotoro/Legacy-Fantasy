@@ -37,8 +37,8 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
-		.pos.x = TILE_SIZE*0, 
-		.pos.y = -TILE_SIZE*3,
+		.pos.x = TILE_SIZE*3, 
+		.pos.y = TILE_SIZE*3,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -190,7 +190,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 			// TODO
-			const int32_t LEVEL_W = 24; UNUSED(LEVEL_W);
+			const int32_t LEVEL_W = 25;
 			const int32_t LEVEL_H = 38; UNUSED(LEVEL_H);
 
 			for (size_t tile_idx = 0; tile_idx < ctx->level.n_tiles; tile_idx += 1) {
@@ -509,9 +509,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
 		}
 
-		if (ctx->draw_selected_anim) {
-			DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
-		}
+		// if (ctx->draw_selected_anim) {
+		// 	DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
+		// }
 
 		// {
 		// 	static Sprite tiles;
@@ -726,7 +726,6 @@ void UpdatePlayer(Context* ctx) {
 				ctx->player.vel.x = 0.0f;
 			}
 		}
-
 		if (ctx->player.vel.y < 0.0f) {
 			Rect side;
 			side.min.x = ctx->player.pos.x + 1; 
