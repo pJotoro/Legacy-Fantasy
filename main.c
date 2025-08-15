@@ -42,7 +42,7 @@ void ResetGame(Context* ctx) {
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
-	SetSpriteFromPath(ctx, &ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	SetSpriteFromPath(&ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
 
 // https://ldtk.io/json/#ldtk-Tile
@@ -693,6 +693,11 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		// PlayerCollision
+		Rect hitbox;
+		{
+			SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);
+			hitbox = sd->hitbox;
+		}
 		if (ctx->player.vel.x < 0.0f) {
 			Rect side;
 			side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
@@ -718,7 +723,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				int32_t old_pos = ctx->player.pos.x;
-				ctx->player.pos.x = tile.min.x - ctx->player.size.x;
+				ctx->player.pos.x = tile.min.x - hitbox.min.x;
 				if (ctx->player.pos.x < old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
@@ -734,7 +739,7 @@ void UpdatePlayer(Context* ctx) {
 			side.max.y = side.min.y + 1;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.y = tile.min.y + ctx->player.size.y;
+				ctx->player.pos.y = tile.min.y + hitbox.min.y;
 				ctx->player.vel.y = 0.0f;
 			}
 		} else if (ctx->player.vel.y > 0.0f) {
@@ -745,7 +750,7 @@ void UpdatePlayer(Context* ctx) {
 			side.max.y = side.min.y + 1;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.y = tile.min.y - ctx->player.size.y;
+				ctx->player.pos.y = tile.min.y - hitbox.min.y;
 				ctx->player.vel.y = 0.0f;
 				ctx->player.touching_floor = 10;
 				ctx->player.jump_released = false;

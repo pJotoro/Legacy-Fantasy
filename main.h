@@ -78,7 +78,6 @@ typedef struct Anim {
 typedef struct Entity {
 	ivec2s pos;
 	vec2s pos_remainder;
-	ivec2s size;
 	vec2s vel;
 	float dir;
 	Anim anim;
@@ -170,7 +169,7 @@ typedef struct Context {
 
 void UpdatePlayer(Context* ctx);
 
-void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path);
+void SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);

@@ -348,11 +348,9 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 	return &ctx->sprites[sprite.idx];
 }
 
-void SetSpriteFromPath(Context* ctx, Entity* entity, const char* path) {
+void SetSpriteFromPath(Entity* entity, const char* path) {
 	ResetAnim(&entity->anim);
 	entity->anim.sprite = GetSprite((char*)path);
-	SpriteDesc* sprite_desc = GetSpriteDesc(ctx, entity->anim.sprite);
-	entity->size = sprite_desc->size;
 }
 
 bool SetSprite(Entity* entity, Sprite sprite) {
