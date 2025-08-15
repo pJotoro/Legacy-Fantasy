@@ -16,6 +16,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
 
 	int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
+
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
@@ -45,14 +46,52 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 		}
 	}
 
-	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
 	sd->layers = SDL_calloc(sd->n_layers, sizeof(SpriteLayer)); SDL_CHECK(sd->layers);
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
 		if (sd->frames[frame_idx].n_cells > 0) {
 			sd->frames[frame_idx].cells = SDL_malloc(sizeof(SpriteCell) * sd->frames[frame_idx].n_cells); SDL_CHECK(sd->frames[frame_idx].cells);
 		}
 	}
-	size_t layer_idx = 0;
+
+	size_t layer_idx;
+
+	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
+	layer_idx = 0;
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+		ASE_Frame frame;
+		SDL_ReadStructChecked(fs, &frame);
+		SDL_assert(frame.magic_number == 0xF1FA);
+
+		// Would mean this aseprite file is very old.
+		SDL_assert(frame.n_chunks != 0);
+
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+			ASE_ChunkHeader chunk_header;
+			SDL_ReadStructChecked(fs, &chunk_header);
+			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+			void* raw_chunk = SDL_malloc(chunk_header.size - sizeof(ASE_ChunkHeader)); SDL_CHECK(raw_chunk);
+			SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+
+			switch (chunk_header.type) {
+			case ASE_ChunkType_Layer: {
+				// TODO: tileset_idx and uuid
+				ASE_LayerChunk* chunk = raw_chunk;
+				SpriteLayer sprite_layer = {0};
+				if (chunk->layer_name.len > 0) {
+					sprite_layer.name = SDL_malloc(chunk->layer_name.len + 1);
+					SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+				}
+				sd->layers[layer_idx++] = sprite_layer;
+			} break;
+			}
+
+			SDL_free(raw_chunk);
+		}
+	}
+
+	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
+	layer_idx = 0;
 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
 		size_t cell_idx = 0;
 		ASE_Frame frame;
@@ -78,14 +117,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			} break;
 			case ASE_ChunkType_OldPalette2: {
 			} break;
-			case ASE_ChunkType_Layer: {
-				// TODO: tileset_idx and uuid
-				ASE_LayerChunk* chunk = raw_chunk;
-				SpriteLayer sprite_layer = {0};
-				sprite_layer.name = SDL_malloc(chunk->layer_name.len + 1);
-				SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
-				sd->layers[layer_idx] = sprite_layer; layer_idx += 1;
-			} break;
 			case ASE_ChunkType_Cell: {
 				ASE_CellChunk* chunk = raw_chunk;
 				SpriteCell cell = {
@@ -97,32 +128,37 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				};
 				SDL_assert(chunk->type == ASE_CellType_CompressedImage);
 				switch (chunk->type) {
-				case ASE_CellType_Raw: {
-				} break;
-				case ASE_CellType_Linked: {
-				} break;
-				case ASE_CellType_CompressedImage: {
-					cell.size.x = chunk->compressed_image.w;
-					cell.size.y = chunk->compressed_image.h;
+					case ASE_CellType_Raw: {
+					} break;
+					case ASE_CellType_Linked: {
+					} break;
+					case ASE_CellType_CompressedImage: {
+						cell.size.x = chunk->compressed_image.w;
+						cell.size.y = chunk->compressed_image.h;
 
-					// It's the zero-sized array at the end of ASE_CellChunk.
-					size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
-					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
+						if (SDL_strcmp(sd->layers[layer_idx].name, "Hitbox") != 0) {
+							// It's the zero-sized array at the end of ASE_CellChunk.
+							size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
+							void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-					size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
-					void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
+							size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
+							void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 
-					size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
+							size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
 
-					SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
-					cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
-					SDL_DestroySurface(surf);
-					SDL_free(dst_buf);
-				} break;
-				case ASE_CellType_CompressedTilemap: {
-				} break;
+							SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
+							cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
+							SDL_DestroySurface(surf);
+							SDL_free(dst_buf);
+						} else {
+							sd->hitbox.min = cell.offset;
+							sd->hitbox.max = glms_ivec2_add(cell.offset, cell.size);
+						}
+					} break;
+					case ASE_CellType_CompressedTilemap: {
+					} break;
 				}
-				sd->frames[frame_idx].cells[cell_idx] = cell; cell_idx += 1;
+				sd->frames[frame_idx].cells[cell_idx++] = cell;
 			} break;
 			case ASE_ChunkType_CellExtra: {
 				ASE_CellChunk* chunk = raw_chunk;
@@ -183,9 +219,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			} break;
 			case ASE_ChunkType_Tileset: {
 				SDL_Log("ASE_CHUNK_TYPE_TILESET");
-			} break;
-			default: {
-				SDL_assert(false);
 			} break;
 			}
 

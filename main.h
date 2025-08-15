@@ -29,9 +29,10 @@
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
-#define PLAYER_FRAME_COUNT 4
-#define PLAYER_FRAME_WIDTH 64
-#define PLAYER_FRAME_TICK 20
+typedef struct Rect {
+	ivec2s min;
+	ivec2s max;
+} Rect;
 
 typedef struct SpriteLayer {
 	char* name;
@@ -56,6 +57,7 @@ typedef struct SpriteDesc {
 	ivec2s size;
 	ivec2s grid_offset;
 	ivec2s grid_size;
+	Rect hitbox;
 	SpriteLayer* layers; size_t n_layers;
 	SpriteFrame* frames; size_t n_frames;
 } SpriteDesc;
@@ -72,11 +74,6 @@ typedef struct Anim {
 	size_t frame_tick;
 	bool ended;
 } Anim;
-
-typedef struct Rect {
-	ivec2s min;
-	ivec2s max;
-} Rect;
 
 typedef struct Entity {
 	ivec2s pos;
