@@ -79,7 +79,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				ASE_LayerChunk* chunk = raw_chunk;
 				SpriteLayer sprite_layer = {0};
 				if (chunk->layer_name.len > 0) {
-					sprite_layer.name = SDL_malloc(chunk->layer_name.len + 1);
+					sprite_layer.name = SDL_calloc(1, chunk->layer_name.len + 1);
 					SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 				}
 				sd->layers[layer_idx++] = sprite_layer;
@@ -136,7 +136,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 						cell.size.x = chunk->compressed_image.w;
 						cell.size.y = chunk->compressed_image.h;
 
-						if (SDL_strcmp(sd->layers[layer_idx].name, "Hitbox") != 0) {
+						if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") != 0) {
 							// It's the zero-sized array at the end of ASE_CellChunk.
 							size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
 							void* src_buf = (void*)((&chunk->compressed_image.h)+1);
@@ -265,7 +265,9 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, float dir
 			dstrect.x += (float)sd->size.x;
 			dstrect.w = -dstrect.w;
 		}
-		SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
+		if (cell->texture) {
+			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
+		}
 	}
 }
 
