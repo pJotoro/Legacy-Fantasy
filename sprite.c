@@ -362,3 +362,7 @@ bool SetSprite(Entity* entity, Sprite sprite) {
 	}
 	return sprite_changed;
 }
+
+bool SpritesEqual(Sprite a, Sprite b) {
+	return a.idx == b.idx;
+}

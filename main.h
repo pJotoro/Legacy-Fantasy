@@ -178,6 +178,7 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos);
 void DrawEntity(Context* ctx, Entity* entity);
 void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
+bool SpritesEqual(Sprite a, Sprite b);
 
 void ResetGame(Context* ctx);
 void LoadLevel(Context* ctx);

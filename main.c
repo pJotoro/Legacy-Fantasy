@@ -665,7 +665,7 @@ void UpdatePlayer(Context* ctx) {
 		input_x = ctx->button_right - ctx->button_left;
 	}
 
-	if (ctx->player.anim.sprite.idx != player_attack.idx) {
+	if (!SpritesEqual(ctx->player.anim.sprite, player_attack)) {
 		ctx->player.vel.y += GRAVITY;
 		ctx->player.touching_floor = SDL_max(ctx->player.touching_floor - 1, 0);
 
@@ -776,13 +776,13 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 		} else {
-			if (ctx->player.anim.sprite.idx == player_jump_start.idx && ctx->player.anim.ended) {
+			if (SpritesEqual(ctx->player.anim.sprite, player_jump_start) && ctx->player.anim.ended) {
 				SetSprite(&ctx->player, player_jump_end);
 			}
 		}
 	}
 
-	if (ctx->player.anim.sprite.idx == player_attack.idx && ctx->player.anim.ended) {
+	if (SpritesEqual(ctx->player.anim.sprite, player_attack) && ctx->player.anim.ended) {
 		if (input_x == 0 && ctx->player.vel.x == 0.0f) {
 			SetSprite(&ctx->player, player_idle);
 		} else {
@@ -799,7 +799,7 @@ void UpdatePlayer(Context* ctx) {
 	if (conserved_vel.y != 0.0f) ctx->player.vel.y = conserved_vel.y;
 
 	bool loop = true;
-	if (ctx->player.anim.sprite.idx == player_jump_start.idx || ctx->player.anim.sprite.idx == player_jump_end.idx || ctx->player.anim.sprite.idx == player_attack.idx) {
+	if (SpritesEqual(ctx->player.anim.sprite, player_jump_start) || SpritesEqual(ctx->player.anim.sprite, player_jump_end) || SpritesEqual(ctx->player.anim.sprite, player_attack)) {
 		loop = false;
 	}
 	UpdateAnim(ctx, &ctx->player.anim, loop);
