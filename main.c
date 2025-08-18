@@ -473,14 +473,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
 		// ivec2s center_pos = glms_ivec2_divs(render_area, 2);
 
-		// RenderPlayer
-		{
-			// ivec2s save_pos = ctx->player.pos;
-			// ctx->player.pos = center_pos;
-			DrawEntity(ctx, &ctx->player);
-			// ctx->player.pos = save_pos;
-		}
-
 		// RenderLevel
 		{
 			static Sprite spr_tiles;
@@ -501,6 +493,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			// 		DrawSpriteTile(ctx, spr_tiles, tile, pos);
 			// 	}
 			// }
+		}
+
+		// RenderPlayer
+		{
+			// ivec2s save_pos = ctx->player.pos;
+			// ctx->player.pos = center_pos;
+			DrawEntity(ctx, &ctx->player);
+			// ctx->player.pos = save_pos;
 		}
 
 		// RenderSelectedTexture
