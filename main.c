@@ -700,14 +700,14 @@ void UpdatePlayer(Context* ctx) {
 		}
 		if (ctx->player.vel.x < 0.0f) {
 			Rect side;
-			side.min.x = ctx->player.pos.x + (int32_t)SDL_floorf(ctx->player.vel.x);
-			side.min.y = ctx->player.pos.y + 1;
-			side.max.x = side.min.x + 1;
-			side.max.y = side.min.y + ctx->player.size.y - 2;
+			side.min.x = ctx->player.pos.x + hitbox.min.x + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.min.y = ctx->player.pos.y + hitbox.min.y + 1;
+			side.max.x = ctx->player.pos.x + hitbox.min.x + (int32_t)SDL_floorf(ctx->player.vel.x) + 1;
+			side.max.y = ctx->player.pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				int32_t old_pos = ctx->player.pos.x;
-				ctx->player.pos.x = tile.max.x;
+				ctx->player.pos.x = tile.max.x - hitbox.min.x;
 				if (ctx->player.pos.x > old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
@@ -715,15 +715,15 @@ void UpdatePlayer(Context* ctx) {
 				ctx->player.vel.x = 0.0f;
 			}
 		} else if (ctx->player.vel.x > 0.0f) {
-			Rect side;
-			side.min.x = (ctx->player.pos.x + ctx->player.size.x - 1) + (int32_t)SDL_floorf(ctx->player.vel.x);
-			side.min.y = ctx->player.pos.y + 1;
-			side.max.x = side.min.x + 1;
-			side.max.y = side.min.y + ctx->player.size.y - 2;
+			Rect side = hitbox;
+			side.min.x = ctx->player.pos.x + hitbox.max.x + (int32_t)SDL_floorf(ctx->player.vel.x) - 1;
+			side.min.y = ctx->player.pos.y + hitbox.min.y + 1;
+			side.max.x = ctx->player.pos.x + hitbox.max.x + (int32_t)SDL_floorf(ctx->player.vel.x);
+			side.max.y = ctx->player.pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				int32_t old_pos = ctx->player.pos.x;
-				ctx->player.pos.x = tile.min.x - hitbox.min.x;
+				ctx->player.pos.x = tile.min.x - hitbox.max.x;
 				if (ctx->player.pos.x < old_pos) {
 					ctx->player.pos.x = old_pos;
 				}
@@ -732,25 +732,25 @@ void UpdatePlayer(Context* ctx) {
 			}
 		}
 		if (ctx->player.vel.y < 0.0f) {
-			Rect side;
-			side.min.x = ctx->player.pos.x + 1; 
-			side.min.y = ctx->player.pos.y + (int32_t)SDL_floorf(ctx->player.vel.y);
-			side.max.x = side.min.x + ctx->player.size.x - 2;
-			side.max.y = side.min.y + 1;
-			Rect tile;
-			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
-				ctx->player.pos.y = tile.min.y + hitbox.min.y;
-				ctx->player.vel.y = 0.0f;
-			}
-		} else if (ctx->player.vel.y > 0.0f) {
-			Rect side;
-			side.min.x = ctx->player.pos.x + 1; 
-			side.min.y = (ctx->player.pos.y + ctx->player.size.y - 1) + (int32_t)SDL_floorf(ctx->player.vel.y);
-			side.max.x = side.min.x + ctx->player.size.x - 2;
-			side.max.y = side.min.y + 1;
+			Rect side = hitbox;
+			side.min.x = ctx->player.pos.x + hitbox.min.x + 1;
+			side.min.y = ctx->player.pos.y + hitbox.min.y + (int32_t)SDL_floorf(ctx->player.vel.y);
+			side.max.x = ctx->player.pos.x + hitbox.max.x - 1;
+			side.max.y = ctx->player.pos.y + hitbox.min.y + (int32_t)SDL_floorf(ctx->player.vel.y) + 1;
 			Rect tile;
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y - hitbox.min.y;
+				ctx->player.vel.y = 0.0f;
+			}
+		} else if (ctx->player.vel.y > 0.0f) {
+			Rect side = hitbox;
+			side.min.x = ctx->player.pos.x + hitbox.min.x + 1;
+			side.min.y = ctx->player.pos.y + hitbox.max.y + (int32_t)SDL_floorf(ctx->player.vel.y) - 1;
+			side.max.x = ctx->player.pos.x + hitbox.max.x - 1;
+			side.max.y = ctx->player.pos.y + hitbox.max.y + (int32_t)SDL_floorf(ctx->player.vel.y);
+			Rect tile;
+			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
+				ctx->player.pos.y = tile.min.y - hitbox.max.y;
 				ctx->player.vel.y = 0.0f;
 				ctx->player.touching_floor = 10;
 				ctx->player.jump_released = false;
