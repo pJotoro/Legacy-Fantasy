@@ -30,12 +30,17 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 }
 
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (size_t tile_idx = 0; tile_idx < level->n_tiles; tile_idx += 1) {
-        if (HAS_FLAG(level->tiles[tile_idx].flags, TileFlags_Solid)) {
-            Rect tile_rect = RectFromTile(level->tiles[tile_idx]);
-            if (RectsIntersect(a, tile_rect)) {
-                if (b) *b = tile_rect;
-                return true;
+    for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
+        LevelLayer* layer = &level->layers[layer_idx];
+        if (layer->type == LevelLayerType_Tiles) {
+            for (size_t tile_idx = 0; tile_idx < layer->tiles.n_tiles; tile_idx += 1) {
+                if (HAS_FLAG(layer->tiles.tiles[tile_idx].flags, TileFlags_Solid)) {
+                    Rect tile_rect = RectFromTile(layer->tiles.tiles[tile_idx]);
+                    if (RectsIntersect(a, tile_rect)) {
+                        if (b) *b = tile_rect;
+                        return true;
+                    }
+                }
             }
         }
     }

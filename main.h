@@ -108,11 +108,33 @@ typedef struct Tile {
 	TileFlags flags;
 } Tile;
 
+enum {
+	LevelLayerType_Tiles,
+	LevelLayerType_Entities,
+};
+typedef uint32_t LevelLayerType;
+
+typedef struct LevelLayerTiles {
+	Tile* tiles; size_t n_tiles;
+} LevelLayerTiles;
+
+typedef struct LevelLayerEntities {
+	Entity* entities; size_t n_entities;
+} LevelLayerEntities;
+
+typedef struct LevelLayer {
+	LevelLayerType type;
+	ivec2s size;
+	union {
+		LevelLayerTiles tiles;
+		LevelLayerEntities entities;
+	};
+} LevelLayer;
+
 typedef struct Level {
-	Tile* tiles; 
-	size_t n_tiles;
 	ivec2s size;
 	SDL_Time modify_time;
+	LevelLayer* layers; size_t n_layers;
 } Level;
 
 Tile GetTile(Level* level, ivec2s grid_pos);
@@ -146,8 +168,7 @@ typedef struct Context {
 	SDL_Time time;
 	float dt;
 	
-	Entity player;
-	Level level;
+	Level* levels; size_t n_levels;
 
 #if 0
 	Nuklear nk;
@@ -182,7 +203,6 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 bool SpritesEqual(Sprite a, Sprite b);
 
 void ResetGame(Context* ctx);
-void LoadLevel(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 

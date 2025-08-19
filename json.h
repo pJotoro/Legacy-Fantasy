@@ -158,7 +158,7 @@ JSON_PUBLIC(void) JSON_Delete(JSON_Node *item);
 JSON_PUBLIC(int32_t) JSON_GetArraySize(const JSON_Node *array);
 /* Retrieve item number "index" from array "array". Returns NULL if unsuccessful. */
 JSON_PUBLIC(JSON_Node *) JSON_GetArrayItem(const JSON_Node *array, ssize_t index);
-/* Get item "string" from object. Case insensitive. */
+/* Get item "string" from object. */
 JSON_PUBLIC(JSON_Node *) JSON_GetObjectItem(const JSON_Node * const object, const char * const string, bool case_sensitive);
 JSON_PUBLIC(bool) JSON_HasObjectItem(const JSON_Node *object, const char *string);
 /* For analysing failed parses. This returns a pointer to the parse error. You'll probably need to look a few chars back to make sense of it. Defined when JSON_Parse() returns 0. 0 when JSON_Parse() succeeds. */
