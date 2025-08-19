@@ -193,7 +193,7 @@ typedef struct Context {
 	ivec2s selected_tile;
 } Context;
 
-void UpdatePlayer(Context* ctx);
+void UpdatePlayer(Context* ctx, Entity* player);
 
 void SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
