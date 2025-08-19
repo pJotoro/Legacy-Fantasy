@@ -37,8 +37,8 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->player = (Entity){
-		.pos.x = TILE_SIZE*3, 
-		.pos.y = TILE_SIZE*3,
+		.start_pos = ctx->player.start_pos,
+		.pos = ctx->player.start_pos,
 		.dir = 1.0f,
 		.touching_floor = 10,
 	};
@@ -62,9 +62,15 @@ void ParseTile(JSON_Node* cur, Tile* tile) {
 }
 
 // Really ParsePlayer for now
-void ParseEntity(JSON_Node* cur, Entity* entity) {
-	UNUSED(entity);
-	UNUSED(cur);	
+void ParseEntity(JSON_Node* obj, Entity* entity) {
+	JSON_Node* cur;
+	JSON_ArrayForEach(cur, obj) {
+		if (SDL_strcmp(cur->string,  "__worldX") == 0) {
+			entity->start_pos.x = cur->valueint;
+		} else if (SDL_strcmp(cur->string, "__worldY") == 0) {
+			entity->start_pos.y = cur->valueint;
+		}
+	}
 }
 
 int32_t main(int32_t argc, char* argv[]) {
@@ -164,7 +170,7 @@ int32_t main(int32_t argc, char* argv[]) {
 												tile_idx += 1;
 											}
 											cur = tiles;
-										} else if (!parsed_entities && SDL_strcmp(cur->string, "entityInstances") == 0) {
+										} else if (!parsed_entities && SDL_strcmp(cur->string, "entityInstances") == 0 && cur->child) {
 											parsed_entities = true;
 
 											JSON_Node* entities = cur;

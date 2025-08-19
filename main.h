@@ -76,6 +76,7 @@ typedef struct Anim {
 } Anim;
 
 typedef struct Entity {
+	ivec2s start_pos;
 	ivec2s pos;
 	vec2s pos_remainder;
 	vec2s vel;
