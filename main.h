@@ -86,6 +86,7 @@ typedef struct Entity {
 	Anim anim;
 	int32_t touching_floor;
 	bool jump_released;
+	bool is_player; // TODO: Use flags instead, like Ryan Fleury.
 } Entity;
 
 void ResetAnim(Anim* anim);
@@ -171,6 +172,7 @@ typedef struct Context {
 	float dt;
 	
 	Level* levels; size_t n_levels;
+	size_t level_idx;
 
 #if 0
 	Nuklear nk;

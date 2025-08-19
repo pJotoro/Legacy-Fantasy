@@ -454,8 +454,21 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
-			for (size_t tile_idx = 0; tile_idx < ctx->level.n_tiles; tile_idx += 1) {
-				DrawSpriteTile(ctx, spr_tiles, ctx->level.tiles[tile_idx].src, ctx->level.tiles[tile_idx].dst);
+			Level* level = &ctx->levels[ctx->level_idx];
+			for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
+				LevelLayer* layer = &level->layers[layer_idx];
+				switch (layer->type) {
+					case LevelLayerType_Tiles: {
+						for (size_t tile_idx = 0; tile_idx < layer->tiles.n_tiles; tile_idx += 1) {
+							DrawSpriteTile(ctx, spr_tiles, layer->tiles.tiles[tile_idx].src, layer->tiles.tiles[tile_idx].dst);
+						}
+					} break;
+					case LevelLayerType_Entities: {
+						for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities; entity_idx += 1) {
+							DrawEntity(ctx, &layer->entities.entities[entity_idx]);
+						}
+					} break;
+				}
 			}
 
 			// for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
@@ -471,7 +484,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			// ivec2s save_pos = ctx->player.pos;
 			// ctx->player.pos = center_pos;
-			DrawEntity(ctx, &ctx->player);
 			// ctx->player.pos = save_pos;
 		}
 
