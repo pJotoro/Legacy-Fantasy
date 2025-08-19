@@ -75,6 +75,8 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
+#define PLAYER_JUMP_REMAINDER 10
+
 typedef struct Entity {
 	ivec2s start_pos;
 	ivec2s pos;
@@ -82,7 +84,7 @@ typedef struct Entity {
 	vec2s vel;
 	float dir;
 	Anim anim;
-	ssize_t touching_floor;
+	int32_t touching_floor;
 	bool jump_released;
 } Entity;
 

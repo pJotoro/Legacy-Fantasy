@@ -40,7 +40,7 @@ void ResetGame(Context* ctx) {
 		.start_pos = ctx->player.start_pos,
 		.pos = ctx->player.start_pos,
 		.dir = 1.0f,
-		.touching_floor = 10,
+		.touching_floor = PLAYER_JUMP_REMAINDER,
 	};
 	SetSpriteFromPath(&ctx->player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 }
@@ -724,7 +724,7 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(&ctx->level, side, &tile)) {
 				ctx->player.pos.y = tile.min.y - hitbox.max.y;
 				ctx->player.vel.y = 0.0f;
-				ctx->player.touching_floor = 10;
+				ctx->player.touching_floor = PLAYER_JUMP_REMAINDER;
 				ctx->player.jump_released = false;
 			}
 		}
