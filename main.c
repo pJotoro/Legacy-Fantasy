@@ -44,7 +44,7 @@ void ResetGame(Context* ctx) {
 			for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities && !break_all; entity_idx += 1) {
 				Entity* entity = &layer->entities.entities[entity_idx];
 				if (entity->is_player) {
-					*entity = (Entity) {
+					*entity = (Entity){
 						.is_player = true,
 						.start_pos = entity->start_pos,
 						.pos = entity->start_pos,
@@ -100,14 +100,27 @@ Level LoadLevel(JSON_Node* level_node) {
 		res.size.y = (int32_t)JSON_GetNumberValue(h) / TILE_SIZE;
 
 		JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
+		res.layers = SDL_calloc(JSON_GetArraySize(layer_instances), sizeof(LevelLayer)); SDL_CHECK(res.layers);
 		JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
 			JSON_Node* identifier_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
 			char* identifier = JSON_GetStringValue(identifier_node);
 			if (SDL_strcmp(identifier, "Tiles") == 0) {
 				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 				JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
-					JSON_Node* src = JSON_GetObjectItem(grid_tile, "src", true);
-					JSON_Node* dst = JSON_GetObjectItem(grid_tile, "px", true);
+					JSON_Node* src_node = JSON_GetObjectItem(grid_tile, "src", true);
+					ivec2s src = {
+						(int32_t)JSON_GetNumberValue(src_node->child),
+						(int32_t)JSON_GetNumberValue(src_node->child->next),
+					};
+
+					JSON_Node* dst_node = JSON_GetObjectItem(grid_tile, "px", true);
+					ivec2s dst = {
+						(int32_t)JSON_GetNumberValue(dst_node->child),
+						(int32_t)JSON_GetNumberValue(dst_node->child->next),
+					};
+
+
+
 				}
 			}
 			res.n_layers += 1;
