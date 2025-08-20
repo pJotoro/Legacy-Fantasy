@@ -43,9 +43,9 @@ void ResetGame(Context* ctx) {
 		if (layer->type == LevelLayerType_Entities) {
 			for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities && !break_all; entity_idx += 1) {
 				Entity* entity = &layer->entities.entities[entity_idx];
-				if (entity->is_player) {
+				if (entity->type == EntityType_Player) {
 					*entity = (Entity){
-						.is_player = true,
+						.type = EntityType_Player,
 						.start_pos = entity->start_pos,
 						.pos = entity->start_pos,
 						.dir = 1.0f,
@@ -470,12 +470,23 @@ int32_t main(int32_t argc, char* argv[]) {
 		NK_UpdateUI(ctx);
 #endif
 
-		UpdatePlayer(ctx);
-		
-		if (ctx->draw_selected_anim) {
-			UpdateAnim(ctx, &ctx->selected_anim, true);
+		for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].n_layers; layer_idx += 1) {
+			LevelLayer* layer = &ctx->levels[ctx->level_idx].layers[layer_idx];
+			if (layer->type == LevelLayerType_Entities) {
+				for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities; entity_idx += 1) {
+					Entity* entity = &layer->entities.entities[entity_idx];
+					switch (entity->type) {
+						case EntityType_Player: {
+							UpdatePlayer(ctx, entity);
+						} break;
+						case EntityType_Boar: {
+							UpdateBoar(ctx, entity);
+						} break;
+					}
+				}
+			}
 		}
-
+		
 		// RenderBegin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
@@ -677,7 +688,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 
 	if (player->touching_floor && ctx->button_attack) {
-		SetSprite(&ctx->player, player_attack);
+		SetSprite(player, player_attack);
 	}
 
 	int32_t input_x = 0;
@@ -698,7 +709,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			if (ctx->button_jump) {
 				player->touching_floor = 0;
 				player->vel.y = -PLAYER_JUMP;
-				SetSprite(&ctx->player, player_jump_start);
+				SetSprite(player, player_jump_start);
 			} else {
 				float acc;
 				if (!ctx->gamepad) {
@@ -833,4 +844,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	if (player->pos.y > 1000.0f) {
 		ResetGame(ctx);
 	}
+}
+
+void UpdateBoar(Context* ctx, Entity* boar) {
+	UNUSED(ctx);
+	UNUSED(boar);
 }

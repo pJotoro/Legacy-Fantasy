@@ -77,6 +77,12 @@ typedef struct Anim {
 
 #define PLAYER_JUMP_REMAINDER 10
 
+enum {
+	EntityType_Player,
+	EntityType_Boar,
+};
+typedef uint32_t EntityType;
+
 typedef struct Entity {
 	ivec2s start_pos;
 	ivec2s pos;
@@ -85,8 +91,8 @@ typedef struct Entity {
 	float dir;
 	Anim anim;
 	int32_t touching_floor;
+	EntityType type;
 	bool jump_released;
-	bool is_player; // TODO: Use flags instead, like Ryan Fleury.
 } Entity;
 
 void ResetAnim(Anim* anim);
@@ -194,6 +200,7 @@ typedef struct Context {
 } Context;
 
 void UpdatePlayer(Context* ctx, Entity* player);
+void UpdateBoar(Context* ctx, Entity* boar);
 
 void SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
