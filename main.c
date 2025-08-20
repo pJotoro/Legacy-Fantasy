@@ -102,11 +102,20 @@ Level LoadLevel(JSON_Node* level_node) {
 		JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
 		res.layers = SDL_calloc(JSON_GetArraySize(layer_instances), sizeof(LevelLayer)); SDL_CHECK(res.layers);
 		JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
+			LevelLayer* layer = &res.layers[res.n_layers];
 			JSON_Node* identifier_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
 			char* identifier = JSON_GetStringValue(identifier_node);
 			if (SDL_strcmp(identifier, "Tiles") == 0) {
 				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
+
+				layer->tiles.n_tiles = 0;
 				JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
+					layer->tiles.n_tiles += 1;
+				}
+				layer->tiles.tiles = SDL_calloc(layer->tiles.n_tiles, sizeof(Tile)); SDL_CHECK(layer->tiles.tiles);
+
+				size_t tile_idx = 0;
+				JSON_ArrayForEach(grid_tile, grid_tiles) {
 					JSON_Node* src_node = JSON_GetObjectItem(grid_tile, "src", true);
 					ivec2s src = {
 						(int32_t)JSON_GetNumberValue(src_node->child),
@@ -119,7 +128,7 @@ Level LoadLevel(JSON_Node* level_node) {
 						(int32_t)JSON_GetNumberValue(dst_node->child->next),
 					};
 
-
+					layer->tiles.tiles[tile_idx++] = (Tile){src, dst};
 
 				}
 			}
