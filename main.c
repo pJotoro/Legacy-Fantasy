@@ -96,9 +96,9 @@ Level LoadLevel(JSON_Node* level_node) {
 		res.layers = SDL_calloc(JSON_GetArraySize(layer_instances), sizeof(LevelLayer)); SDL_CHECK(res.layers);
 		JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
 			LevelLayer* layer = &res.layers[res.n_layers];
-			JSON_Node* identifier_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
-			char* identifier = JSON_GetStringValue(identifier_node);
-			if (SDL_strcmp(identifier, "Tiles") == 0) {
+			JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
+			char* type = JSON_GetStringValue(type_node);
+			if (SDL_strcmp(type, "Tiles") == 0) {
 				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 
 				layer->tiles.n_tiles = 0;
@@ -124,6 +124,31 @@ Level LoadLevel(JSON_Node* level_node) {
 					layer->tiles.tiles[tile_idx++] = (Tile){src, dst};
 
 				}
+			} else if (SDL_strcmp(type, "Entities") == 0) {
+				JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
+
+				layer->entities.n_entities = 0;
+				JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
+					layer->entities.n_entities += 1;
+				}
+				layer->entities.entities = SDL_calloc(layer->entities.n_entities, sizeof(Entity)); SDL_CHECK(layer->entities.entities);
+
+				size_t entity_idx = 0;
+				JSON_ArrayForEach(entity_instance, entity_instances) {
+					JSON_Node* identifier_node = JSON_GetObjectItem(entity_instance, "__identifier", true);
+					char* identifier = JSON_GetStringValue(identifier_node);
+					JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
+					JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
+					Entity entity = {0};
+					entity.start_pos = (ivec2s){(int32_t)JSON_GetNumberValue(world_x), (int32_t)JSON_GetNumberValue(world_y)};
+					if (SDL_strcmp(identifier, "Player") == 0) {
+						entity.type = EntityType_Player;
+					} else if (SDL_strcmp(identifier, "Boar") == 0) {
+						entity.type = EntityType_Boar;
+					}
+					layer->entities.entities[entity_idx++] = entity;
+				}
+
 			}
 			res.n_layers += 1;
 		}
@@ -664,7 +689,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				player->vel.x = 0.0f;
 			}
 		} else if (player->vel.x > 0.0f) {
-			Rect side = hitbox;
+			Rect side;
 			side.min.x = player->pos.x + hitbox.max.x + (int32_t)SDL_floorf(player->vel.x) - 1;
 			side.min.y = player->pos.y + hitbox.min.y + 1;
 			side.max.x = player->pos.x + hitbox.max.x + (int32_t)SDL_floorf(player->vel.x);
@@ -681,7 +706,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			}
 		}
 		if (player->vel.y < 0.0f) {
-			Rect side = hitbox;
+			Rect side;
 			side.min.x = player->pos.x + hitbox.min.x + 1;
 			side.min.y = player->pos.y + hitbox.min.y + (int32_t)SDL_floorf(player->vel.y);
 			side.max.x = player->pos.x + hitbox.max.x - 1;
@@ -692,7 +717,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				player->vel.y = 0.0f;
 			}
 		} else if (player->vel.y > 0.0f) {
-			Rect side = hitbox;
+			Rect side;
 			side.min.x = player->pos.x + hitbox.min.x + 1;
 			side.min.y = player->pos.y + hitbox.max.y + (int32_t)SDL_floorf(player->vel.y) - 1;
 			side.max.x = player->pos.x + hitbox.max.x - 1;
