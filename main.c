@@ -277,8 +277,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_DestroyProperties(props);
 	}
 
-	// LoadLevel(ctx);
-
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
 	if (ctx->sprite_tests_failed > 0) {
 		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
@@ -315,10 +313,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-#if 0
-		nk_input_begin(&ctx->nk.ctx);
-#endif
-
 		ctx->button_jump = false;
 		ctx->button_jump_released = false;
 		ctx->button_attack = false;
@@ -327,9 +321,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
-			#if 0
-			NK_HandleEvent(ctx, &event);
-			#endif
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
 			#if 1
@@ -438,10 +429,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
-#if 0
-		nk_input_end(&ctx->nk.ctx);
-#endif
-
 	#if 0
 	#ifndef _DEBUG
 		{
@@ -463,10 +450,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (!ctx->vsync) {
 			SDL_Delay(16); // TODO
 		}
-
-#if 0
-		NK_UpdateUI(ctx);
-#endif
 
 		for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].n_layers; layer_idx += 1) {
 			LevelLayer* layer = &ctx->levels[ctx->level_idx].layers[layer_idx];
@@ -523,15 +506,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderEnd
 		{
-			#if 0
-			NK_Render(ctx);
-			#endif
-
 			SDL_RenderPresent(ctx->renderer);
-
-#if 0
-			nk_clear(&ctx->nk.ctx);
-#endif
 
 			if (!ctx->vsync) {
 				// TODO
