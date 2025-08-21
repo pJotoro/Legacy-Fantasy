@@ -68,18 +68,6 @@ void ParseTile(JSON_Node* cur, Tile* tile) {
 	tile->dst.y = px_y->valueint;
 }
 
-// Really ParsePlayer for now
-void ParseEntity(JSON_Node* obj, Entity* entity) {
-	JSON_Node* cur;
-	JSON_ArrayForEach(cur, obj) {
-		if (SDL_strcmp(cur->string,  "__worldX") == 0) {
-			entity->start_pos.x = cur->valueint;
-		} else if (SDL_strcmp(cur->string, "__worldY") == 0) {
-			entity->start_pos.y = cur->valueint;
-		}
-	}
-}
-
 Level LoadLevel(JSON_Node* level_node) {
 	Level res = {0};
 
