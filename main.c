@@ -4,13 +4,6 @@
 
 #include <cglm/struct.h>
 
-#if 0
-#include "nuklear_defines.h"
-#pragma warning(push, 0)
-#include <nuklear.h>
-#pragma warning(pop)
-#endif
-
 #include <raddbg_markup.h>
 
 #define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
@@ -267,18 +260,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_DestroyProperties(props);
 	}
 
-	// InitNuklear
-	{
-		#if 0
-		ctx->nk.font.userdata.ptr = ctx->font_roboto_regular;
-		ctx->nk.font.height = (float)TTF_GetFontHeight(ctx->font_roboto_regular);
-		ctx->nk.font.width = NK_TextWidthCallback;
-		const size_t MEM_SIZE = MEGABYTE(64);
-		void* mem = SDL_malloc(MEM_SIZE); SDL_CHECK(mem);
-		bool ok = nk_init_fixed(&ctx->nk.ctx, mem, MEM_SIZE, &ctx->nk.font); SDL_assert(ok);
-		#endif
-	}
-
 	// LoadLevel(ctx);
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
@@ -495,7 +476,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		ivec2s render_area;
 		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
-		// ivec2s center_pos = glms_ivec2_divs(render_area, 2);
 
 		// RenderLevel
 		{
@@ -522,58 +502,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					} break;
 				}
 			}
-
-			// for (ivec2s level_pos = {0, 0}; level_pos.y < ctx->level.size.y; level_pos.y += 1) {
-			// 	for (level_pos.x = 0; level_pos.x < ctx->level.size.x; level_pos.x += 1) {
-			// 		Tile tile = GetTile(&ctx->level, level_pos);
-			// 		ivec2s pos = glms_ivec2_add(level_pos, glms_ivec2_divs(ctx->player.pos, 2));
-			// 		DrawSpriteTile(ctx, spr_tiles, tile, pos);
-			// 	}
-			// }
 		}
-
-		// RenderPlayer
-		{
-			// ivec2s save_pos = ctx->player.pos;
-			// ctx->player.pos = center_pos;
-			// ctx->player.pos = save_pos;
-		}
-
-		// RenderSelectedTexture
-		{
-			// SDL_FRect dst = { 0.0f, 0.0f, (float)ctx->sprites[ctx->sprite_idx].w, (float)ctx->sprites[ctx->sprite_idx].h };
-			// SDL_CHECK(SDL_RenderTexture(ctx->renderer, ctx->sprites[ctx->sprite_idx].texture, NULL, &dst));
-		}
-
-		// if (ctx->draw_selected_anim) {
-		// 	DrawAnim(ctx, &ctx->selected_anim, (ivec2s){300, 300}, 1.0f);
-		// }
-
-		// {
-		// 	static Sprite tiles;
-		// 	static bool initialized_tiles = false;
-		// 	if (!initialized_tiles) {
-		// 		initialized_tiles = true;
-		// 		tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-		// 	}
-		// 	ivec2s mouse = ivec2_from_vec2(ctx->mouse_pos);
-		// 	SDL_RenderRect(ctx->renderer, &(SDL_FRect){(float)(mouse.x - mouse.x%TILE_SIZE - 1), (float)(mouse.y - mouse.y%TILE_SIZE - 1), (float)(TILE_SIZE+2), (float)(TILE_SIZE+2)});
-		// 	for (ivec2s tile = {0, 0}; tile.y < 25; ++tile.y) {
-		// 		for (tile.x = 0; tile.x < 25; ++tile.x) {
-		// 			vec2s tile_pos = vec2_from_ivec2(glms_ivec2_scale(tile, TILE_SIZE));
-		// 			DrawSpriteTile(ctx, tiles, tile, tile_pos);
-		// 			if (mouse.x >= tile_pos.x && mouse.x < tile_pos.x + TILE_SIZE && mouse.y >= tile_pos.y && mouse.y < tile_pos.y + TILE_SIZE) {
-		// 				if (ctx->left_mouse_pressed) {
-		// 					ctx->selected_tile = tile;
-		// 					SDL_Log("{%d, %d}", ctx->selected_tile.x, ctx->selected_tile.y);
-		// 				}
-		// 			}
-
-		// 		}
-		// 	}
-
-		// 	DrawSpriteTile(ctx, tiles, ctx->selected_tile, glms_vec2_sub(ctx->mouse_pos, glms_vec2_mods(ctx->mouse_pos, (float)TILE_SIZE)));
-		// }
 
 		// RenderEnd
 		{
@@ -591,23 +520,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				// TODO
 			}
 		}
-	}
-
-	// WriteVariables
-	{
-		#if 0
-		SDL_IOStream* fs = SDL_IOFromFile("variables.c", "w"); SDL_CHECK(fs);
-		#define SDL_IOWriteVarI(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static int32_t var = %d;\n), var) != 0)
-		#define SDL_IOWriteVarF(fs, var) SDL_CHECK(SDL_IOprintf(fs, STRINGIFY(static float var = %ff;\n), var) != 0)
-		SDL_IOWriteVarI(fs, TILE_SIZE);
-		SDL_IOWriteVarI(fs, PLAYER_JUMP_PERIOD);
-		SDL_IOWriteVarF(fs, GRAVITY);
-		SDL_IOWriteVarF(fs, PLAYER_ACC);
-		SDL_IOWriteVarF(fs, PLAYER_FRIC);
-		SDL_IOWriteVarF(fs, PLAYER_MAX_VEL);
-		SDL_IOWriteVarF(fs, PLAYER_JUMP);
-		SDL_CloseIO(fs);
-		#endif
 	}
 	
 	return 0;
