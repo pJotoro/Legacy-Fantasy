@@ -52,22 +52,6 @@ void ResetGame(Context* ctx) {
 	}
 }
 
-// https://ldtk.io/json/#ldtk-Tile
-void ParseTile(JSON_Node* cur, Tile* tile) {
-	JSON_Node* px = cur->child; SDL_assert(px); SDL_assert(HAS_FLAG(px->type, JSON_Array));
-	JSON_Node* px_x = px->child; SDL_assert(px_x);
-	JSON_Node* px_y = px_x->next; SDL_assert(px_y);
-
-	JSON_Node* src = px->next; SDL_assert(src); SDL_assert(HAS_FLAG(src->type, JSON_Array));
-	JSON_Node* src_x = src->child; SDL_assert(src_x);
-	JSON_Node* src_y = src_x->next; SDL_assert(src_y);
-
-	tile->src.x = src_x->valueint;
-	tile->src.y = src_y->valueint;
-	tile->dst.x = px_x->valueint;
-	tile->dst.y = px_y->valueint;
-}
-
 Level LoadLevel(JSON_Node* level_node) {
 	Level res = {0};
 
