@@ -87,6 +87,8 @@ Level LoadLevel(JSON_Node* level_node) {
 			JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
 			char* type = JSON_GetStringValue(type_node);
 			if (SDL_strcmp(type, "Tiles") == 0) {
+				layer->type = LevelLayerType_Tiles;
+
 				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 
 				layer->tiles.n_tiles = 0;
@@ -113,6 +115,8 @@ Level LoadLevel(JSON_Node* level_node) {
 
 				}
 			} else if (SDL_strcmp(type, "Entities") == 0) {
+				layer->type = LevelLayerType_Entities;
+
 				JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
 
 				layer->entities.n_entities = 0;
