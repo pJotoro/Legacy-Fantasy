@@ -99,13 +99,6 @@ void ResetAnim(Anim* anim);
 
 #define MAX_SPRITES 256
 
-#if 0
-typedef struct Nuklear {
-	struct nk_context ctx;
-	struct nk_user_font font;
-} Nuklear;
-#endif
-
 enum {
 	TileFlags_Solid = FLAG(0),
 };
@@ -168,10 +161,6 @@ typedef struct Context {
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
-
-#if 0
-	Nuklear nk;
-#endif
 
 	bool running;
 
