@@ -34,8 +34,9 @@ void ResetGame(Context* ctx) {
 	for (size_t layer_idx = 0; layer_idx < ctx->levels[0].n_layers && !break_all; layer_idx += 1) {
 		LevelLayer* layer = &ctx->levels[0].layers[layer_idx];
 		if (layer->type == LevelLayerType_Entities) {
-			for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities && !break_all; entity_idx += 1) {
-				Entity* entity = &layer->entities.entities[entity_idx];
+			Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
+			for (size_t entity_idx = 0; entity_idx < n_entities && !break_all; entity_idx += 1) {
+				Entity* entity = &entities[entity_idx];
 				if (entity->type == EntityType_Player) {
 					*entity = (Entity){
 						.type = EntityType_Player,
@@ -75,11 +76,11 @@ Level LoadLevel(JSON_Node* level_node) {
 
 				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 
-				layer->tiles.n_tiles = 0;
+				layer->n_objects = 0;
 				JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
-					layer->tiles.n_tiles += 1;
+					layer->n_objects += 1;
 				}
-				layer->tiles.tiles = SDL_calloc(layer->tiles.n_tiles, sizeof(Tile)); SDL_CHECK(layer->tiles.tiles);
+				layer->objects = SDL_calloc(layer->n_objects, sizeof(Tile)); SDL_CHECK(layer->objects);
 
 				size_t tile_idx = 0;
 				JSON_ArrayForEach(grid_tile, grid_tiles) {
@@ -95,7 +96,7 @@ Level LoadLevel(JSON_Node* level_node) {
 						(int32_t)JSON_GetNumberValue(dst_node->child->next),
 					};
 
-					layer->tiles.tiles[tile_idx++] = (Tile){src, dst};
+					((Tile*)layer->objects)[tile_idx++] = (Tile){src, dst};
 
 				}
 			} else if (SDL_strcmp(type, "Entities") == 0) {
@@ -103,11 +104,11 @@ Level LoadLevel(JSON_Node* level_node) {
 
 				JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
 
-				layer->entities.n_entities = 0;
+				layer->n_objects = 0;
 				JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
-					layer->entities.n_entities += 1;
+					layer->n_objects += 1;
 				}
-				layer->entities.entities = SDL_calloc(layer->entities.n_entities, sizeof(Entity)); SDL_CHECK(layer->entities.entities);
+				layer->objects = SDL_calloc(layer->n_objects, sizeof(Entity)); SDL_CHECK(layer->objects);
 
 				size_t entity_idx = 0;
 				JSON_ArrayForEach(entity_instance, entity_instances) {
@@ -122,7 +123,7 @@ Level LoadLevel(JSON_Node* level_node) {
 					} else if (SDL_strcmp(identifier, "Boar") == 0) {
 						entity.type = EntityType_Boar;
 					}
-					layer->entities.entities[entity_idx++] = entity;
+					((Entity*)layer->objects)[entity_idx++] = entity;
 				}
 
 			}
@@ -195,14 +196,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
 				LevelLayer* layer = &level->layers[layer_idx];
 				if (layer->type == LevelLayerType_Tiles) {
-					LevelLayerTiles* layer_tiles = &layer->tiles;
-					for (size_t tile_idx = 0; tile_idx < layer_tiles->n_tiles; tile_idx += 1) {
-						ivec2s src = layer_tiles->tiles[tile_idx].src;
+					Tile* tiles = (Tile*)layer->objects; size_t n_tiles = layer->n_objects;
+					for (size_t tile_idx = 0; tile_idx < n_tiles; tile_idx += 1) {
+						ivec2s src = tiles[tile_idx].src;
 						for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 							int32_t i = tiles_collide[tiles_collide_idx];
 							int32_t j = (src.x + src.y*level->size.x)/TILE_SIZE;
 							if (i == j) {
-								layer_tiles->tiles[tile_idx].flags |= TileFlags_Solid;
+								tiles[tile_idx].flags |= TileFlags_Solid;
 							}
 						}
 					}
@@ -438,8 +439,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].n_layers; layer_idx += 1) {
 			LevelLayer* layer = &ctx->levels[ctx->level_idx].layers[layer_idx];
 			if (layer->type == LevelLayerType_Entities) {
-				for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities; entity_idx += 1) {
-					Entity* entity = &layer->entities.entities[entity_idx];
+				Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
+				for (size_t entity_idx = 0; entity_idx < n_entities; entity_idx += 1) {
+					Entity* entity = &entities[entity_idx];
 					switch (entity->type) {
 						case EntityType_Player: {
 							UpdatePlayer(ctx, entity);
@@ -475,13 +477,15 @@ int32_t main(int32_t argc, char* argv[]) {
 				LevelLayer* layer = &level->layers[layer_idx];
 				switch (layer->type) {
 					case LevelLayerType_Tiles: {
-						for (size_t tile_idx = 0; tile_idx < layer->tiles.n_tiles; tile_idx += 1) {
-							DrawSpriteTile(ctx, spr_tiles, layer->tiles.tiles[tile_idx].src, layer->tiles.tiles[tile_idx].dst);
+						Tile* tiles = (Tile*)layer->objects; size_t n_objects = layer->n_objects;
+						for (size_t tile_idx = 0; tile_idx < n_objects; tile_idx += 1) {
+							DrawSpriteTile(ctx, spr_tiles, tiles[tile_idx].src,tiles[tile_idx].dst);
 						}
 					} break;
 					case LevelLayerType_Entities: {
-						for (size_t entity_idx = 0; entity_idx < layer->entities.n_entities; entity_idx += 1) {
-							DrawEntity(ctx, &layer->entities.entities[entity_idx]);
+						Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
+						for (size_t entity_idx = 0; entity_idx < n_entities; entity_idx += 1) {
+							DrawEntity(ctx, &entities[entity_idx]);
 						}
 					} break;
 				}

@@ -123,21 +123,10 @@ enum {
 };
 typedef uint32_t LevelLayerType;
 
-typedef struct LevelLayerTiles {
-	Tile* tiles; size_t n_tiles;
-} LevelLayerTiles;
-
-typedef struct LevelLayerEntities {
-	Entity* entities; size_t n_entities;
-} LevelLayerEntities;
-
 typedef struct LevelLayer {
-	LevelLayerType type;
 	ivec2s size;
-	union {
-		LevelLayerTiles tiles;
-		LevelLayerEntities entities;
-	};
+	LevelLayerType type;
+	void* objects; size_t n_objects;
 } LevelLayer;
 
 typedef struct Level {
