@@ -42,7 +42,7 @@ void ResetGame(Context* ctx) {
 						.type = EntityType_Player,
 						.start_pos = entity->start_pos,
 						.pos = entity->start_pos,
-						.dir = 1.0f,
+						.dir = 1,
 						.touching_floor = PLAYER_JUMP_REMAINDER,
 					};
 					SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
@@ -706,9 +706,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			} else {
 				SetSprite(player, player_run);
 				if (player->vel.x != 0.0f) {
-					player->dir = glm_signf(player->vel.x);
+					player->dir = (int32_t)glm_signf(player->vel.x);
 				} else if (input_x != 0) {
-					player->dir = (float)input_x;
+					player->dir = input_x;
 				}
 			}
 		} else {
@@ -724,9 +724,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		} else {
 			SetSprite(player, player_run);
 			if (player->vel.x != 0.0f) {
-				player->dir = glm_signf(player->vel.x);
+				player->dir = (int32_t)glm_signf(player->vel.x);
 			} else if (input_x != 0) {
-				player->dir = (float)input_x;
+				player->dir = input_x;
 			}
 		}
 	}

@@ -241,7 +241,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 // 	}
 // }
 
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, float dir) {
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
@@ -258,7 +258,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, float dir
 			(float)(cell->size.x),
 			(float)(cell->size.y),
 		};
-		if (dir > 0.0f) {
+		if (dir == 1) {
 			dstrect.x += (float)cell->offset.x;
 		} else {
 			dstrect.x -= (float)cell->offset.x;
@@ -294,7 +294,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     
 }
 
-void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, float dir) {
+void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir) {
 	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
