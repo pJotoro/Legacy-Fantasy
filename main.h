@@ -117,7 +117,6 @@ enum {
 typedef uint32_t LevelLayerType;
 
 typedef struct LevelLayer {
-	ivec2s size;
 	LevelLayerType type;
 	void* objects; size_t n_objects;
 } LevelLayer;
