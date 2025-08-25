@@ -619,8 +619,8 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				player->vel.x = SDL_clamp(player->vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 			
 			}	
-		} else if (ctx->button_jump_released && !player->jump_released && player->vel.y < 0.0f) {
-			player->jump_released = true;
+		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased) && player->vel.y < 0.0f) {
+			player->flags |= EntityFlags_JumpReleased;
 			player->vel.y /= 2.0f;
 		}
 
@@ -686,7 +686,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				player->pos.y = tile.min.y - hitbox.max.y;
 				player->vel.y = 0.0f;
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
-				player->jump_released = false;
+				player->flags &= ~EntityFlags_JumpReleased;
 			}
 		}
 

@@ -82,6 +82,7 @@ enum {
 	EntityFlags_Enemy = FLAG(1),
 	EntityFlags_Boar = FLAG(2),
 	EntityFlags_Tile = FLAG(3),
+	EntityFlags_JumpReleased = FLAG(4),
 };
 typedef uint32_t EntityFlags;
 
@@ -89,12 +90,15 @@ typedef struct Entity {
 	ivec2s start_pos;
 	ivec2s pos;
 	vec2s pos_remainder;
+
 	vec2s vel;
 	int32_t dir;
+
 	Anim anim;
+
 	int32_t touching_floor;
+
 	EntityFlags flags;
-	bool jump_released;
 } Entity;
 
 void ResetAnim(Anim* anim);
