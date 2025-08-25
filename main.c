@@ -30,24 +30,20 @@ typedef int64_t ssize_t;
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->level_idx = 0;
-	bool break_all = false;
-	for (size_t layer_idx = 0; layer_idx < ctx->levels[0].n_layers && !break_all; layer_idx += 1) {
-		LevelLayer* layer = &ctx->levels[0].layers[layer_idx];
-		if (layer->type == LevelLayerType_Entities) {
-			Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
-			for (size_t entity_idx = 0; entity_idx < n_entities && !break_all; entity_idx += 1) {
-				Entity* entity = &entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-					*entity = (Entity){
-						.flags = EntityFlags_Player,
-						.start_pos = entity->start_pos,
-						.pos = entity->start_pos,
-						.dir = 1,
-						.touching_floor = PLAYER_JUMP_REMAINDER,
-					};
-					SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-					break_all = true;
-				}
+	for (size_t level_idx = 0; level_idx < ctx->n_levels; level_idx += 1) {
+		Level* level = &ctx->levels[level_idx];
+		for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+			Entity* entity = &level->entities[entity_idx];
+			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+				*entity = (Entity){
+					.flags = EntityFlags_Player,
+					.start_pos = entity->start_pos,
+					.pos = entity->start_pos,
+					.dir = 1,
+					.touching_floor = PLAYER_JUMP_REMAINDER,
+				};
+				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+				break;
 			}
 		}
 	}
@@ -56,79 +52,74 @@ void ResetGame(Context* ctx) {
 Level LoadLevel(JSON_Node* level_node) {
 	Level res = {0};
 
-	JSON_Node* identifier_node = JSON_GetObjectItem(level_node, "identifier", true);
-	char* identifier = JSON_GetStringValue(identifier_node);
-	if (SDL_strcmp(identifier, "Level_0") == 0) {
-		JSON_Node* w = JSON_GetObjectItem(level_node, "pxWid", true);
-		res.size.x = JSON_GetIntValue(w) / TILE_SIZE;
+	JSON_Node* w = JSON_GetObjectItem(level_node, "pxWid", true);
+	res.size.x = JSON_GetIntValue(w) / TILE_SIZE;
 
-		JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
-		res.size.y = JSON_GetIntValue(h) / TILE_SIZE;
+	JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
+	res.size.y = JSON_GetIntValue(h) / TILE_SIZE;
 
-		JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
-		res.layers = SDL_calloc(JSON_GetArraySize(layer_instances), sizeof(LevelLayer)); SDL_CHECK(res.layers);
-		JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
-			LevelLayer* layer = &res.layers[res.n_layers];
-			JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
-			char* type = JSON_GetStringValue(type_node);
-			if (SDL_strcmp(type, "Tiles") == 0) {
-				layer->type = LevelLayerType_Tiles;
-
-				JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
-
-				layer->n_objects = 0;
-				JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
-					layer->n_objects += 1;
-				}
-				layer->objects = SDL_calloc(layer->n_objects, sizeof(Tile)); SDL_CHECK(layer->objects);
-
-				size_t tile_idx = 0;
-				JSON_ArrayForEach(grid_tile, grid_tiles) {
-					JSON_Node* src_node = JSON_GetObjectItem(grid_tile, "src", true);
-					ivec2s src = {
-						JSON_GetIntValue(src_node->child),
-						JSON_GetIntValue(src_node->child->next),
-					};
-
-					JSON_Node* dst_node = JSON_GetObjectItem(grid_tile, "px", true);
-					ivec2s dst = {
-						JSON_GetIntValue(dst_node->child),
-						JSON_GetIntValue(dst_node->child->next),
-					};
-
-					((Tile*)layer->objects)[tile_idx++] = (Tile){src, dst};
-
-				}
-			} else if (SDL_strcmp(type, "Entities") == 0) {
-				layer->type = LevelLayerType_Entities;
-
-				JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
-
-				layer->n_objects = 0;
-				JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
-					layer->n_objects += 1;
-				}
-				layer->objects = SDL_calloc(layer->n_objects, sizeof(Entity)); SDL_CHECK(layer->objects);
-
-				size_t entity_idx = 0;
-				JSON_ArrayForEach(entity_instance, entity_instances) {
-					JSON_Node* identifier_node = JSON_GetObjectItem(entity_instance, "__identifier", true);
-					char* identifier = JSON_GetStringValue(identifier_node);
-					JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
-					JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
-					Entity entity = {0};
-					entity.start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
-					if (SDL_strcmp(identifier, "Player") == 0) {
-						entity.flags = EntityFlags_Player;
-					} else if (SDL_strcmp(identifier, "Boar") == 0) {
-						entity.flags = EntityFlags_Enemy|EntityFlags_Boar;
-					}
-					((Entity*)layer->objects)[entity_idx++] = entity;
-				}
-
+	JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
+	JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
+		JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
+		char* type = JSON_GetStringValue(type_node);
+		if (SDL_strcmp(type, "Tiles") == 0) {
+			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
+			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
+				res.n_entities += 1;
 			}
-			res.n_layers += 1;
+		} else if (SDL_strcmp(type, "Entities") == 0) {
+			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
+			JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
+				res.n_entities += 1;
+			}
+
 		}
+	}
+
+	res.entities = SDL_calloc(res.n_entities, sizeof(Entity)); SDL_CHECK(res.entities);
+	Entity* entity = res.entities;
+	JSON_ArrayForEach(layer_instance, layer_instances) {
+		JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
+		char* type = JSON_GetStringValue(type_node);
+		if (SDL_strcmp(type, "Tiles") == 0) {
+			entity->flags |= EntityFlags_Tile;
+
+			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
+
+			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
+				JSON_Node* src_node = JSON_GetObjectItem(grid_tile, "src", true);
+				ivec2s src = {
+					JSON_GetIntValue(src_node->child),
+					JSON_GetIntValue(src_node->child->next),
+				};
+
+				JSON_Node* dst_node = JSON_GetObjectItem(grid_tile, "px", true);
+				ivec2s dst = {
+					JSON_GetIntValue(dst_node->child),
+					JSON_GetIntValue(dst_node->child->next),
+				};
+
+				entity->pos = dst;
+				entity->src_pos = src;
+			}
+		} else if (SDL_strcmp(type, "Entities") == 0) {
+			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
+
+			JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
+				JSON_Node* identifier_node = JSON_GetObjectItem(entity_instance, "__identifier", true);
+				char* identifier = JSON_GetStringValue(identifier_node);
+				JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
+				JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
+				entity->start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
+				if (SDL_strcmp(identifier, "Player") == 0) {
+					entity->flags = EntityFlags_Player;
+				} else if (SDL_strcmp(identifier, "Boar") == 0) {
+					entity->flags = EntityFlags_Enemy|EntityFlags_Boar;
+				}
+			}
+		}
+	
+		++entity;
 	}
 
 	return res;
@@ -191,27 +182,18 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		break_all = false;
 
-		/*
-		f(80, 96) = g(5,6) = 155
-		f(x, y) = g(x/16, y/16)
-		g(x, y) = 
-		*/
-
 		for (size_t level_idx = 0; level_idx < ctx->n_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
-				LevelLayer* layer = &level->layers[layer_idx];
-				if (layer->type == LevelLayerType_Tiles) {
-					Tile* tiles = (Tile*)layer->objects; size_t n_tiles = layer->n_objects;
-					for (size_t tile_idx = 0; tile_idx < n_tiles; tile_idx += 1) {
-						ivec2s src = tiles[tile_idx].src;
-						SDL_Log("%d, %d", src.x, src.y);
-						for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
-							int32_t i = tiles_collide[tiles_collide_idx];
-							int32_t j = (src.x + src.y*25)/TILE_SIZE;
-							if (i == j) {
-								tiles[tile_idx].flags |= TileFlags_Solid;
-							}
+			for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+				Entity* entity = &level->entities[entity_idx];
+				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
+					ivec2s src = entity->src_pos;
+					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
+						int32_t i = tiles_collide[tiles_collide_idx];
+						int32_t j = (src.x + src.y*25)/TILE_SIZE;
+						if (i == j) {
+							entity->flags |= EntityFlags_Solid;
+							break;
 						}
 					}
 				}
@@ -443,18 +425,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].n_layers; layer_idx += 1) {
-			LevelLayer* layer = &ctx->levels[ctx->level_idx].layers[layer_idx];
-			if (layer->type == LevelLayerType_Entities) {
-				Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
-				for (size_t entity_idx = 0; entity_idx < n_entities; entity_idx += 1) {
-					Entity* entity = &entities[entity_idx];
-					if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-						UpdatePlayer(ctx, entity);
-					} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
-						UpdateBoar(ctx, entity);
-					}
-				}
+		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
+			Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
+			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+				UpdatePlayer(ctx, entity);
+			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+				UpdateBoar(ctx, entity);
 			}
 		}
 		
@@ -476,22 +452,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
-			Level* level = &ctx->levels[ctx->level_idx];
-			for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
-				LevelLayer* layer = &level->layers[layer_idx];
-				switch (layer->type) {
-					case LevelLayerType_Tiles: {
-						Tile* tiles = (Tile*)layer->objects; size_t n_objects = layer->n_objects;
-						for (size_t tile_idx = 0; tile_idx < n_objects; tile_idx += 1) {
-							DrawSpriteTile(ctx, spr_tiles, tiles[tile_idx].src,tiles[tile_idx].dst);
-						}
-					} break;
-					case LevelLayerType_Entities: {
-						Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
-						for (size_t entity_idx = 0; entity_idx < n_entities; entity_idx += 1) {
-							DrawEntity(ctx, &entities[entity_idx]);
-						}
-					} break;
+			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
+				Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
+				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
+					DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
+				} else {
+					DrawEntity(ctx, entity);
 				}
 			}
 		}

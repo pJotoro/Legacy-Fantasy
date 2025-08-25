@@ -6,13 +6,6 @@ FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) {
 	return (ivec2s){(int32_t)SDL_floorf(v.x), (int32_t)SDL_floorf(v.y)};
 }
 
-FORCEINLINE Rect RectFromTile(Tile tile) {
-    Rect res;
-    res.min = tile.dst;
-    res.max = glms_ivec2_adds(res.min, TILE_SIZE);
-	return res;
-}
-
 // FORCEINLINE bool TileIsValid(Level* level, Tile tile) {
 // 	return tile.x >= 0 && tile.x < level->size.x && tile.y >= 0 && tile.y < level->size.y;
 // }
@@ -30,18 +23,15 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
 }
 
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
-        LevelLayer* layer = &level->layers[layer_idx];
-        if (layer->type == LevelLayerType_Tiles) {
-            Tile* tiles = (Tile*)layer->objects; size_t n_tiles = layer->n_objects;
-            for (size_t tile_idx = 0; tile_idx < n_tiles; tile_idx += 1) {
-                if (HAS_FLAG(tiles[tile_idx].flags, TileFlags_Solid)) {
-                    Rect tile_rect = RectFromTile(tiles[tile_idx]);
-                    if (RectsIntersect(a, tile_rect)) {
-                        if (b) *b = tile_rect;
-                        return true;
-                    }
-                }
+    for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+        Entity* entity = &level->entities[entity_idx];
+        if (HAS_FLAG(entity->flags, EntityFlags_Tile|EntityFlags_Solid)) {
+            Rect tile;
+            tile.min = entity->pos;
+            tile.max = glms_ivec2_adds(tile.min, TILE_SIZE);
+            if (RectsIntersect(a, tile)) {
+                if (b) *b = tile;
+                return true;
             }
         }
     }

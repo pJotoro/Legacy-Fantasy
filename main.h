@@ -79,10 +79,13 @@ typedef struct Anim {
 
 enum {
 	EntityFlags_Player = FLAG(0),
-	EntityFlags_Enemy = FLAG(1),
-	EntityFlags_Boar = FLAG(2),
-	EntityFlags_Tile = FLAG(3),
-	EntityFlags_JumpReleased = FLAG(4),
+	EntityFlags_JumpReleased = FLAG(1),
+
+	EntityFlags_Enemy = FLAG(2),
+	EntityFlags_Boar = FLAG(3),
+
+	EntityFlags_Tile = FLAG(4),
+	EntityFlags_Solid = FLAG(5),
 };
 typedef uint32_t EntityFlags;
 
@@ -98,6 +101,8 @@ typedef struct Entity {
 
 	int32_t touching_floor;
 
+	ivec2s src_pos;
+
 	EntityFlags flags;
 } Entity;
 
@@ -105,36 +110,11 @@ void ResetAnim(Anim* anim);
 
 #define MAX_SPRITES 256
 
-enum {
-	TileFlags_Solid = FLAG(0),
-};
-typedef uint32_t TileFlags;
-
-typedef struct Tile {
-	ivec2s src; // position in sprite
-	ivec2s dst; // position in layer
-	TileFlags flags;
-} Tile;
-
-enum {
-	LevelLayerType_Tiles,
-	LevelLayerType_Entities,
-};
-typedef uint32_t LevelLayerType;
-
-typedef struct LevelLayer {
-	LevelLayerType type;
-	void* objects; size_t n_objects;
-} LevelLayer;
-
 typedef struct Level {
 	ivec2s size;
 	SDL_Time modify_time;
-	LevelLayer* layers; size_t n_layers;
+	Entity* entities; size_t n_entities;
 } Level;
-
-Tile GetTile(Level* level, ivec2s grid_pos);
-void SetTile(Level* level, ivec2s grid_pos, Tile tile);
 
 bool IsSolid(Level* level, ivec2s grid_pos);
 
