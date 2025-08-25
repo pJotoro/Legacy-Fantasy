@@ -191,6 +191,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		break_all = false;
 
+		/*
+		f(80, 96) = g(5,6) = 155
+		f(x, y) = g(x/16, y/16)
+		g(x, y) = 
+		*/
+
 		for (size_t level_idx = 0; level_idx < ctx->n_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t layer_idx = 0; layer_idx < level->n_layers; layer_idx += 1) {
@@ -199,9 +205,10 @@ int32_t main(int32_t argc, char* argv[]) {
 					Tile* tiles = (Tile*)layer->objects; size_t n_tiles = layer->n_objects;
 					for (size_t tile_idx = 0; tile_idx < n_tiles; tile_idx += 1) {
 						ivec2s src = tiles[tile_idx].src;
+						SDL_Log("%d, %d", src.x, src.y);
 						for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 							int32_t i = tiles_collide[tiles_collide_idx];
-							int32_t j = (src.x + src.y*level->size.x)/TILE_SIZE;
+							int32_t j = (src.x + src.y*25)/TILE_SIZE;
 							if (i == j) {
 								tiles[tile_idx].flags |= TileFlags_Solid;
 							}
