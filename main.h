@@ -78,10 +78,12 @@ typedef struct Anim {
 #define PLAYER_JUMP_REMAINDER 10
 
 enum {
-	EntityType_Player,
-	EntityType_Boar,
+	EntityFlags_Player = FLAG(0),
+	EntityFlags_Enemy = FLAG(1),
+	EntityFlags_Boar = FLAG(2),
+	EntityFlags_Tile = FLAG(3),
 };
-typedef uint32_t EntityType;
+typedef uint32_t EntityFlags;
 
 typedef struct Entity {
 	ivec2s start_pos;
@@ -91,7 +93,7 @@ typedef struct Entity {
 	int32_t dir;
 	Anim anim;
 	int32_t touching_floor;
-	EntityType type;
+	EntityFlags flags;
 	bool jump_released;
 } Entity;
 

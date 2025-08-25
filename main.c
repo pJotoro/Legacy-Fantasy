@@ -37,9 +37,9 @@ void ResetGame(Context* ctx) {
 			Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
 			for (size_t entity_idx = 0; entity_idx < n_entities && !break_all; entity_idx += 1) {
 				Entity* entity = &entities[entity_idx];
-				if (entity->type == EntityType_Player) {
+				if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 					*entity = (Entity){
-						.type = EntityType_Player,
+						.flags = EntityFlags_Player,
 						.start_pos = entity->start_pos,
 						.pos = entity->start_pos,
 						.dir = 1,
@@ -119,9 +119,9 @@ Level LoadLevel(JSON_Node* level_node) {
 					Entity entity = {0};
 					entity.start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
 					if (SDL_strcmp(identifier, "Player") == 0) {
-						entity.type = EntityType_Player;
+						entity.flags = EntityFlags_Player;
 					} else if (SDL_strcmp(identifier, "Boar") == 0) {
-						entity.type = EntityType_Boar;
+						entity.flags = EntityFlags_Enemy|EntityFlags_Boar;
 					}
 					((Entity*)layer->objects)[entity_idx++] = entity;
 				}
@@ -449,13 +449,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				Entity* entities = (Entity*)layer->objects; size_t n_entities = layer->n_objects;
 				for (size_t entity_idx = 0; entity_idx < n_entities; entity_idx += 1) {
 					Entity* entity = &entities[entity_idx];
-					switch (entity->type) {
-						case EntityType_Player: {
-							UpdatePlayer(ctx, entity);
-						} break;
-						case EntityType_Boar: {
-							UpdateBoar(ctx, entity);
-						} break;
+					if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+						UpdatePlayer(ctx, entity);
+					} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+						UpdateBoar(ctx, entity);
 					}
 				}
 			}
