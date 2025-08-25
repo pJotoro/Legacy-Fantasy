@@ -60,10 +60,10 @@ Level LoadLevel(JSON_Node* level_node) {
 	char* identifier = JSON_GetStringValue(identifier_node);
 	if (SDL_strcmp(identifier, "Level_0") == 0) {
 		JSON_Node* w = JSON_GetObjectItem(level_node, "pxWid", true);
-		res.size.x = (int32_t)JSON_GetNumberValue(w) / TILE_SIZE;
+		res.size.x = JSON_GetIntValue(w) / TILE_SIZE;
 
 		JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
-		res.size.y = (int32_t)JSON_GetNumberValue(h) / TILE_SIZE;
+		res.size.y = JSON_GetIntValue(h) / TILE_SIZE;
 
 		JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
 		res.layers = SDL_calloc(JSON_GetArraySize(layer_instances), sizeof(LevelLayer)); SDL_CHECK(res.layers);
@@ -86,14 +86,14 @@ Level LoadLevel(JSON_Node* level_node) {
 				JSON_ArrayForEach(grid_tile, grid_tiles) {
 					JSON_Node* src_node = JSON_GetObjectItem(grid_tile, "src", true);
 					ivec2s src = {
-						(int32_t)JSON_GetNumberValue(src_node->child),
-						(int32_t)JSON_GetNumberValue(src_node->child->next),
+						JSON_GetIntValue(src_node->child),
+						JSON_GetIntValue(src_node->child->next),
 					};
 
 					JSON_Node* dst_node = JSON_GetObjectItem(grid_tile, "px", true);
 					ivec2s dst = {
-						(int32_t)JSON_GetNumberValue(dst_node->child),
-						(int32_t)JSON_GetNumberValue(dst_node->child->next),
+						JSON_GetIntValue(dst_node->child),
+						JSON_GetIntValue(dst_node->child->next),
 					};
 
 					((Tile*)layer->objects)[tile_idx++] = (Tile){src, dst};
@@ -117,7 +117,7 @@ Level LoadLevel(JSON_Node* level_node) {
 					JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
 					JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
 					Entity entity = {0};
-					entity.start_pos = (ivec2s){(int32_t)JSON_GetNumberValue(world_x), (int32_t)JSON_GetNumberValue(world_y)};
+					entity.start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
 					if (SDL_strcmp(identifier, "Player") == 0) {
 						entity.type = EntityType_Player;
 					} else if (SDL_strcmp(identifier, "Boar") == 0) {
@@ -182,7 +182,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
 				size_t i = 0;
 				JSON_ArrayForEach(tile_id, tile_ids) {
-					tiles_collide[i++] = (int32_t)JSON_GetNumberValue(tile_id);
+					tiles_collide[i++] = JSON_GetIntValue(tile_id);
 				}
 				break_all = true;
 				break;

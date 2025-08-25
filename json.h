@@ -166,7 +166,8 @@ JSON_PUBLIC(const char *) JSON_GetErrorPtr(void);
 
 /* Check item type and return its value */
 JSON_PUBLIC(char *) JSON_GetStringValue(const JSON_Node * const item);
-JSON_PUBLIC(double) JSON_GetNumberValue(const JSON_Node * const item);
+JSON_PUBLIC(double) JSON_GetDoubleValue(const JSON_Node * const item);
+JSON_PUBLIC(int32_t) JSON_GetIntValue(const JSON_Node * const item);
 
 /* These functions check the type of an item */
 JSON_PUBLIC(bool) JSON_IsInvalid(const JSON_Node * const item);

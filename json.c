@@ -73,7 +73,7 @@ JSON_PUBLIC(char *) JSON_GetStringValue(const JSON_Node * const item)
     return item->valuestring;
 }
 
-JSON_PUBLIC(double) JSON_GetNumberValue(const JSON_Node * const item)
+JSON_PUBLIC(double) JSON_GetDoubleValue(const JSON_Node * const item)
 {
     if (!JSON_IsNumber(item))
     {
@@ -81,6 +81,16 @@ JSON_PUBLIC(double) JSON_GetNumberValue(const JSON_Node * const item)
     }
 
     return item->valuedouble;
+}
+
+JSON_PUBLIC(int32_t) JSON_GetIntValue(const JSON_Node * const item)
+{
+    if (!JSON_IsNumber(item))
+    {
+        return 0;
+    }
+
+    return item->valueint;
 }
 
 /* This is a safeguard to prevent copy-pasters from using incompatible C and header files */
