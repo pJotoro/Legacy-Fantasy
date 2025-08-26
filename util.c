@@ -22,22 +22,6 @@ FORCEINLINE bool RectsIntersect(Rect a, Rect b) {
     return !(d0 | d1 | d2 | d3);
 }
 
-FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
-        Entity* entity = &level->entities[entity_idx];
-        if (HAS_FLAG(entity->flags, EntityFlags_Tile|EntityFlags_Solid)) {
-            Rect tile;
-            tile.min = entity->pos;
-            tile.max = glms_ivec2_adds(tile.min, TILE_SIZE);
-            if (RectsIntersect(a, tile)) {
-                if (b) *b = tile;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 	int32_t x = radius;
 	int32_t y = 0;
