@@ -31,8 +31,6 @@ Level LoadLevel(JSON_Node* level_node) {
 		JSON_Node* type_node = JSON_GetObjectItem(layer_instance, "__type", true);
 		char* type = JSON_GetStringValue(type_node);
 		if (SDL_strcmp(type, "Tiles") == 0) {
-			entity->flags |= EntityFlags_Tile;
-
 			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 
 			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
@@ -48,8 +46,10 @@ Level LoadLevel(JSON_Node* level_node) {
 					JSON_GetIntValue(dst_node->child->next),
 				};
 
+				entity->flags = EntityFlags_Tile;
 				entity->pos = dst;
 				entity->src_pos = src;
+				++entity;
 			}
 		} else if (SDL_strcmp(type, "Entities") == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
@@ -65,10 +65,9 @@ Level LoadLevel(JSON_Node* level_node) {
 				} else if (SDL_strcmp(identifier, "Boar") == 0) {
 					entity->flags = EntityFlags_Enemy|EntityFlags_Boar;
 				}
+				++entity;
 			}
 		}
-	
-		++entity;
 	}
 
 	return res;
