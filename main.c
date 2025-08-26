@@ -34,15 +34,14 @@ void ResetGame(Context* ctx) {
 		Level* level = &ctx->levels[level_idx];
 		for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
 			Entity* entity = &level->entities[entity_idx];
+			entity->pos = entity->start_pos;
+			entity->dir = 1;
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-				*entity = (Entity){
-					.flags = EntityFlags_Player,
-					.start_pos = entity->start_pos,
-					.pos = entity->start_pos,
-					.dir = 1,
-					.touching_floor = PLAYER_JUMP_REMAINDER,
-				};
+				entity->touching_floor = PLAYER_JUMP_REMAINDER;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+				break;
+			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 				break;
 			}
 		}

@@ -243,6 +243,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SDL_assert(sd->frames);
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
 		SpriteCell* cell = &sf->cells[cell_idx];

@@ -49,7 +49,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				entity->flags = EntityFlags_Tile;
 				entity->pos = dst;
 				entity->src_pos = src;
-				++entity;
+				entity += 1;
 			}
 		} else if (SDL_strcmp(type, "Entities") == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
@@ -65,7 +65,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				} else if (SDL_strcmp(identifier, "Boar") == 0) {
 					entity->flags = EntityFlags_Enemy|EntityFlags_Boar;
 				}
-				++entity;
+				entity += 1;
 			}
 		}
 	}
