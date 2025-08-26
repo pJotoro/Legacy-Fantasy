@@ -76,7 +76,7 @@ Level LoadLevel(JSON_Node* level_node) {
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
     for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
         Entity* entity = &level->entities[entity_idx];
-        if (HAS_FLAG(entity->flags, EntityFlags_Tile|EntityFlags_Solid)) {
+        if (HAS_FLAG(entity->flags, EntityFlags_Tile) && HAS_FLAG(entity->flags, EntityFlags_Solid)) {
             Rect tile;
             tile.min = entity->pos;
             tile.max = glms_ivec2_adds(tile.min, TILE_SIZE);
