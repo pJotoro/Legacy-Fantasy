@@ -49,6 +49,23 @@ void ResetGame(Context* ctx) {
 	}
 }
 
+// An example of what my code might look like if I switched to C++.
+#if 0
+void Context::ResetGame() {
+	this->dt = this->display_mode->refresh_rate;
+	this->level_idx = 0;
+	for (Level& level : this->levels) {
+		for (Entity& entity: this->entities) {
+			if (HAS_FLAG(entity.flags, EntityFlags::Player)) {
+				entity.reset();
+				entity.setSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+				break;
+			}
+		}
+	}
+}
+#endif
+
 Level LoadLevel(JSON_Node* level_node) {
 	Level res = {0};
 
