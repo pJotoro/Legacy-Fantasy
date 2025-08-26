@@ -326,8 +326,7 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
 }
 
-// This is really stupid and could be written in like two lines probably.
-int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b) {
+int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
 	ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
 	ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
 	if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {

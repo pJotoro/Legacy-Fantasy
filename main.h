@@ -66,7 +66,7 @@ typedef struct Sprite {
 	ssize_t idx;
 } Sprite;
 
-int32_t CompareSpriteCells(SpriteCell* a, SpriteCell* b);
+int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b);
 
 typedef struct Anim {
 	Sprite sprite;

@@ -202,15 +202,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (sd->path) {
 			for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
 				SpriteFrame* sf = &sd->frames[frame_idx];
-				for (size_t i = 1; i < sf->n_cells; i += 1) {
-					SpriteCell key = sf->cells[i];
-					size_t j = i - 1;
-					while (j >= 0 && CompareSpriteCells(&sf->cells[j], &key) == 1) {
-						sf->cells[j + 1] = sf->cells[j];
-						j -= 1;
-					}
-					sf->cells[j + 1] = key;
-				}
+				SDL_qsort(sf->cells, sf->n_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 			}
 		}
 	}
