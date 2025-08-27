@@ -24,7 +24,6 @@ typedef int64_t ssize_t;
 #include "variables.c"
 #include "util.c"
 #include "level.c"
-#include "nuklear_util.c"
 #include "sprite.c"
 
 void ResetGame(Context* ctx) {
