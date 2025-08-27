@@ -182,13 +182,8 @@ void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 
-#if 0
-void NK_HandleEvent(Context* ctx, SDL_Event* event);
-void NK_Render(Context* ctx);
-float NK_TextWidthCallback(nk_handle handle, float height, const char *text, int32_t len);
-void NK_UpdateUI(Context* ctx);
-struct nk_image NK_GetImage(const SpriteDesc* sprite, size_t frame_idx);
-#endif
-
 size_t HashString(char* key, size_t len);
 
+// NOTE: Redefine these as needed.
+#define FULLSCREEN 0
+#define DELTA_TIME 0

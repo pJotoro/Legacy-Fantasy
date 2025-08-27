@@ -130,7 +130,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					ivec2s src = entity->src_pos;
 					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 						int32_t i = tiles_collide[tiles_collide_idx];
-						int32_t j = (src.x + src.y*25)/TILE_SIZE;
+						int32_t j = (src.x + src.y*25)/TILE_SIZE; // TODO: Replace 25 with tileset width.
 						if (i == j) {
 							entity->flags |= EntityFlags_Solid;
 							break;
@@ -157,7 +157,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		int32_t w = ctx->display_mode->w / 2;
 		int32_t h = ctx->display_mode->h / 2;
 
-#if 0
+#if FULLSCREEN
 		flags |= SDL_WINDOW_FULLSCREEN;
 		w = ctx->display_mode->w;
 		h = ctx->display_mode->h;
@@ -196,7 +196,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
 	}
 
-	// SortSpriteCells (uses insertion sort)
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 		SpriteDesc* sd = &ctx->sprites[sprite_idx];
 		if (sd->path) {
@@ -335,7 +334,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
-	#if 0
+	#if DELTA_TIME
 	#ifndef _DEBUG
 		{
 			SDL_Time current_time;

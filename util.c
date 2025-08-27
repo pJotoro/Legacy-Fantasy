@@ -101,5 +101,5 @@ void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 	        SDL_CHECK(SDL_RenderLine(renderer, (float)center.x, (float)center.y, (float)(center.x + y), (float)(center.y - x)));
 	        SDL_CHECK(SDL_RenderLine(renderer, (float)center.x, (float)center.y, (float)(center.x - y), (float)(center.y - x)));   
         }
-    }	
+    }
 }

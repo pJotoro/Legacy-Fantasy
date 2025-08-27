@@ -198,13 +198,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 				ASE_Tag* tags = (ASE_Tag*)(chunk+1);
 				for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
 					ASE_Tag* tag = &tags[tag_idx]; UNUSED(tag);
-					#if 0
-					char* name = SDL_malloc(tag->name.len + 1); SDL_CHECK(name);
-					SDL_strlcpy(name, (char*)(tag+1), tag->name.len + 1);
-					SDL_Log("tag = {.from_frame = %u, .to_frame = %u, .loop_anim_dir = %u, .repeat = %u, .name = %s}", 
-						(uint32_t)tag->from_frame, (uint32_t)tag->to_frame, (uint32_t)tag->loop_anim_dir, (uint32_t)tag->repeat, name);
-					SDL_free(name);
-					#endif
 				}
 			} break;
 			case ASE_ChunkType_Palette: {
@@ -227,23 +220,9 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
-// void DrawSprite(SDL_Renderer* renderer, SpriteDesc* sd, size_t frame_idx, const SDL_FRect* srcrect, const SDL_FRect* dstrect) {
-// 	for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].n_cells; cell_idx += 1) {
-// 		SDL_RenderTexture(renderer, sd->frames[frame_idx].cells[cell_idx].texture, srcrect, dstrect);
-// 	}
-// }
-
-// void DrawSpriteSheet(SDL_Renderer* renderer, SpriteDesc* sd, ivec2s pos) {
-// 	const SDL_FRect srcrect = {0.0f, 0.0f, (float)(sd->w*sd->n_frames), (float)sd->h};
-// 	const SDL_FRect dstrect = {pos.x, pos.y, (float)(sd->w*sd->n_frames), (float)sd->h};
-// 	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
-// 		DrawSprite(renderer, sd, frame_idx, &srcrect, &dstrect);
-// 	}
-// }
-
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SDL_assert(sd->frames);
+	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
 		SpriteCell* cell = &sf->cells[cell_idx];
@@ -304,9 +283,6 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
 	SDL_assert(sd->frames[0].n_cells == 1);
-
-	// SDL_assert(src.x >= 0 && src.x*sd->grid_size.x < sd->size.x);
-	// SDL_assert(src.y >= 0 && src.y*sd->grid_size.y < sd->size.y);
 
 	SDL_Texture* texture = sd->frames[0].cells[0].texture;
 
