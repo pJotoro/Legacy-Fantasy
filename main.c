@@ -35,10 +35,10 @@ void ResetGame(Context* ctx) {
 			Entity* entity = &level->entities[entity_idx];
 			entity->pos = entity->start_pos;
 			entity->dir = 1;
-			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+			if (HAS_FLAGS(entity->flags, EntityFlags_Player)) {
 				entity->touching_floor = PLAYER_JUMP_REMAINDER;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+			} else if (HAS_FLAGS(entity->flags, EntityFlags_Boar)) {
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
 		}
@@ -80,7 +80,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			head = JSON_ParseWithLength((const char*)file_data, file_len);
 			SDL_free(file_data);
 		}
-		SDL_assert(HAS_FLAG(head->type, JSON_Object));
+		SDL_assert(HAS_FLAGS(head->type, JSON_Object));
 
 		JSON_Node* levels = JSON_GetObjectItem(head, "levels", true);
 		JSON_Node* level; JSON_ArrayForEach(level, levels) {
@@ -123,7 +123,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
 				Entity* entity = &level->entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
+				if (HAS_FLAGS(entity->flags, EntityFlags_Tile)) {
 					ivec2s src = entity->src_pos;
 					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
 						int32_t i = tiles_collide[tiles_collide_idx];
@@ -355,9 +355,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
 			Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+			if (HAS_FLAGS(entity->flags, EntityFlags_Player)) {
 				UpdatePlayer(ctx, entity);
-			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+			} else if (HAS_FLAGS(entity->flags, EntityFlags_Boar)) {
 				UpdateBoar(ctx, entity);
 			}
 		}
@@ -382,7 +382,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
 				Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
+				if (HAS_FLAGS(entity->flags, EntityFlags_Tile)) {
 					DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
 				} else {
 					DrawEntity(ctx, entity);
@@ -513,7 +513,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				player->vel.x = SDL_clamp(player->vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
 			
 			}	
-		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased) && player->vel.y < 0.0f) {
+		} else if (ctx->button_jump_released && !HAS_FLAGS(player->flags, EntityFlags_JumpReleased) && player->vel.y < 0.0f) {
 			player->flags |= EntityFlags_JumpReleased;
 			player->vel.y /= 2.0f;
 		}
