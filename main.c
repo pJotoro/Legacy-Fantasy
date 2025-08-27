@@ -38,10 +38,8 @@ void ResetGame(Context* ctx) {
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 				entity->touching_floor = PLAYER_JUMP_REMAINDER;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-				break;
 			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
-				break;
 			}
 		}
 	}
