@@ -637,6 +637,22 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	UNUSED(ctx);
-	UNUSED(boar);
+	static Sprite boar_idle;
+	static Sprite boar_walk;
+	static Sprite boar_run;
+	static Sprite boar_attack;
+	static Sprite boar_hit;
+
+	static bool sprites_initialized = false;
+	if (!sprites_initialized) {
+		sprites_initialized = true;
+
+		boar_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+		boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
+		boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
+		boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Attack\\Attack.aseprite");
+		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
+	}
+
+	
 }
