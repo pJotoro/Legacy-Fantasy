@@ -12,7 +12,7 @@
 
 #define UNUSED(X) (void)X
 
-#define HAS_FLAGS(BITSET, FLAGS) ((BITSET) & (FLAGS))
+#define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
 #define FLAG(X) (1u << X##u)
 
 #define SDL_CHECK(E) STMT( \
