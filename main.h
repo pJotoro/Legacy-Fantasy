@@ -12,7 +12,7 @@
 
 #define UNUSED(X) (void)X
 
-#define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG))
+#define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.
 #define FLAG(X) (1u << X##u)
 
 #define SDL_CHECK(E) STMT( \
