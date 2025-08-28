@@ -26,6 +26,32 @@ typedef int64_t ssize_t;
 #include "level.c"
 #include "sprite.c"
 
+static Sprite player_idle;
+static Sprite player_run;
+static Sprite player_jump_start;
+static Sprite player_jump_end;
+static Sprite player_attack;
+
+static Sprite boar_idle;
+static Sprite boar_walk;
+static Sprite boar_run;
+static Sprite boar_attack;
+static Sprite boar_hit;
+
+void InitSprites(void) {
+	player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+	player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+	player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+	player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
+
+	boar_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+	boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
+	boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
+	boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Attack\\Attack.aseprite");
+	boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
+}
+
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->level_idx = 0;
@@ -40,6 +66,7 @@ void ResetGame(Context* ctx) {
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 				entity->touching_floor = PLAYER_JUMP_REMAINDER;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+				ctx->player = entity; // TODO: Don't just do this in ResetGame. Also do it when changing levels.
 			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
@@ -72,6 +99,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	SDL_CHECK(TTF_Init());
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
+
+	InitSprites();
 
 	// LoadLevels
 	{
@@ -462,23 +491,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 }
 
 void UpdatePlayer(Context* ctx, Entity* player) {
-	static Sprite player_idle;
-	static Sprite player_run;
-	static Sprite player_jump_start;
-	static Sprite player_jump_end;
-	static Sprite player_attack;
-
-	static bool sprites_initialized = false;
-	if (!sprites_initialized) {
-		sprites_initialized = true;
-
-		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
-		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
-	}
-
 	if (player->touching_floor && ctx->button_attack) {
 		SetSprite(player, player_attack);
 	}
@@ -639,23 +651,6 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	static Sprite boar_idle;
-	static Sprite boar_walk;
-	static Sprite boar_run;
-	static Sprite boar_attack;
-	static Sprite boar_hit;
-
-	static bool sprites_initialized = false;
-	if (!sprites_initialized) {
-		sprites_initialized = true;
-
-		boar_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
-		boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
-		boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
-		boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Attack\\Attack.aseprite");
-		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
-	}
-
 	Rect hitbox;
 	{
 		SpriteDesc* sd = GetSpriteDesc(ctx, boar_idle);
@@ -665,6 +660,51 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	boar->vel.y += GRAVITY;
 
 	Level* level = &ctx->levels[ctx->level_idx];
+
+	boar->touching_floor = false;
+	if (boar->vel.y < 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.min.x + 1;
+		side.min.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y);
+		side.max.x = boar->pos.x + hitbox.max.x - 1;
+		side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			boar->pos.y = tile.min.y - hitbox.min.y;
+			boar->vel.y = 0.0f;
+		}
+	} else if (boar->vel.y > 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.min.x + 1;
+		side.min.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y) - 1;
+		side.max.x = boar->pos.x + hitbox.max.x - 1;
+		side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			boar->pos.y = tile.min.y - hitbox.max.y;
+			boar->vel.y = 0.0f;
+			boar->touching_floor = true;
+		}
+	}
+
+	// BoarChasePlayer
+	if (boar->touching_floor && ctx->player->touching_floor) {
+		if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*5) {
+			if (boar->pos.x < ctx->player->pos.x) {
+				SetSprite(boar, boar_run);
+				boar->vel.x = 1.0f;
+				boar->dir = -1;
+			} else if (boar->pos.x > ctx->player->pos.x) {
+				SetSprite(boar, boar_run);
+				boar->vel.x = -1.0f;
+				boar->dir = 1;
+			}
+		} else {
+			SetSprite(boar, boar_idle);
+			boar->vel.x = 0.0f;
+		}
+	}
+
 	if (boar->vel.x < 0.0f) {
 		Rect side;
 		side.min.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x);
@@ -694,29 +734,6 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 				boar->pos.x = old_pos;
 			}
 			boar->vel.x = 0.0f;
-		}
-	}
-	if (boar->vel.y < 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.min.x + 1;
-		side.min.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y);
-		side.max.x = boar->pos.x + hitbox.max.x - 1;
-		side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			boar->pos.y = tile.min.y - hitbox.min.y;
-			boar->vel.y = 0.0f;
-		}
-	} else if (boar->vel.y > 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.min.x + 1;
-		side.min.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y) - 1;
-		side.max.x = boar->pos.x + hitbox.max.x - 1;
-		side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			boar->pos.y = tile.min.y - hitbox.max.y;
-			boar->vel.y = 0.0f;
 		}
 	}
 
