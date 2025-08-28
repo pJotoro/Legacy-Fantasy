@@ -34,6 +34,8 @@ void ResetGame(Context* ctx) {
 		for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
 			Entity* entity = &level->entities[entity_idx];
 			entity->pos = entity->start_pos;
+			entity->pos_remainder = (vec2s){0.0f, 0.0f};
+			entity->vel = (vec2s){0, 0};
 			entity->dir = 1;
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 				entity->touching_floor = PLAYER_JUMP_REMAINDER;
