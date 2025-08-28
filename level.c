@@ -47,7 +47,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				};
 
 				entity->flags = EntityFlags_Tile;
-				entity->pos = dst;
+				entity->start_pos = dst;
 				entity->src_pos = src;
 				entity += 1;
 			}
