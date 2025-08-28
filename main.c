@@ -654,5 +654,82 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
 	}
 
-	
+	Rect hitbox;
+	{
+		SpriteDesc* sd = GetSpriteDesc(ctx, boar_idle);
+		hitbox = sd->hitbox;
+	}
+
+	boar->vel.y += GRAVITY;
+
+	Level* level = &ctx->levels[ctx->level_idx];
+	if (boar->vel.x < 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x);
+		side.min.y = boar->pos.y + hitbox.min.y + 1;
+		side.max.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x) + 1;
+		side.max.y = boar->pos.y + hitbox.max.y - 1;
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			int32_t old_pos = boar->pos.x;
+			boar->pos.x = tile.max.x - hitbox.min.x;
+			if (boar->pos.x > old_pos) {
+				boar->pos.x = old_pos;
+			}
+			boar->vel.x = 0.0f;
+		}
+	} else if (boar->vel.x > 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x) - 1;
+		side.min.y = boar->pos.y + hitbox.min.y + 1;
+		side.max.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x);
+		side.max.y = boar->pos.y + hitbox.max.y - 1;
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			int32_t old_pos = boar->pos.x;
+			boar->pos.x = tile.min.x - hitbox.max.x;
+			if (boar->pos.x < old_pos) {
+				boar->pos.x = old_pos;
+			}
+			boar->vel.x = 0.0f;
+		}
+	}
+	if (boar->vel.y < 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.min.x + 1;
+		side.min.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y);
+		side.max.x = boar->pos.x + hitbox.max.x - 1;
+		side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			boar->pos.y = tile.min.y - hitbox.min.y;
+			boar->vel.y = 0.0f;
+		}
+	} else if (boar->vel.y > 0.0f) {
+		Rect side;
+		side.min.x = boar->pos.x + hitbox.min.x + 1;
+		side.min.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y) - 1;
+		side.max.x = boar->pos.x + hitbox.max.x - 1;
+		side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
+		Rect tile;
+		if (RectIntersectsLevel(level, side, &tile)) {
+			boar->pos.y = tile.min.y - hitbox.max.y;
+			boar->vel.y = 0.0f;
+		}
+	}
+
+	{
+		boar->pos_remainder = glms_vec2_add(boar->pos_remainder, boar->vel);
+		vec2s move = glms_vec2_floor(boar->pos_remainder);
+		boar->pos = glms_ivec2_add(boar->pos, ivec2_from_vec2(move));
+		boar->pos_remainder = glms_vec2_sub(boar->pos_remainder, move);
+	}
+
+	bool loop = true;
+	#if 0
+	if (SpritesEqual(boar->anim.sprite, boar) || )) {
+		loop = false;
+	}
+	#endif
+	UpdateAnim(ctx, &boar->anim, loop);
 }
