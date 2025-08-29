@@ -186,5 +186,5 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 size_t HashString(char* key, size_t len);
 
 // NOTE: Redefine these as needed.
-#define FULLSCREEN 0
+#define FULLSCREEN 1
 #define DELTA_TIME 0
