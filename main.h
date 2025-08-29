@@ -75,7 +75,15 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
+#define PLAYER_ACC 0.600000f
+#define PLAYER_FRIC 0.300000f
+#define PLAYER_MAX_VEL 4.500001f
+#define PLAYER_JUMP 13.500000f
 #define PLAYER_JUMP_REMAINDER 10
+
+#define TILE_SIZE 16
+#define GRAVITY 0.580000f
+
 
 enum {
 	EntityFlags_Player = FLAG(0),
