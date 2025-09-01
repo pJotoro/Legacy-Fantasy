@@ -535,11 +535,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		}
 
 		// PlayerCollision
-		Rect hitbox;
-		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, player_idle);
-			hitbox = sd->hitbox;
-		}
+		Rect hitbox = GetSpriteHitbox(ctx, player_idle, 0);
 		Level* level = &ctx->levels[ctx->level_idx];
 		if (player->vel.x < 0.0f) {
 			Rect side;
@@ -653,11 +649,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	Rect hitbox;
-	{
-		SpriteDesc* sd = GetSpriteDesc(ctx, boar_idle);
-		hitbox = sd->hitbox;
-	}
+	Rect hitbox = GetSpriteHitbox(ctx, boar_idle, 0);
 
 	boar->vel.y += GRAVITY;
 

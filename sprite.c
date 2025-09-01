@@ -151,8 +151,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 							SDL_DestroySurface(surf);
 							SDL_free(dst_buf);
 						} else {
-							sd->hitbox.min = cell.offset;
-							sd->hitbox.max = glms_ivec2_add(cell.offset, cell.size);
+							cell.flags |= SpriteCellFlags_Hitbox;
 						}
 					} break;
 					case ASE_CellType_CompressedTilemap: {
@@ -341,4 +340,18 @@ bool SetSprite(Entity* entity, Sprite sprite) {
 
 bool SpritesEqual(Sprite a, Sprite b) {
 	return a.idx == b.idx;
+}
+
+Rect GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SDL_assert(frame_idx < sd->n_frames);
+	SpriteFrame* frame = &sd->frames[frame_idx];
+	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
+		SpriteCell* cell = &frame->cells[cell_idx];
+		if (HAS_FLAG(cell->flags, SpriteCellFlags_Hitbox)) {
+			return (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+		}
+	}
+	SDL_Log("Failed to find hitbox");
+	return (Rect){0};
 }
