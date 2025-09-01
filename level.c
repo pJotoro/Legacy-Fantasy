@@ -73,7 +73,7 @@ Level LoadLevel(JSON_Node* level_node) {
 	return res;
 }
 
-FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
+bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
     for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
         Entity* entity = &level->entities[entity_idx];
         if (HAS_FLAG(entity->flags, EntityFlags_Tile) && HAS_FLAG(entity->flags, EntityFlags_Solid)) {

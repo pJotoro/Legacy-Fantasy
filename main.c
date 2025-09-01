@@ -21,7 +21,6 @@ typedef int64_t ssize_t;
 
 #include "main.h"
 
-#include "variables.c"
 #include "util.c"
 #include "level.c"
 #include "sprite.c"
@@ -408,6 +407,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 	
+	SDL_Quit();
 	return 0;
 }
 
