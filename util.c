@@ -31,14 +31,14 @@ void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
     int32_t point = 1 - radius;
     while (x > y)
     { 
-        y += 1;
+        ++y;
         
         if (point <= 0) {
 			point = point + 2*y + 1;
         }
         else
         {
-            x -= 1;
+            --x;
             point = point + 2*y - 2*x + 1;
         }
         
@@ -77,12 +77,12 @@ void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius) {
 
     int32_t point = 1 - radius;
     while (x > y) { 
-        y += 1;
+        ++y;
         
         if (point <= 0) {
 			point = point + 2*y + 1;
         } else {
-            x -= 1;
+            --x;
             point = point + 2*y - 2*x + 1;
         }
         

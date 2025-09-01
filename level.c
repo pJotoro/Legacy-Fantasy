@@ -14,12 +14,12 @@ Level LoadLevel(JSON_Node* level_node) {
 		if (SDL_strcmp(type, "Tiles") == 0) {
 			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
 			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
-				res.n_entities += 1;
+				++res.n_entities;
 			}
 		} else if (SDL_strcmp(type, "Entities") == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
 			JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
-				res.n_entities += 1;
+				++res.n_entities;
 			}
 
 		}
@@ -49,7 +49,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				entity->flags = EntityFlags_Tile;
 				entity->start_pos = dst;
 				entity->src_pos = src;
-				entity += 1;
+				++entity;
 			}
 		} else if (SDL_strcmp(type, "Entities") == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
@@ -65,7 +65,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				} else if (SDL_strcmp(identifier, "Boar") == 0) {
 					entity->flags = EntityFlags_Enemy|EntityFlags_Boar;
 				}
-				entity += 1;
+				++entity;
 			}
 		}
 	}
@@ -74,7 +74,7 @@ Level LoadLevel(JSON_Node* level_node) {
 }
 
 FORCEINLINE bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-    for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+    for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
         Entity* entity = &level->entities[entity_idx];
         if (HAS_FLAG(entity->flags, EntityFlags_Tile) && HAS_FLAG(entity->flags, EntityFlags_Solid)) {
             Rect tile;

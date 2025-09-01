@@ -55,9 +55,9 @@ void InitSprites(void) {
 void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->level_idx = 0;
-	for (size_t level_idx = 0; level_idx < ctx->n_levels; level_idx += 1) {
+	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
-		for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+		for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
 			Entity* entity = &level->entities[entity_idx];
 			entity->pos = entity->start_pos;
 			entity->pos_remainder = (vec2s){0.0f, 0.0f};
@@ -115,7 +115,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		JSON_Node* levels = JSON_GetObjectItem(head, "levels", true);
 		JSON_Node* level; JSON_ArrayForEach(level, levels) {
-			ctx->n_levels += 1;
+			++ctx->n_levels;
 		}
 		ctx->levels = SDL_calloc(ctx->n_levels, sizeof(Level)); SDL_CHECK(ctx->levels);
 		size_t level_idx = 0;
@@ -136,7 +136,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				
 				JSON_Node* tile_ids = JSON_GetObjectItem(enum_tag, "tileIds", true);
 				JSON_Node* tile_id; JSON_ArrayForEach(tile_id, tile_ids) {
-					n_tiles_collide += 1;
+					++n_tiles_collide;
 				}
 				tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
 				size_t i = 0;
@@ -150,13 +150,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		break_all = false;
 
-		for (size_t level_idx = 0; level_idx < ctx->n_levels; level_idx += 1) {
+		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 			Level* level = &ctx->levels[level_idx];
-			for (size_t entity_idx = 0; entity_idx < level->n_entities; entity_idx += 1) {
+			for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
 				Entity* entity = &level->entities[entity_idx];
 				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
 					ivec2s src = entity->src_pos;
-					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; tiles_collide_idx += 1) {
+					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
 						int32_t i = tiles_collide[tiles_collide_idx];
 						int32_t j = (src.x + src.y*25)/TILE_SIZE; // TODO: Replace 25 with tileset width.
 						if (i == j) {
@@ -224,10 +224,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
 	}
 
-	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
 		SpriteDesc* sd = &ctx->sprites[sprite_idx];
 		if (sd->path) {
-			for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+			for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 				SpriteFrame* sf = &sd->frames[frame_idx];
 				SDL_qsort(sf->cells, sf->n_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 			}
@@ -264,7 +264,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->draw_selected_anim = true;
 					ResetAnim(&ctx->selected_anim);
 					do {
-						ctx->selected_anim.sprite.idx += 1;
+						++ctx->selected_anim.sprite.idx;
 						if (ctx->selected_anim.sprite.idx >= MAX_SPRITES) ctx->selected_anim.sprite.idx = 0;
 					} while (!ctx->sprites[ctx->selected_anim.sprite.idx].path);
 				}
@@ -384,7 +384,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
+		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
 			Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 				UpdatePlayer(ctx, entity);
@@ -411,7 +411,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
-			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; entity_idx += 1) {
+			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
 				Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
 				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
 					DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
@@ -452,7 +452,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	int32_t n_files;
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
 	if (n_files > 0) {
-		for (size_t file_idx = 0; file_idx < (size_t)n_files; file_idx += 1) {
+		for (size_t file_idx = 0; file_idx < (size_t)n_files; ++file_idx) {
 			char* file = files[file_idx];
 
 			char sprite_path[2048]; const size_t SPRITE_PATH_SIZE = 2048;
@@ -463,7 +463,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SpriteDesc* sprite_desc = &ctx->sprites[sprite.idx];
 			if (sprite_desc->path) {
 				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
-				ctx->n_collisions += 1;
+				++ctx->n_collisions;
 				continue;
 			} else {
 				// SDL_Log("No collision: %s", file);
@@ -478,7 +478,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_IOStream* fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
 			LoadSprite(ctx->renderer, fs, sprite_desc);
 
-			ctx->n_sprites += 1;
+			++ctx->n_sprites;
 
 			SDL_CloseIO(fs);
 		}

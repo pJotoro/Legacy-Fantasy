@@ -17,7 +17,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 	int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
-	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
@@ -25,7 +25,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.n_chunks != 0);
 
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; ++chunk_idx) {
 			ASE_ChunkHeader chunk_header;
 			SDL_ReadStructChecked(fs, &chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -35,10 +35,10 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 			switch (chunk_header.type) {
 			case ASE_ChunkType_Layer: {
-				sd->n_layers += 1;
+				++sd->n_layers;
 			} break;
 			case ASE_ChunkType_Cell: {
-				sd->frames[frame_idx].n_cells += 1;
+				++sd->frames[frame_idx].n_cells;
 			} break;
 			}
 
@@ -47,7 +47,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 
 	sd->layers = SDL_calloc(sd->n_layers, sizeof(SpriteLayer)); SDL_CHECK(sd->layers);
-	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 		if (sd->frames[frame_idx].n_cells > 0) {
 			sd->frames[frame_idx].cells = SDL_malloc(sizeof(SpriteCell) * sd->frames[frame_idx].n_cells); SDL_CHECK(sd->frames[frame_idx].cells);
 		}
@@ -57,7 +57,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
 	layer_idx = 0;
-	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
@@ -65,7 +65,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.n_chunks != 0);
 
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; ++chunk_idx) {
 			ASE_ChunkHeader chunk_header;
 			SDL_ReadStructChecked(fs, &chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -92,7 +92,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 	SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
 	layer_idx = 0;
-	for (size_t frame_idx = 0; frame_idx < sd->n_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 		size_t cell_idx = 0;
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
@@ -103,7 +103,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 		sd->frames[frame_idx].dur = (size_t)((float)frame.frame_dur / (1000.0f / 60.0f)); // TODO: delta time
 
-		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; ++chunk_idx) {
 			ASE_ChunkHeader chunk_header;
 			SDL_ReadStructChecked(fs, &chunk_header);
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -195,7 +195,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			case ASE_ChunkType_Tags: {
 				ASE_TagsChunk* chunk = raw_chunk;
 				ASE_Tag* tags = (ASE_Tag*)(chunk+1);
-				for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; tag_idx += 1) {
+				for (size_t tag_idx = 0; tag_idx < (size_t)chunk->n_tags; ++tag_idx) {
 					ASE_Tag* tag = &tags[tag_idx]; UNUSED(tag);
 				}
 			} break;
@@ -223,7 +223,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t d
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
-	for (size_t cell_idx = 0; cell_idx < sf->n_cells; cell_idx += 1) {
+	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 		SDL_FRect srcrect = {
 			0.0f,
@@ -257,14 +257,14 @@ void DrawEntity(Context* ctx, Entity* entity) {
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
     if (loop || !anim->ended) {
-    	anim->frame_tick += 1;
+    	++anim->frame_tick;
 	    if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
 	        anim->frame_tick = 0;
-	        anim->frame_idx += 1;
+	        ++anim->frame_idx;
 	        if (anim->frame_idx >= sd->n_frames) {
 	        	if (loop) anim->frame_idx = 0;
 	        	else {
-	        		anim->frame_idx -= 1;
+	        		--anim->frame_idx;
 	        		anim->ended = true;
 	        	}
 	        }
