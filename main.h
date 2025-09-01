@@ -75,15 +75,36 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
-#define PLAYER_ACC 0.600000f
+#if 0
+class Sprite {
+private:
+	ssize_t idx;
+public:
+	SpriteDesc* getSpriteDesc(Context* ctx);
+	void Draw(Context* ctx, size_t frame_idx, ivec2s pos, int32_t dir);
+	void DrawTile(Context* ctx, ivec2s tile, ivec2s ipos);
+};
+
+class Anim : public Sprite {
+private:
+	std::size_t frame_idx;
+	std::size_t frame_tick;
+	bool _ended;
+public:
+	void Draw(Context* ctx, ivec2s pos, int32_t dir);
+	void Update(Context* ctx, bool loop);
+	void Reset();
+};
+#endif
+
+#define PLAYER_ACC 0.500000f
 #define PLAYER_FRIC 0.300000f
-#define PLAYER_MAX_VEL 4.500001f
-#define PLAYER_JUMP 13.500000f
+#define PLAYER_MAX_VEL 3.500000f
+#define PLAYER_JUMP 10.000000f
 #define PLAYER_JUMP_REMAINDER 10
 
 #define TILE_SIZE 16
-#define GRAVITY 0.580000f
-
+#define GRAVITY 0.4f
 
 enum {
 	EntityFlags_Player = FLAG(0),
@@ -194,5 +215,5 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 size_t HashString(char* key, size_t len);
 
 // NOTE: Redefine these as needed.
-#define FULLSCREEN 1
+#define FULLSCREEN 0
 #define DELTA_TIME 0

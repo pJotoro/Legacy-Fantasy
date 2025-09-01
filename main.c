@@ -505,7 +505,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		input_x = ctx->button_right - ctx->button_left;
 	}
 
-	if (!SpritesEqual(player->anim.sprite, player_attack)) {
+	if (SpritesEqual(player->anim.sprite, player_attack)) {
+		
+	} else {
 		player->vel.y += GRAVITY;
 		player->touching_floor = SDL_max(player->touching_floor - 1, 0);
 
