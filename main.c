@@ -506,7 +506,16 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 
 	if (SpritesEqual(player->anim.sprite, player_attack)) {
-		
+		size_t n_entities; Entity* entities = GetEntities(ctx, &n_entities);
+		for (size_t entity_idx = 0; entity_idx < n_entities; ++entity_idx) {
+			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy)) {
+				Entity* enemy = &entities[entity_idx];
+				if (EntitiesIntersect(ctx, player, enemy)) {
+					// TODO: Make the enemy die.
+				}
+			}
+		}
+
 	} else {
 		// PlayerCollision
 		Rect hitbox = GetEntityHitbox(ctx, player);
@@ -748,4 +757,20 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	}
 	#endif
 	UpdateAnim(ctx, &boar->anim, loop);
+}
+
+Entity* GetEntities(Context* ctx, size_t* n_entities) {
+	SDL_assert(n_entities);
+	*n_entities = ctx->levels[ctx->level_idx].n_entities;
+	return ctx->levels[ctx->level_idx].entities;
+}
+
+bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+	Rect ha = GetEntityHitbox(ctx, a);
+	ha.min = glms_ivec2_add(ha.min, a->pos);
+	ha.max = glms_ivec2_add(ha.max, a->pos);
+	Rect hb = GetEntityHitbox(ctx, b);
+	hb.min = glms_ivec2_add(hb.min, b->pos);
+	hb.max = glms_ivec2_add(hb.max, b->pos);
+	return RectsIntersect(ha, hb);
 }

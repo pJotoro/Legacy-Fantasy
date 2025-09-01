@@ -198,6 +198,8 @@ typedef struct Context {
 	ivec2s selected_tile;
 } Context;
 
+Entity* GetEntities(Context* ctx, size_t* n_entities);
+
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);
 
@@ -213,6 +215,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 bool SpritesEqual(Sprite a, Sprite b);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
+bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 
 void ResetGame(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);

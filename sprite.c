@@ -358,11 +358,10 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox
 }
 
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
-	Rect hitbox;
-	bool res = GetSpriteHitbox(ctx, entity->anim.sprite, entity->anim.frame_idx, &hitbox);
-	if (!res) {
-		// For single frame hitboxes, the hitbox is only in the first frame.
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, 0, &hitbox);
+	Rect hitbox = {0};
+	bool res; size_t frame_idx;
+	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, entity->anim.frame_idx, &hitbox); 
 	}
 	SDL_assert(res);
 	return hitbox;
