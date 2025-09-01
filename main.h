@@ -81,28 +81,6 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
-#if 0
-class Sprite {
-private:
-	ssize_t idx;
-public:
-	SpriteDesc* getSpriteDesc(Context* ctx);
-	void Draw(Context* ctx, size_t frame_idx, ivec2s pos, int32_t dir);
-	void DrawTile(Context* ctx, ivec2s tile, ivec2s ipos);
-};
-
-class Anim : public Sprite {
-private:
-	std::size_t frame_idx;
-	std::size_t frame_tick;
-	bool _ended;
-public:
-	void Draw(Context* ctx, ivec2s pos, int32_t dir);
-	void Update(Context* ctx, bool loop);
-	void Reset();
-};
-#endif
-
 #define PLAYER_ACC 0.500000f
 #define PLAYER_FRIC 0.300000f
 #define PLAYER_MAX_VEL 3.500000f
@@ -163,8 +141,10 @@ typedef struct Context {
 	bool vsync;
 	float display_content_scale;
 
+#if 0
 	TTF_TextEngine* text_engine;
 	TTF_Font* font_roboto_regular;
+#endif
 
 	SDL_Gamepad* gamepad;
 	vec2s gamepad_left_stick;
@@ -188,16 +168,6 @@ typedef struct Context {
 	bool running;
 
 	SpriteDesc sprites[MAX_SPRITES];
-
-	size_t n_collisions;
-	size_t n_sprites;
-
-	size_t sprite_tests_failed;
-
-	bool draw_selected_anim;
-	Anim selected_anim;
-
-	ivec2s selected_tile;
 } Context;
 
 Entity* GetEntities(Context* ctx, size_t* n_entities);

@@ -75,23 +75,6 @@ void ResetGame(Context* ctx) {
 	}
 }
 
-// An example of what my code might look like if I switched to C++.
-#if 0
-void Context::ResetGame() {
-	this->dt = this->display_mode->refresh_rate;
-	this->level_idx = 0;
-	for (Level& level : this->levels) {
-		for (Entity& entity: this->entities) {
-			if (HAS_FLAG(entity.flags, EntityFlags::Player)) {
-				entity.reset();
-				entity.setSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-				break;
-			}
-		}
-	}
-}
-#endif
-
 int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
@@ -204,6 +187,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND);
 	}
 
+#if 0
 	// InitTextEngine
 	{
 		ctx->text_engine = TTF_CreateRendererTextEngine(ctx->renderer); SDL_CHECK(ctx->text_engine);
@@ -219,11 +203,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->font_roboto_regular = TTF_OpenFontWithProperties(props); SDL_CHECK(ctx->font_roboto_regular);
 		SDL_DestroyProperties(props);
 	}
+#endif
 
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
-	if (ctx->sprite_tests_failed > 0) {
-		SDL_Log("Sprite tests failed: %llu", ctx->sprite_tests_failed);
-	}
 
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
 		SpriteDesc* sd = &ctx->sprites[sprite_idx];
@@ -257,19 +239,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 			case SDL_EVENT_KEY_DOWN:
-			#if 1
 				if (event.key.key == SDLK_ESCAPE) {
 					ctx->running = false;
 				}
-				else if (event.key.key == SDLK_0) {
-					ctx->draw_selected_anim = true;
-					ResetAnim(&ctx->selected_anim);
-					do {
-						++ctx->selected_anim.sprite.idx;
-						if (ctx->selected_anim.sprite.idx >= MAX_SPRITES) ctx->selected_anim.sprite.idx = 0;
-					} while (!ctx->sprites[ctx->selected_anim.sprite.idx].path);
-				}
-			#endif
 				if (!ctx->gamepad) {
 					switch (event.key.key) {
 					case SDLK_0:
@@ -466,13 +438,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 
 			Sprite sprite = GetSprite(sprite_path);
 			SpriteDesc* sprite_desc = &ctx->sprites[sprite.idx];
-			if (sprite_desc->path) {
-				SDL_LogMessage(SDL_LOG_CATEGORY_ERROR, SDL_LOG_PRIORITY_CRITICAL, "Collision: %s", file);
-				++ctx->n_collisions;
-				continue;
-			} else {
-				// SDL_Log("No collision: %s", file);
-			}
+			SDL_assert(!sprite_desc->path && "Collision");
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
@@ -482,8 +448,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			
 			SDL_IOStream* fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
 			LoadSprite(ctx->renderer, fs, sprite_desc);
-
-			++ctx->n_sprites;
 
 			SDL_CloseIO(fs);
 		}
