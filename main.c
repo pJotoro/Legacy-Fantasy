@@ -511,7 +511,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy)) {
 				Entity* enemy = &entities[entity_idx];
 				if (EntitiesIntersect(ctx, player, enemy)) {
-					// TODO: Make the enemy die.
+					SDL_Log("HIT");
 				}
 			}
 		}
