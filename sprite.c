@@ -342,16 +342,28 @@ bool SpritesEqual(Sprite a, Sprite b) {
 	return a.idx == b.idx;
 }
 
-Rect GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx) {
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox) {
+	SDL_assert(hitbox);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->n_frames);
 	SpriteFrame* frame = &sd->frames[frame_idx];
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (HAS_FLAG(cell->flags, SpriteCellFlags_Hitbox)) {
-			return (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+			 *hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+			 return true;
 		}
 	}
-	SDL_Log("Failed to find hitbox");
-	return (Rect){0};
+	return false;
+}
+
+Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+	Rect hitbox;
+	bool res = GetSpriteHitbox(ctx, entity->anim.sprite, entity->anim.frame_idx, &hitbox);
+	if (!res) {
+		// For single frame hitboxes, the hitbox is only in the first frame.
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, 0, &hitbox);
+	}
+	SDL_assert(res);
+	return hitbox;
 }

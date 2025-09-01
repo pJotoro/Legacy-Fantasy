@@ -211,7 +211,8 @@ void DrawEntity(Context* ctx, Entity* entity);
 void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 bool SpritesEqual(Sprite a, Sprite b);
-Rect GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx);
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox);
+Rect GetEntityHitbox(Context* ctx, Entity* entity);
 
 void ResetGame(Context* ctx);
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);

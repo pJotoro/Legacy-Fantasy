@@ -508,6 +508,8 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	if (SpritesEqual(player->anim.sprite, player_attack)) {
 		
 	} else {
+		// PlayerCollision
+		Rect hitbox = GetEntityHitbox(ctx, player);
 		player->vel.y += GRAVITY;
 		player->touching_floor = SDL_max(player->touching_floor - 1, 0);
 
@@ -534,8 +536,6 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			player->vel.y /= 2.0f;
 		}
 
-		// PlayerCollision
-		Rect hitbox = GetSpriteHitbox(ctx, player_idle, 0);
 		Level* level = &ctx->levels[ctx->level_idx];
 		if (player->vel.x < 0.0f) {
 			Rect side;
@@ -649,7 +649,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	Rect hitbox = GetSpriteHitbox(ctx, boar_idle, 0);
+	Rect hitbox = GetEntityHitbox(ctx, boar);
 
 	boar->vel.y += GRAVITY;
 
