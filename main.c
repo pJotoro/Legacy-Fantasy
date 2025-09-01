@@ -59,6 +59,7 @@ void ResetGame(Context* ctx) {
 		Level* level = &ctx->levels[level_idx];
 		for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
 			Entity* entity = &level->entities[entity_idx];
+			entity->flags |= EntityFlags_Active;
 			entity->pos = entity->start_pos;
 			entity->pos_remainder = (vec2s){0.0f, 0.0f};
 			entity->vel = (vec2s){0, 0};
@@ -413,10 +414,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
 				Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
-					DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
-				} else {
-					DrawEntity(ctx, entity);
+				if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
+					if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
+						DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
+					} else {
+						DrawEntity(ctx, entity);
+					}
 				}
 			}
 		}
@@ -508,10 +511,10 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	if (SpritesEqual(player->anim.sprite, player_attack)) {
 		size_t n_entities; Entity* entities = GetEntities(ctx, &n_entities);
 		for (size_t entity_idx = 0; entity_idx < n_entities; ++entity_idx) {
-			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy)) {
+			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy) && HAS_FLAG(entities[entity_idx].flags, EntityFlags_Active)) {
 				Entity* enemy = &entities[entity_idx];
 				if (EntitiesIntersect(ctx, player, enemy)) {
-					SDL_Log("HIT");
+					enemy->flags &= ~EntityFlags_Active;
 				}
 			}
 		}

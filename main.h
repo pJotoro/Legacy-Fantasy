@@ -113,14 +113,16 @@ public:
 #define GRAVITY 0.4f
 
 enum {
-	EntityFlags_Player = FLAG(0),
-	EntityFlags_JumpReleased = FLAG(1),
+	EntityFlags_Active = FLAG(0),
 
-	EntityFlags_Enemy = FLAG(2),
-	EntityFlags_Boar = FLAG(3),
+	EntityFlags_Player = FLAG(1),
+	EntityFlags_JumpReleased = FLAG(2),
 
-	EntityFlags_Tile = FLAG(4),
-	EntityFlags_Solid = FLAG(5),
+	EntityFlags_Enemy = FLAG(3),
+	EntityFlags_Boar = FLAG(4),
+
+	EntityFlags_Tile = FLAG(5),
+	EntityFlags_Solid = FLAG(6),
 };
 typedef uint32_t EntityFlags;
 
