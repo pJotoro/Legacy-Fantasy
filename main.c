@@ -387,10 +387,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
 			Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-				UpdatePlayer(ctx, entity);
-			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
-				UpdateBoar(ctx, entity);
+			if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
+				if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+					UpdatePlayer(ctx, entity);
+				} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+					UpdateBoar(ctx, entity);
+				}
 			}
 		}
 		
@@ -514,7 +516,11 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy) && HAS_FLAG(entities[entity_idx].flags, EntityFlags_Active)) {
 				Entity* enemy = &entities[entity_idx];
 				if (EntitiesIntersect(ctx, player, enemy)) {
-					enemy->flags &= ~EntityFlags_Active;
+					if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+						SetSprite(enemy, boar_hit);
+					} else {
+						// TODO
+					}
 				}
 			}
 		}
@@ -661,104 +667,108 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	Rect hitbox = GetEntityHitbox(ctx, boar);
-
-	boar->vel.y += GRAVITY;
-
-	Level* level = &ctx->levels[ctx->level_idx];
-
-	boar->touching_floor = false;
-	if (boar->vel.y < 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.min.x + 1;
-		side.min.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y);
-		side.max.x = boar->pos.x + hitbox.max.x - 1;
-		side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			boar->pos.y = tile.min.y - hitbox.min.y;
-			boar->vel.y = 0.0f;
+	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
+		if (boar->anim.ended) {
+			boar->flags &= ~EntityFlags_Active;
 		}
-	} else if (boar->vel.y > 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.min.x + 1;
-		side.min.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y) - 1;
-		side.max.x = boar->pos.x + hitbox.max.x - 1;
-		side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			boar->pos.y = tile.min.y - hitbox.max.y;
-			boar->vel.y = 0.0f;
-			boar->touching_floor = true;
-		}
-	}
+	} else {
+		Rect hitbox = GetEntityHitbox(ctx, boar);
 
-	// BoarChasePlayer
-	if (boar->touching_floor && ctx->player->touching_floor) {
-		if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*5) {
-			if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
-				SetSprite(boar, boar_run);
-				boar->vel.x = 1.0f;
-				boar->dir = -1;
-			} else if (boar->pos.x > ctx->player->pos.x + TILE_SIZE) {
-				SetSprite(boar, boar_run);
-				boar->vel.x = -1.0f;
-				boar->dir = 1;
+		boar->vel.y += GRAVITY;
+
+		Level* level = &ctx->levels[ctx->level_idx];
+
+		boar->touching_floor = false;
+		if (boar->vel.y < 0.0f) {
+			Rect side;
+			side.min.x = boar->pos.x + hitbox.min.x + 1;
+			side.min.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y);
+			side.max.x = boar->pos.x + hitbox.max.x - 1;
+			side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
+			Rect tile;
+			if (RectIntersectsLevel(level, side, &tile)) {
+				boar->pos.y = tile.min.y - hitbox.min.y;
+				boar->vel.y = 0.0f;
+			}
+		} else if (boar->vel.y > 0.0f) {
+			Rect side;
+			side.min.x = boar->pos.x + hitbox.min.x + 1;
+			side.min.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y) - 1;
+			side.max.x = boar->pos.x + hitbox.max.x - 1;
+			side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
+			Rect tile;
+			if (RectIntersectsLevel(level, side, &tile)) {
+				boar->pos.y = tile.min.y - hitbox.max.y;
+				boar->vel.y = 0.0f;
+				boar->touching_floor = true;
+			}
+		}
+
+		// BoarChasePlayer
+		if (boar->touching_floor && ctx->player->touching_floor) {
+			if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*5) {
+				if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
+					SetSprite(boar, boar_run);
+					boar->vel.x = 1.0f;
+					boar->dir = -1;
+				} else if (boar->pos.x > ctx->player->pos.x + TILE_SIZE) {
+					SetSprite(boar, boar_run);
+					boar->vel.x = -1.0f;
+					boar->dir = 1;
+				} else {
+					SetSprite(boar, boar_idle);
+					boar->vel.x = 0.0f;
+				}
 			} else {
 				SetSprite(boar, boar_idle);
 				boar->vel.x = 0.0f;
 			}
-		} else {
-			SetSprite(boar, boar_idle);
-			boar->vel.x = 0.0f;
 		}
-	}
 
-	if (boar->vel.x < 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x);
-		side.min.y = boar->pos.y + hitbox.min.y + 1;
-		side.max.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x) + 1;
-		side.max.y = boar->pos.y + hitbox.max.y - 1;
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			int32_t old_pos = boar->pos.x;
-			boar->pos.x = tile.max.x - hitbox.min.x;
-			if (boar->pos.x > old_pos) {
-				boar->pos.x = old_pos;
+		if (boar->vel.x < 0.0f) {
+			Rect side;
+			side.min.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x);
+			side.min.y = boar->pos.y + hitbox.min.y + 1;
+			side.max.x = boar->pos.x + hitbox.min.x + (int32_t)SDL_floorf(boar->vel.x) + 1;
+			side.max.y = boar->pos.y + hitbox.max.y - 1;
+			Rect tile;
+			if (RectIntersectsLevel(level, side, &tile)) {
+				int32_t old_pos = boar->pos.x;
+				boar->pos.x = tile.max.x - hitbox.min.x;
+				if (boar->pos.x > old_pos) {
+					boar->pos.x = old_pos;
+				}
+				boar->vel.x = 0.0f;
 			}
-			boar->vel.x = 0.0f;
-		}
-	} else if (boar->vel.x > 0.0f) {
-		Rect side;
-		side.min.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x) - 1;
-		side.min.y = boar->pos.y + hitbox.min.y + 1;
-		side.max.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x);
-		side.max.y = boar->pos.y + hitbox.max.y - 1;
-		Rect tile;
-		if (RectIntersectsLevel(level, side, &tile)) {
-			int32_t old_pos = boar->pos.x;
-			boar->pos.x = tile.min.x - hitbox.max.x;
-			if (boar->pos.x < old_pos) {
-				boar->pos.x = old_pos;
+		} else if (boar->vel.x > 0.0f) {
+			Rect side;
+			side.min.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x) - 1;
+			side.min.y = boar->pos.y + hitbox.min.y + 1;
+			side.max.x = boar->pos.x + hitbox.max.x + (int32_t)SDL_floorf(boar->vel.x);
+			side.max.y = boar->pos.y + hitbox.max.y - 1;
+			Rect tile;
+			if (RectIntersectsLevel(level, side, &tile)) {
+				int32_t old_pos = boar->pos.x;
+				boar->pos.x = tile.min.x - hitbox.max.x;
+				if (boar->pos.x < old_pos) {
+					boar->pos.x = old_pos;
+				}
+				boar->vel.x = 0.0f;
 			}
-			boar->vel.x = 0.0f;
 		}
-	}
 
-	{
-		boar->pos_remainder = glms_vec2_add(boar->pos_remainder, boar->vel);
-		vec2s move = glms_vec2_floor(boar->pos_remainder);
-		boar->pos = glms_ivec2_add(boar->pos, ivec2_from_vec2(move));
-		boar->pos_remainder = glms_vec2_sub(boar->pos_remainder, move);
+		{
+			boar->pos_remainder = glms_vec2_add(boar->pos_remainder, boar->vel);
+			vec2s move = glms_vec2_floor(boar->pos_remainder);
+			boar->pos = glms_ivec2_add(boar->pos, ivec2_from_vec2(move));
+			boar->pos_remainder = glms_vec2_sub(boar->pos_remainder, move);
+		}
 	}
 
 	bool loop = true;
-	#if 0
-	if (SpritesEqual(boar->anim.sprite, boar) || )) {
+	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
 		loop = false;
 	}
-	#endif
 	UpdateAnim(ctx, &boar->anim, loop);
 }
 
