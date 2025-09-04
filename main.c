@@ -645,8 +645,9 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			side.max.y = boar->pos.y + hitbox.min.y + (int32_t)SDL_floorf(boar->vel.y) + 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				boar->pos.y = tile.min.y - hitbox.min.y;
+				boar->pos.y = SDL_max(boar->pos.y, tile.min.y - hitbox.min.y);
 				boar->vel.y = 0.0f;
+				boar->pos_remainder.y = 0.0f;
 			}
 		} else if (boar->vel.y > 0.0f) {
 			Rect side;
@@ -656,8 +657,9 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			side.max.y = boar->pos.y + hitbox.max.y + (int32_t)SDL_floorf(boar->vel.y);
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				boar->pos.y = tile.min.y - hitbox.max.y;
+				boar->pos.y = SDL_min(boar->pos.y, tile.min.y - hitbox.max.y);
 				boar->vel.y = 0.0f;
+				boar->pos_remainder.y = 0.0f;
 				boar->touching_floor = true;
 			}
 		}
@@ -691,12 +693,9 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			side.max.y = boar->pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				int32_t old_pos = boar->pos.x;
-				boar->pos.x = tile.max.x - hitbox.min.x;
-				if (boar->pos.x > old_pos) {
-					boar->pos.x = old_pos;
-				}
+				boar->pos.x = SDL_max(boar->pos.x, tile.max.x - hitbox.min.x);
 				boar->vel.x = 0.0f;
+				boar->pos_remainder.x = 0.0f;
 			}
 		} else if (boar->vel.x > 0.0f) {
 			Rect side;
@@ -706,12 +705,9 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			side.max.y = boar->pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				int32_t old_pos = boar->pos.x;
-				boar->pos.x = tile.min.x - hitbox.max.x;
-				if (boar->pos.x < old_pos) {
-					boar->pos.x = old_pos;
-				}
+				boar->pos.x = SDL_min(boar->pos.x, tile.min.x - hitbox.max.x);
 				boar->vel.x = 0.0f;
+				boar->pos_remainder.x = 0.0f;
 			}
 		}
 
