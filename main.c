@@ -1,6 +1,8 @@
 #include <SDL.h>
 #include <SDL_main.h>
+#if 0
 #include <SDL_ttf.h>
+#endif
 
 #include <cglm/struct.h>
 
@@ -78,10 +80,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
 
-	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
+	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO));
+#if 0
 	SDL_CHECK(TTF_Init());
+#endif
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
+
+	ctx->audio = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL); SDL_CHECK(ctx->audio);
 
 	InitSprites();
 
