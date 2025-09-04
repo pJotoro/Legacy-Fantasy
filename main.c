@@ -667,8 +667,8 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		}
 
 		// BoarChasePlayer
-		if (boar->touching_floor && ctx->player->touching_floor) {
-			if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
+		if (boar->touching_floor) {
+			if (ctx->player->touching_floor && SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
 				if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
 					boar->vel.x += BOAR_ACC;
