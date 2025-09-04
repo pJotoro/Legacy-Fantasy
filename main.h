@@ -33,11 +33,15 @@
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
-#define PLAYER_ACC 0.500000f
-#define PLAYER_FRIC 0.300000f
-#define PLAYER_MAX_VEL 3.500000f
-#define PLAYER_JUMP 10.000000f
+#define PLAYER_ACC 0.5f
+#define PLAYER_FRIC 0.3f
+#define PLAYER_MAX_VEL 3.5f
+#define PLAYER_JUMP 10.0f
 #define PLAYER_JUMP_REMAINDER 10
+
+#define BOAR_ACC 0.2f
+#define BOAR_FRIC 0.1f
+#define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
 #define GRAVITY 0.4f

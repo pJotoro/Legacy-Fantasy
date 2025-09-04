@@ -670,22 +670,38 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		// BoarChasePlayer
 		if (boar->touching_floor && ctx->player->touching_floor) {
-			if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*5) {
+			if (SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
 				if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
-					boar->vel.x = 1.0f;
-					boar->dir = -1;
+					boar->vel.x += BOAR_ACC;
+					boar->vel.x = SDL_min(boar->vel.x, BOAR_MAX_VEL);
+					boar->dir = -1; // Boar sprite is flipped
 				} else if (boar->pos.x > ctx->player->pos.x + TILE_SIZE) {
 					SetSprite(boar, boar_run);
-					boar->vel.x = -1.0f;
-					boar->dir = 1;
+					boar->vel.x -= BOAR_ACC;
+					boar->vel.x = SDL_max(boar->vel.x, -BOAR_MAX_VEL);
+					boar->dir = 1; // Boar sprite is flipped
 				} else {
-					SetSprite(boar, boar_idle);
-					boar->vel.x = 0.0f;
+					if (boar->vel.x < 0.0f) {
+						boar->vel.x += BOAR_FRIC;
+						boar->vel.x = SDL_min(boar->vel.x, 0.0f);
+					} else if (boar->vel.x > 0.0f) {
+						boar->vel.x -= BOAR_FRIC;
+						boar->vel.x = SDL_max(boar->vel.x, 0.0f);
+					} else {
+						SetSprite(boar, boar_idle);
+					}
 				}
 			} else {
-				SetSprite(boar, boar_idle);
-				boar->vel.x = 0.0f;
+				if (boar->vel.x < 0.0f) {
+					boar->vel.x += BOAR_FRIC;
+					boar->vel.x = SDL_min(boar->vel.x, 0.0f);
+				} else if (boar->vel.x > 0.0f) {
+					boar->vel.x -= BOAR_FRIC;
+					boar->vel.x = SDL_max(boar->vel.x, 0.0f);
+				} else {
+					SetSprite(boar, boar_idle);
+				}
 			}
 		}
 
