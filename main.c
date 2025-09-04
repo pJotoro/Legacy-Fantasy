@@ -459,51 +459,6 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	return SDL_ENUM_CONTINUE;
 }
 
-void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
-	SDL_assert(h && lh && rh && uh && dh);
-	*h = GetEntityHitbox(ctx, entity);
-
-	lh->min.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x);
-	lh->min.y = entity->pos.y + h->min.y + 1;
-	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x) + 1;
-	lh->max.y = entity->pos.y + h->max.y - 1;
-
-	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x) - 1;
-	rh->min.y = entity->pos.y + h->min.y + 1;
-	rh->max.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x);
-	rh->max.y = entity->pos.y + h->max.y - 1;
-
-	uh->min.x = entity->pos.x + h->min.x + 1;
-	uh->min.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y);
-	uh->max.x = entity->pos.x + h->max.x - 1;
-	uh->max.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y) + 1;
-
-	dh->min.x = entity->pos.x + h->min.x + 1;
-	dh->min.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y) - 1;
-	dh->max.x = entity->pos.x + h->max.x - 1;
-	dh->max.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y);
-}
-
-#define ENTITY_LEFT_COLLISION(entity) \
-	entity->pos.x = SDL_max(entity->pos.x, tile.max.x - hitbox.min.x); \
-	entity->vel.x = 0.0f; \
-	entity->pos_remainder.x = 0.0f;
-
-#define ENTITY_RIGHT_COLLISION(entity) \
-	entity->pos.x = SDL_min(entity->pos.x, tile.min.x - hitbox.max.x); \
-	entity->vel.x = 0.0f; \
-	entity->pos_remainder.x = 0.0f;
-
-#define ENTITY_UP_COLLISION(entity) \
-	entity->pos.y = SDL_max(entity->pos.y, tile.max.y - hitbox.min.y); \
-	entity->vel.y = 0.0f; \
-	entity->pos_remainder.y = 0.0f;
-
-#define ENTITY_DOWN_COLLISION(entity) \
-	entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y); \
-	entity->vel.y = 0.0f; \
-	entity->pos_remainder.y = 0.0f;
-
 void MoveEntity(Entity* entity) {
 	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
 	vec2s move = glms_vec2_floor(entity->pos_remainder);
@@ -740,4 +695,29 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
 	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
 	entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	return entity->vel.x != vel_save;
+}
+
+void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
+	SDL_assert(h && lh && rh && uh && dh);
+	*h = GetEntityHitbox(ctx, entity);
+
+	lh->min.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x);
+	lh->min.y = entity->pos.y + h->min.y + 1;
+	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x) + 1;
+	lh->max.y = entity->pos.y + h->max.y - 1;
+
+	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x) - 1;
+	rh->min.y = entity->pos.y + h->min.y + 1;
+	rh->max.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x);
+	rh->max.y = entity->pos.y + h->max.y - 1;
+
+	uh->min.x = entity->pos.x + h->min.x + 1;
+	uh->min.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y);
+	uh->max.x = entity->pos.x + h->max.x - 1;
+	uh->max.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y) + 1;
+
+	dh->min.x = entity->pos.x + h->min.x + 1;
+	dh->min.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y) - 1;
+	dh->max.x = entity->pos.x + h->max.x - 1;
+	dh->max.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y);
 }

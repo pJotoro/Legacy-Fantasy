@@ -48,6 +48,26 @@
 
 #define MAX_SPRITES 256
 
+#define ENTITY_LEFT_COLLISION(entity) \
+	entity->pos.x = SDL_max(entity->pos.x, tile.max.x - hitbox.min.x); \
+	entity->vel.x = 0.0f; \
+	entity->pos_remainder.x = 0.0f;
+
+#define ENTITY_RIGHT_COLLISION(entity) \
+	entity->pos.x = SDL_min(entity->pos.x, tile.min.x - hitbox.max.x); \
+	entity->vel.x = 0.0f; \
+	entity->pos_remainder.x = 0.0f;
+
+#define ENTITY_UP_COLLISION(entity) \
+	entity->pos.y = SDL_max(entity->pos.y, tile.max.y - hitbox.min.y); \
+	entity->vel.y = 0.0f; \
+	entity->pos_remainder.y = 0.0f;
+
+#define ENTITY_DOWN_COLLISION(entity) \
+	entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y); \
+	entity->vel.y = 0.0f; \
+	entity->pos_remainder.y = 0.0f;
+
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 
@@ -144,6 +164,8 @@ typedef struct Entity {
 	EntityFlags flags;
 } Entity;
 
+void MoveEntity(Entity* entity);
+
 void SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
 
@@ -205,8 +227,10 @@ void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir);
 
 Entity* GetEntities(Context* ctx, size_t* n_entities);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
+void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
+
 
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);
