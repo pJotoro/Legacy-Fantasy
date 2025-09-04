@@ -212,8 +212,6 @@ typedef struct Context {
 	bool running;
 
 	SpriteDesc sprites[MAX_SPRITES];
-
-	SDL_AudioDeviceID audio;
 } Context;
 
 void ResetGame(Context* ctx);

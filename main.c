@@ -87,8 +87,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
-	ctx->audio = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL); SDL_CHECK(ctx->audio);
-
 	InitSprites();
 
 	// LoadLevels
