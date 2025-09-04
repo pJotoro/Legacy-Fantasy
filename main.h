@@ -1,3 +1,7 @@
+// NOTE: Redefine these as needed.
+#define FULLSCREEN 1
+#define DELTA_TIME 0
+
 #define FORCEINLINE SDL_FORCE_INLINE
 
 #define KILOBYTE(X) ((X)*1024LL)
@@ -29,6 +33,24 @@
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
+#define PLAYER_ACC 0.500000f
+#define PLAYER_FRIC 0.300000f
+#define PLAYER_MAX_VEL 3.500000f
+#define PLAYER_JUMP 10.000000f
+#define PLAYER_JUMP_REMAINDER 10
+
+#define TILE_SIZE 16
+#define GRAVITY 0.4f
+
+#define MAX_SPRITES 256
+
+void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
+void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
+
+SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
+
+size_t HashString(char* key, size_t len);
+
 typedef struct Rect {
 	ivec2s min;
 	ivec2s max;
@@ -53,6 +75,8 @@ typedef struct SpriteCell {
 	SpriteCellFlags flags;
 } SpriteCell;
 
+int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b);
+
 typedef struct SpriteFrame {
 	size_t dur;
 	SpriteCell* cells; size_t n_cells;
@@ -68,11 +92,13 @@ typedef struct SpriteDesc {
 	SpriteFrame* frames; size_t n_frames;
 } SpriteDesc;
 
+void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
+
 typedef struct Sprite {
 	ssize_t idx;
 } Sprite;
 
-int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b);
+bool SpritesEqual(Sprite a, Sprite b);
 
 typedef struct Anim {
 	Sprite sprite;
@@ -81,14 +107,7 @@ typedef struct Anim {
 	bool ended;
 } Anim;
 
-#define PLAYER_ACC 0.500000f
-#define PLAYER_FRIC 0.300000f
-#define PLAYER_MAX_VEL 3.500000f
-#define PLAYER_JUMP 10.000000f
-#define PLAYER_JUMP_REMAINDER 10
-
-#define TILE_SIZE 16
-#define GRAVITY 0.4f
+void ResetAnim(Anim* anim);
 
 enum {
 	EntityFlags_Active = FLAG(0),
@@ -121,9 +140,8 @@ typedef struct Entity {
 	EntityFlags flags;
 } Entity;
 
-void ResetAnim(Anim* anim);
-
-#define MAX_SPRITES 256
+void SetSpriteFromPath(Entity* entity, const char* path);
+bool SetSprite(Entity* entity, Sprite sprite);
 
 typedef struct Level {
 	ivec2s size;
@@ -170,34 +188,21 @@ typedef struct Context {
 	SpriteDesc sprites[MAX_SPRITES];
 } Context;
 
-Entity* GetEntities(Context* ctx, size_t* n_entities);
+void ResetGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
+
+SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox);
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, int32_t dir);
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos);
+
+void UpdateAnim(Context* ctx, Anim* anim, bool loop);
+void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir);
+
+Entity* GetEntities(Context* ctx, size_t* n_entities);
+Rect GetEntityHitbox(Context* ctx, Entity* entity);
+bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
+void DrawEntity(Context* ctx, Entity* entity);
 
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);
-
-void SetSpriteFromPath(Entity* entity, const char* path);
-bool SetSprite(Entity* entity, Sprite sprite);
-SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
-void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, int32_t dir);
-void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos);
-void DrawEntity(Context* ctx, Entity* entity);
-void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir);
-void UpdateAnim(Context* ctx, Anim* anim, bool loop);
-bool SpritesEqual(Sprite a, Sprite b);
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox);
-Rect GetEntityHitbox(Context* ctx, Entity* entity);
-bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
-
-void ResetGame(Context* ctx);
-void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
-void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
-
-SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
-
-size_t HashString(char* key, size_t len);
-
-// NOTE: Redefine these as needed.
-#define FULLSCREEN 1
-#define DELTA_TIME 0
