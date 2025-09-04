@@ -508,9 +508,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 				}
 				player->vel.x += acc;
-				if (player->vel.x < 0.0f) player->vel.x = SDL_min(0.0f, player->vel.x + PLAYER_FRIC);
-				else if (player->vel.x > 0.0f) player->vel.x = SDL_max(0.0f, player->vel.x - PLAYER_FRIC);
-				player->vel.x = SDL_clamp(player->vel.x, -PLAYER_MAX_VEL, PLAYER_MAX_VEL);
+				EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
 			
 			}	
 		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased) && player->vel.y < 0.0f) {
@@ -681,27 +679,11 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 					boar->vel.x -= BOAR_ACC;
 					boar->vel.x = SDL_max(boar->vel.x, -BOAR_MAX_VEL);
 					boar->dir = 1; // Boar sprite is flipped
-				} else {
-					if (boar->vel.x < 0.0f) {
-						boar->vel.x += BOAR_FRIC;
-						boar->vel.x = SDL_min(boar->vel.x, 0.0f);
-					} else if (boar->vel.x > 0.0f) {
-						boar->vel.x -= BOAR_FRIC;
-						boar->vel.x = SDL_max(boar->vel.x, 0.0f);
-					} else {
-						SetSprite(boar, boar_idle);
-					}
 				}
-			} else {
-				if (boar->vel.x < 0.0f) {
-					boar->vel.x += BOAR_FRIC;
-					boar->vel.x = SDL_min(boar->vel.x, 0.0f);
-				} else if (boar->vel.x > 0.0f) {
-					boar->vel.x -= BOAR_FRIC;
-					boar->vel.x = SDL_max(boar->vel.x, 0.0f);
-				} else {
-					SetSprite(boar, boar_idle);
-				}
+			}
+
+			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL)) {
+				SetSprite(boar, boar_idle);
 			}
 		}
 
@@ -770,4 +752,12 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 
 Level* GetCurrentLevel(Context* ctx) {
 	return &ctx->levels[ctx->level_idx];
+}
+
+bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
+	float vel_save = entity->vel.x;
+	if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
+	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+	entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
+	return entity->vel.x != vel_save;
 }

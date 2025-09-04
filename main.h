@@ -210,3 +210,5 @@ void DrawEntity(Context* ctx, Entity* entity);
 
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);
+
+bool EntityApplyFriction(Entity* entity, float fric, float max_vel);

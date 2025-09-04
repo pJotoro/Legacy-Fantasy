@@ -357,19 +357,28 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox
 	return false;
 }
 
+/* 	
+I'll admit this function is kind of weird. I might end up changing it later.
+The way it works is: we start from the current frame index and go backward.
+For each frame index, check if there is a corresponding hitbox. If so, pick that one.
+
+There is an edge case where we start at the first frame index and the first frame index has no hitbox.
+In this case, we just go forward instead of backward, starting at the second frame index.
+*/
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	Rect hitbox = {0};
 	bool res; ssize_t frame_idx;
 	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
 		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, &hitbox); 
 	}
-	// Handle special case where the first frame has no hitbox.
+
 	if (!res && entity->anim.frame_idx == 0) {
 		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, &hitbox); 
 		}
 	}
+
 	SDL_assert(res);
 	return hitbox;
 }
