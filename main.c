@@ -525,13 +525,10 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			side.max.y = player->pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				int32_t old_pos = player->pos.x;
-				player->pos.x = tile.max.x - hitbox.min.x;
-				if (player->pos.x > old_pos) {
-					player->pos.x = old_pos;
-				}
+				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
 				conserved_vel.x = player->vel.x;
 				player->vel.x = 0.0f;
+				player->pos_remainder.x = 0.0f;
 			}
 		} else if (player->vel.x > 0.0f) {
 			Rect side;
@@ -541,13 +538,10 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			side.max.y = player->pos.y + hitbox.max.y - 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				int32_t old_pos = player->pos.x;
-				player->pos.x = tile.min.x - hitbox.max.x;
-				if (player->pos.x < old_pos) {
-					player->pos.x = old_pos;
-				}
+				player->pos.x = SDL_min(player->pos.x, tile.min.x - hitbox.max.x);
 				conserved_vel.x = player->vel.x;
 				player->vel.x = 0.0f;
+				player->pos_remainder.x = 0.0f;
 			}
 		}
 		if (player->vel.y < 0.0f) {
@@ -558,8 +552,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			side.max.y = player->pos.y + hitbox.min.y + (int32_t)SDL_floorf(player->vel.y) + 1;
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				player->pos.y = tile.min.y - hitbox.min.y;
+				player->pos.y = SDL_max(player->pos.y, tile.max.y - hitbox.min.y);
 				player->vel.y = 0.0f;
+				player->pos_remainder.y = 0.0f;
 			}
 		} else if (player->vel.y > 0.0f) {
 			Rect side;
@@ -569,8 +564,9 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			side.max.y = player->pos.y + hitbox.max.y + (int32_t)SDL_floorf(player->vel.y);
 			Rect tile;
 			if (RectIntersectsLevel(level, side, &tile)) {
-				player->pos.y = tile.min.y - hitbox.max.y;
+				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->vel.y = 0.0f;
+				player->pos_remainder.y = 0.0f;
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
 				player->flags &= ~EntityFlags_JumpReleased;
 			}
