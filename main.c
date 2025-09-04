@@ -504,6 +504,13 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	entity->vel.y = 0.0f; \
 	entity->pos_remainder.y = 0.0f;
 
+void MoveEntity(Entity* entity) {
+	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
+	vec2s move = glms_vec2_floor(entity->pos_remainder);
+	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(move));
+	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, move);
+}
+
 void UpdatePlayer(Context* ctx, Entity* player) {
 	if (player->touching_floor && ctx->button_attack) {
 		SetSprite(player, player_attack);
@@ -590,12 +597,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			}
 		}
 
-		{
-			player->pos_remainder = glms_vec2_add(player->pos_remainder, player->vel);
-			vec2s move = glms_vec2_floor(player->pos_remainder);
-			player->pos = glms_ivec2_add(player->pos, ivec2_from_vec2(move));
-			player->pos_remainder = glms_vec2_sub(player->pos_remainder, move);
-		}
+		MoveEntity(player);
 
 		if (player->touching_floor) {
 			if (input_x == 0 && player->vel.x == 0.0f) {
@@ -702,12 +704,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			}
 		}
 
-		{
-			boar->pos_remainder = glms_vec2_add(boar->pos_remainder, boar->vel);
-			vec2s move = glms_vec2_floor(boar->pos_remainder);
-			boar->pos = glms_ivec2_add(boar->pos, ivec2_from_vec2(move));
-			boar->pos_remainder = glms_vec2_sub(boar->pos_remainder, move);
-		}
+		MoveEntity(boar);
 	}
 
 	bool loop = true;
