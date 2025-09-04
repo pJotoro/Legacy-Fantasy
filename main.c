@@ -549,6 +549,8 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				ENTITY_DOWN_COLLISION(player);
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
 				player->flags &= ~EntityFlags_JumpReleased;
+			} else {
+				SetSprite(player, player_jump_end);
 			}
 		}
 
