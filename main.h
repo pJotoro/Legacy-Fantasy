@@ -171,6 +171,7 @@ typedef struct Context {
 } Context;
 
 Entity* GetEntities(Context* ctx, size_t* n_entities);
+Level* GetCurrentLevel(Context* ctx);
 
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);

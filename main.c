@@ -55,7 +55,7 @@ void ResetGame(Context* ctx) {
 	ctx->dt = ctx->display_mode->refresh_rate;
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
-		Level* level = &ctx->levels[level_idx];
+		Level* level = GetCurrentLevel(ctx);
 		for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
 			Entity* entity = &level->entities[entity_idx];
 			entity->flags |= EntityFlags_Active;
@@ -518,7 +518,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			player->vel.y /= 2.0f;
 		}
 
-		Level* level = &ctx->levels[ctx->level_idx];
+		Level* level = GetCurrentLevel(ctx);
 		if (player->vel.x < 0.0f) {
 			Rect side;
 			side.min.x = player->pos.x + hitbox.min.x + (int32_t)SDL_floorf(player->vel.x);
@@ -640,7 +640,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		boar->vel.y += GRAVITY;
 
-		Level* level = &ctx->levels[ctx->level_idx];
+		Level* level = GetCurrentLevel(ctx);
 
 		boar->touching_floor = false;
 		if (boar->vel.y < 0.0f) {
@@ -750,4 +750,8 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 	hb.min = glms_ivec2_add(hb.min, b->pos);
 	hb.max = glms_ivec2_add(hb.max, b->pos);
 	return RectsIntersect(ha, hb);
+}
+
+Level* GetCurrentLevel(Context* ctx) {
+	return &ctx->levels[ctx->level_idx];
 }
