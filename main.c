@@ -54,7 +54,7 @@ void InitSprites(void) {
 }
 
 void ResetGame(Context* ctx) {
-	ctx->dt = ctx->display_mode->refresh_rate;
+	ctx->dt = ctx->default_dt;
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = GetCurrentLevel(ctx);
@@ -167,18 +167,12 @@ int32_t main(int32_t argc, char* argv[]) {
 	// CreateWindowAndRenderer
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
-		ctx->display_mode = (SDL_DisplayMode *)SDL_GetDesktopDisplayMode(display); SDL_CHECK(ctx->display_mode);
-		SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
-		int32_t w = ctx->display_mode->w / 2;
-		int32_t h = ctx->display_mode->h / 2;
-
-#if FULLSCREEN
-		flags |= SDL_WINDOW_FULLSCREEN;
-		w = ctx->display_mode->w;
-		h = ctx->display_mode->h;
-#endif
-
-		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", w, h, flags, &ctx->window, &ctx->renderer));
+		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
+	#if !FULLSCREEN
+		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_HIGH_PIXEL_DENSITY, &ctx->window, &ctx->renderer));
+	#else
+		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN, &ctx->window, &ctx->renderer));
+	#endif
 
 		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
 		if (!ctx->vsync) {
@@ -186,6 +180,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
+		ctx->default_dt = display_mode->refresh_rate;
 
 		SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND);
 	}

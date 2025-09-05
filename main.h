@@ -181,7 +181,6 @@ typedef struct Context {
 	SDL_Window* window;
 
 	SDL_Renderer* renderer;
-	SDL_DisplayMode* display_mode;
 	bool vsync;
 	float display_content_scale;
 
@@ -204,6 +203,7 @@ typedef struct Context {
 
 	SDL_Time time;
 	float dt;
+	float default_dt;
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
@@ -230,7 +230,6 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
-
 
 void UpdatePlayer(Context* ctx, Entity* player);
 void UpdateBoar(Context* ctx, Entity* boar);
