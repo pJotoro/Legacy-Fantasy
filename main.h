@@ -33,6 +33,9 @@
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
+#define GAME_WIDTH 960
+#define GAME_HEIGHT 540
+
 #define PLAYER_ACC 0.5f
 #define PLAYER_FRIC 0.3f
 #define PLAYER_MAX_VEL 3.5f
