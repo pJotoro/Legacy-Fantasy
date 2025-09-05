@@ -1,5 +1,5 @@
 /*
-This file is basically a catch-all for any function that I write once and then never touch again.
+This file is basically a catch-all for convenience/wrapper functions that I almost never touch.
 */
 
 FORCEINLINE vec2s vec2_from_ivec2(ivec2s v) {
@@ -165,20 +165,12 @@ bool SetSprite(Entity* entity, Sprite sprite) {
     return sprite_changed;
 }
 
-int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
-    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
-    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
-    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
-        return -1;
-    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
-        return 1;
-    }
-    return 0;
-}
-
-void MoveEntity(Entity* entity) {
-    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
-    vec2s move = glms_vec2_floor(entity->pos_remainder);
-    entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(move));
-    entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, move);
+bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+    Rect ha = GetEntityHitbox(ctx, a);
+    ha.min = glms_ivec2_add(ha.min, a->pos);
+    ha.max = glms_ivec2_add(ha.max, a->pos);
+    Rect hb = GetEntityHitbox(ctx, b);
+    hb.min = glms_ivec2_add(hb.min, b->pos);
+    hb.max = glms_ivec2_add(hb.max, b->pos);
+    return RectsIntersect(ha, hb);
 }

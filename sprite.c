@@ -250,24 +250,6 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t d
 	}
 }
 
-void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
-    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    if (loop || !anim->ended) {
-    	++anim->frame_tick;
-	    if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
-	        anim->frame_tick = 0;
-	        ++anim->frame_idx;
-	        if (anim->frame_idx >= sd->n_frames) {
-	        	if (loop) anim->frame_idx = 0;
-	        	else {
-	        		--anim->frame_idx;
-	        		anim->ended = true;
-	        	}
-	        }
-	    }
-    }
-}
-
 void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->n_layers == 1);
@@ -331,4 +313,33 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 
 	SDL_assert(res);
 	return hitbox;
+}
+
+int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
+    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
+    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
+        return -1;
+    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
+        return 1;
+    }
+    return 0;
+}
+
+void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+    if (loop || !anim->ended) {
+        ++anim->frame_tick;
+        if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
+            anim->frame_tick = 0;
+            ++anim->frame_idx;
+            if (anim->frame_idx >= sd->n_frames) {
+                if (loop) anim->frame_idx = 0;
+                else {
+                    --anim->frame_idx;
+                    anim->ended = true;
+                }
+            }
+        }
+    }
 }

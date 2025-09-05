@@ -204,24 +204,6 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	UpdateAnim(ctx, &boar->anim, loop);
 }
 
-bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
-	Rect ha = GetEntityHitbox(ctx, a);
-	ha.min = glms_ivec2_add(ha.min, a->pos);
-	ha.max = glms_ivec2_add(ha.max, a->pos);
-	Rect hb = GetEntityHitbox(ctx, b);
-	hb.min = glms_ivec2_add(hb.min, b->pos);
-	hb.max = glms_ivec2_add(hb.max, b->pos);
-	return RectsIntersect(ha, hb);
-}
-
-bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
-	float vel_save = entity->vel.x;
-	if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
-	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
-	entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
-	return entity->vel.x != vel_save;
-}
-
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
@@ -245,4 +227,19 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	dh->min.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y) - 1;
 	dh->max.x = entity->pos.x + h->max.x - 1;
 	dh->max.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y);
+}
+
+void MoveEntity(Entity* entity) {
+    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
+    vec2s move = glms_vec2_floor(entity->pos_remainder);
+    entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(move));
+    entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, move);
+}
+
+bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
+    float vel_save = entity->vel.x;
+    if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
+    else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+    entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
+    return entity->vel.x != vel_save;
 }
