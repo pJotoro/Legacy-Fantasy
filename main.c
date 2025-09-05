@@ -599,6 +599,7 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 	UpdateAnim(ctx, &player->anim, loop);
 
+	// TODO: Use actual level bounds.
 	if (player->pos.y > 1000.0f) {
 		ResetGame(ctx);
 	}
