@@ -531,13 +531,13 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				conserved_vel.x = player->vel.x;
+				// conserved_vel.x = player->vel.x;
 				ENTITY_LEFT_COLLISION(player);
 			}
 		} else if (player->vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
-				conserved_vel.x = player->vel.x;
+				// conserved_vel.x = player->vel.x;
 				ENTITY_RIGHT_COLLISION(player);
 			}
 		}
