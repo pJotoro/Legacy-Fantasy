@@ -71,8 +71,10 @@
 	entity->vel.y = 0.0f; \
 	entity->pos_remainder.y = 0.0f;
 
+#if 0
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
 void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
+#endif
 
 SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
 

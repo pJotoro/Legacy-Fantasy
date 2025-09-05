@@ -250,10 +250,6 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t d
 	}
 }
 
-void DrawEntity(Context* ctx, Entity* entity) {
-	DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
-}
-
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
     if (loop || !anim->ended) {
@@ -270,11 +266,6 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	        }
 	    }
     }
-    
-}
-
-void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir) {
-	DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
 void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
@@ -299,47 +290,6 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	};
 
 	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
-}
-
-int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
-	ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
-	ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
-	if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
-		return -1;
-	} else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
-		return 1;
-	}
-	return 0;
-}
-
-void ResetAnim(Anim* anim) {
-	anim->frame_idx = 0;
-	anim->frame_tick = 0;
-	anim->ended = false;
-}
-
-SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
-	SDL_assert(sprite.idx >= 0 && sprite.idx < MAX_SPRITES);
-	return &ctx->sprites[sprite.idx];
-}
-
-void SetSpriteFromPath(Entity* entity, const char* path) {
-	ResetAnim(&entity->anim);
-	entity->anim.sprite = GetSprite((char*)path);
-}
-
-bool SetSprite(Entity* entity, Sprite sprite) {
-	bool sprite_changed = false;
-	if (entity->anim.sprite.idx != sprite.idx) {
-		sprite_changed = true;
-		entity->anim.sprite = sprite;
-		ResetAnim(&entity->anim);
-	}
-	return sprite_changed;
-}
-
-bool SpritesEqual(Sprite a, Sprite b) {
-	return a.idx == b.idx;
 }
 
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox) {
