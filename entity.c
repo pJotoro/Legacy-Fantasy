@@ -1,4 +1,12 @@
 void UpdatePlayer(Context* ctx, Entity* player) {
+	if (SpritesEqual(player->anim.sprite, player_die)) {
+		UpdateAnim(ctx, &player->anim, false);
+		if (player->anim.ended) {
+			ResetGame(ctx);
+		}
+		return;
+	}
+
 	if (player->touching_floor && ctx->button_attack) {
 		SetSprite(player, player_attack);
 	}
@@ -18,15 +26,18 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy) && HAS_FLAG(entities[entity_idx].flags, EntityFlags_Active)) {
 				Entity* enemy = &entities[entity_idx];
 				if (EntitiesIntersect(ctx, player, enemy)) {
-					if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-						SetSprite(enemy, boar_hit);
-					} else {
-						// TODO
+					--enemy->health;
+					if (enemy->health <= 0) {
+						if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+							SetSprite(enemy, boar_hit);
+						} else {
+							// TODO
+						}
+
 					}
 				}
 			}
 		}
-
 	} else {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
@@ -130,8 +141,19 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 
 void UpdateBoar(Context* ctx, Entity* boar) {
 	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
+		UpdateAnim(ctx, &boar->anim, false);
 		if (boar->anim.ended) {
 			boar->flags &= ~EntityFlags_Active;
+			return;
+		}
+	}
+
+	if (SpritesEqual(boar->anim.sprite, boar_attack)) {
+		if (EntitiesIntersect(ctx, boar, ctx->player)) {
+			--ctx->player->health;
+			if (ctx->player->health <= 0) {
+				SetSprite(ctx->player, player_die);
+			}
 		}
 	} else {
 		Rect hitbox, lh, rh, uh, dh;
@@ -168,10 +190,12 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 					boar->vel.x -= BOAR_ACC;
 					boar->vel.x = SDL_max(boar->vel.x, -BOAR_MAX_VEL);
 					boar->dir = 1; // Boar sprite is flipped
+				} else {
+					SetSprite(boar, boar_attack);
 				}
 			}
 
-			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL)) {
+			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL) && !SpritesEqual(boar->anim.sprite, boar_attack)) {
 				SetSprite(boar, boar_idle);
 			}
 		}
@@ -192,10 +216,14 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	}
 
 	bool loop = true;
-	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
+	if (SpritesEqual(boar->anim.sprite, boar_hit) || SpritesEqual(boar->anim.sprite, boar_attack)) {
 		loop = false;
 	}
 	UpdateAnim(ctx, &boar->anim, loop);
+	if (boar->anim.ended && SpritesEqual(boar->anim.sprite, boar_attack)) {
+		SetSprite(boar, boar_idle);
+		boar->anim.timer = 30;
+	}
 }
 
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {

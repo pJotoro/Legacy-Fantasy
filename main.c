@@ -5,6 +5,7 @@ static Sprite player_run;
 static Sprite player_jump_start;
 static Sprite player_jump_end;
 static Sprite player_attack;
+static Sprite player_die;
 
 static Sprite boar_idle;
 static Sprite boar_walk;
@@ -23,11 +24,12 @@ void InitSprites(void) {
 	player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
 	player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
 	player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
+	player_die = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Dead\\Dead.aseprite");
 
 	boar_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 	boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
 	boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
-	boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Attack\\Attack.aseprite");
+	boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
 	boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
 }
 
@@ -45,9 +47,11 @@ void ResetGame(Context* ctx) {
 			entity->dir = 1;
 			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 				entity->touching_floor = PLAYER_JUMP_REMAINDER;
+				entity->health = 5;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 				ctx->player = entity; // TODO: Don't just do this in ResetGame. Also do it when changing levels.
 			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
+				entity->health = 1;
 				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
 		}

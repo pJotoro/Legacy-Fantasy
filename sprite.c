@@ -339,6 +339,7 @@ int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
 }
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+	--anim->timer;
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
     if (loop || !anim->ended) {
         ++anim->frame_tick;
@@ -354,4 +355,21 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
             }
         }
     }
+}
+
+bool SetSprite(Entity* entity, Sprite sprite) {
+    bool sprite_changed = false;
+    if (entity->anim.sprite.idx != sprite.idx && entity->anim.timer <= 0) {
+        sprite_changed = true;
+        ResetAnim(&entity->anim);
+        entity->anim.sprite = sprite;
+    }
+    return sprite_changed;
+}
+
+void ResetAnim(Anim* anim) {
+    anim->frame_idx = 0;
+    anim->frame_tick = 0;
+    anim->ended = false;
+    anim->timer = 0;
 }

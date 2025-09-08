@@ -135,12 +135,6 @@ void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir) {
     DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
-void ResetAnim(Anim* anim) {
-    anim->frame_idx = 0;
-    anim->frame_tick = 0;
-    anim->ended = false;
-}
-
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
     SDL_assert(sprite.idx >= 0 && sprite.idx < MAX_SPRITES);
     return &ctx->sprites[sprite.idx];
@@ -153,16 +147,6 @@ void SetSpriteFromPath(Entity* entity, const char* path) {
 
 bool SpritesEqual(Sprite a, Sprite b) {
     return a.idx == b.idx;
-}
-
-bool SetSprite(Entity* entity, Sprite sprite) {
-    bool sprite_changed = false;
-    if (entity->anim.sprite.idx != sprite.idx) {
-        sprite_changed = true;
-        entity->anim.sprite = sprite;
-        ResetAnim(&entity->anim);
-    }
-    return sprite_changed;
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {

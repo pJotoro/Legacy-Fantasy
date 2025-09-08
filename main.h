@@ -156,6 +156,7 @@ typedef struct Anim {
 	Sprite sprite;
 	size_t frame_idx;
 	size_t frame_tick;
+	int32_t timer; // As long as this timer is > 0, don't change the animation.
 	bool ended;
 } Anim;
 
@@ -188,6 +189,8 @@ typedef struct Entity {
 	int32_t touching_floor;
 
 	ivec2s src_pos;
+
+	int32_t health;
 
 	EntityFlags flags;
 } Entity;
