@@ -160,8 +160,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
 		ctx->default_dt = display_mode->refresh_rate;
 
-		SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND);
-
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
 
