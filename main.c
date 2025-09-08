@@ -1,26 +1,3 @@
-#include <SDL.h>
-#include <SDL_main.h>
-#if 0
-#include <SDL_ttf.h>
-#endif
-
-#include <cglm/struct.h>
-
-#include <raddbg_markup.h>
-
-#define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
-#define XXH_IMPLEMENTATION      /* access definitions */
-#include <xxhash.h>
-
-typedef int64_t ssize_t;
-
-#include "infl.h"
-
-#define DBL_EPSILON 2.2204460492503131e-016
-#include "json.h"
-
-#include "aseprite.h"
-
 #include "main.h"
 
 static Sprite player_idle;

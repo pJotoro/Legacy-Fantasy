@@ -250,6 +250,33 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t d
 	}
 }
 
+/* 	
+I'll admit this function is kind of weird. I might end up changing it later.
+The way it works is: we start from the current frame and go backward.
+For each frame, check if there is a corresponding hitbox. If so, pick that one.
+
+There is an edge case where we start at the first frame and the first frame has no hitbox.
+In this case, we just go forward instead of backward, starting at the second frame.
+*/
+Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+	Rect hitbox = {0};
+	bool res; ssize_t frame_idx;
+	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+	}
+
+	if (!res && entity->anim.frame_idx == 0) {
+		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+		}
+	}
+
+	SDL_assert(res);
+
+	return hitbox;
+}
+
 void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->n_layers == 1);
@@ -274,7 +301,7 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
 	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
 }
 
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox) {
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SDL_assert(hitbox);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->n_frames);
@@ -282,37 +309,15 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (HAS_FLAG(cell->flags, SpriteCellFlags_Hitbox)) {
-			 *hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
-			 return true;
+			if (dir == 1) {
+				*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+			} else {
+				*hitbox = (Rect){glms_ivec2_scale(cell->offset, -1), glms_ivec2_sub(glms_ivec2_scale(cell->offset, -1), cell->size)};
+			}
+			return true;
 		}
 	}
 	return false;
-}
-
-/* 	
-I'll admit this function is kind of weird. I might end up changing it later.
-The way it works is: we start from the current frame and go backward.
-For each frame, check if there is a corresponding hitbox. If so, pick that one.
-
-There is an edge case where we start at the first frame and the first frame has no hitbox.
-In this case, we just go forward instead of backward, starting at the second frame.
-*/
-Rect GetEntityHitbox(Context* ctx, Entity* entity) {
-	Rect hitbox = {0};
-	bool res; ssize_t frame_idx;
-	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, &hitbox); 
-	}
-
-	if (!res && entity->anim.frame_idx == 0) {
-		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, &hitbox); 
-		}
-	}
-
-	SDL_assert(res);
-	return hitbox;
 }
 
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {

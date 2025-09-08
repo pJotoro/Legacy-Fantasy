@@ -1,3 +1,26 @@
+#include <SDL.h>
+#include <SDL_main.h>
+#if 0
+#include <SDL_ttf.h>
+#endif
+
+typedef int64_t ssize_t;
+
+#include <cglm/struct.h>
+
+#define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
+#define XXH_IMPLEMENTATION      /* access definitions */
+#include <xxhash.h>
+
+#include "infl.h"
+
+#define DBL_EPSILON 2.2204460492503131e-016
+#include "json.h"
+
+#include <raddbg_markup.h>
+
+#include "aseprite.h"
+
 // NOTE: Redefine these as needed.
 #define FULLSCREEN 1
 #define DELTA_TIME 0
@@ -223,7 +246,7 @@ void ResetGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, Rect* hitbox);
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, int32_t dir);
 void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos);
 
