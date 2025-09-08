@@ -212,6 +212,10 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	lh->min.y = entity->pos.y + h->min.y + 1;
 	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x) + 1;
 	lh->max.y = entity->pos.y + h->max.y - 1;
+	if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
+		lh->min.x -= 22;
+		lh->max.x -= 22;
+	}
 
 	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x) - 1;
 	rh->min.y = entity->pos.y + h->min.y + 1;
