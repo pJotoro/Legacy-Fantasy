@@ -4,7 +4,6 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 
 	int32_t input_x = 0;
-	vec2s conserved_vel = {0.0f, 0.0f};
 	if (ctx->gamepad) {
 		if (ctx->gamepad_left_stick.x == 0.0f) input_x = 0;
 		else if (ctx->gamepad_left_stick.x > 0.0f) input_x = 1;
@@ -60,13 +59,11 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				// conserved_vel.x = player->vel.x;
 				ENTITY_LEFT_COLLISION(player);
 			}
 		} else if (player->vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
-				// conserved_vel.x = player->vel.x;
 				ENTITY_RIGHT_COLLISION(player);
 			}
 		}
@@ -118,9 +115,6 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			}
 		}
 	}
-
-	if (conserved_vel.x != 0.0f) player->vel.x = conserved_vel.x;
-	if (conserved_vel.y != 0.0f) player->vel.y = conserved_vel.y;
 
 	bool loop = true;
 	if (SpritesEqual(player->anim.sprite, player_jump_start) || SpritesEqual(player->anim.sprite, player_jump_end) || SpritesEqual(player->anim.sprite, player_attack)) {
