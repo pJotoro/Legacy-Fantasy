@@ -369,9 +369,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
 
-		ivec2s render_area;
-		SDL_CHECK(SDL_GetRenderOutputSize(ctx->renderer, &render_area.x, &render_area.y));
-
 		// RenderLevel
 		{
 			static Sprite spr_tiles;
