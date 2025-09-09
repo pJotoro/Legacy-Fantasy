@@ -22,7 +22,7 @@
 
 // I know global variables are bad, but sometimes they are just so convenient.
 
-float dt;
+static float dt;
 
 static Sprite player_idle;
 static Sprite player_run;
