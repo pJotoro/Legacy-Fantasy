@@ -131,7 +131,7 @@ void DrawEntity(Context* ctx, Entity* entity) {
     DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
 }
 
-void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir) {
+void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
     DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
@@ -151,10 +151,10 @@ bool SpritesEqual(Sprite a, Sprite b) {
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     Rect ha = GetEntityHitbox(ctx, a);
-    ha.min = glms_ivec2_add(ha.min, a->pos);
-    ha.max = glms_ivec2_add(ha.max, a->pos);
+    ha.min = glms_vec2_add(ha.min, a->pos);
+    ha.max = glms_vec2_add(ha.max, a->pos);
     Rect hb = GetEntityHitbox(ctx, b);
-    hb.min = glms_ivec2_add(hb.min, b->pos);
-    hb.max = glms_ivec2_add(hb.max, b->pos);
+    hb.min = glms_vec2_add(hb.min, b->pos);
+    hb.max = glms_vec2_add(hb.max, b->pos);
     return RectsIntersect(ha, hb);
 }

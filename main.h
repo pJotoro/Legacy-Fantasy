@@ -76,23 +76,15 @@ typedef int64_t ssize_t;
 
 #define ENTITY_LEFT_COLLISION(entity) \
 	entity->pos.x = SDL_max(entity->pos.x, tile.max.x - hitbox.min.x); \
-	entity->vel.x = 0.0f; \
-	entity->pos_remainder.x = 0.0f;
 
 #define ENTITY_RIGHT_COLLISION(entity) \
 	entity->pos.x = SDL_min(entity->pos.x, tile.min.x - hitbox.max.x); \
-	entity->vel.x = 0.0f; \
-	entity->pos_remainder.x = 0.0f;
 
 #define ENTITY_UP_COLLISION(entity) \
 	entity->pos.y = SDL_max(entity->pos.y, tile.max.y - hitbox.min.y); \
-	entity->vel.y = 0.0f; \
-	entity->pos_remainder.y = 0.0f;
 
 #define ENTITY_DOWN_COLLISION(entity) \
 	entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y); \
-	entity->vel.y = 0.0f; \
-	entity->pos_remainder.y = 0.0f;
 
 #if 0
 void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
@@ -104,8 +96,8 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 size_t HashString(char* key, size_t len);
 
 typedef struct Rect {
-	ivec2s min;
-	ivec2s max;
+	vec2s min;
+	vec2s max;
 } Rect;
 
 typedef struct SpriteLayer {
@@ -177,11 +169,10 @@ enum {
 typedef uint32_t EntityFlags;
 
 typedef struct Entity {
-	ivec2s start_pos;
-	ivec2s pos;
-	vec2s pos_remainder;
+	vec2s start_pos;
+	vec2s pos;
+	vec2s prev_pos;
 
-	vec2s vel;
 	int32_t dir;
 
 	Anim anim;
@@ -195,7 +186,9 @@ typedef struct Entity {
 	EntityFlags flags;
 } Entity;
 
-void MoveEntity(Entity* entity);
+void EntityMoveX(Entity* entity, float acc);
+void EntityMoveY(Entity* entity, float acc);
+vec2s EntityVel(Entity* entity);
 
 void SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
@@ -248,11 +241,11 @@ Level* GetCurrentLevel(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, ivec2s pos, int32_t dir);
-void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s tile, ivec2s ipos);
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, vec2s dst);
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
-void DrawAnim(Context* ctx, Anim* anim, ivec2s pos, int32_t dir);
+void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir);
 
 Entity* GetEntities(Context* ctx, size_t* n_entities);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);

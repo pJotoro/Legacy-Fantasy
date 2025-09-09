@@ -42,13 +42,16 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
-		player->vel.y += GRAVITY;
+		float prev_pos_y = player->pos.y;
+		player->pos.y += (player->pos.y - player->prev_pos.y) + PLAYER_ACC*dt*dt;
+		player->prev_pos.y = prev_pos_y;
+
 		player->touching_floor = SDL_max(player->touching_floor - 1, 0);
 
 		if (player->touching_floor) {
 			if (ctx->button_jump) {
 				player->touching_floor = 0;
-				player->vel.y = -PLAYER_JUMP;
+				EntityMoveY(player, PLAYER_JUMP);
 				SetSprite(player, player_jump_start);
 			} else {
 				float acc;
@@ -57,33 +60,42 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 				} else {
 					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 				}
-				player->vel.x += acc;
+				EntityMoveX(player, acc);
+				#if 0
 				EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
+				#endif
 			
 			}	
-		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased) && player->vel.y < 0.0f) {
-			player->flags |= EntityFlags_JumpReleased;
-			player->vel.y /= 2.0f;
+		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased)) {
+			vec2s vel = EntityVel(player);
+			if (vel.y < 0.0f) {
+				player->flags |= EntityFlags_JumpReleased;
+				#if 0
+				player->vel.y /= 2.0f;
+				#endif
+
+			}
 		}
 
 		Level* level = GetCurrentLevel(ctx);
-		if (player->vel.x < 0.0f) {
+		vec2s vel = EntityVel(player);
+		if (vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				ENTITY_LEFT_COLLISION(player);
 			}
-		} else if (player->vel.x > 0.0f) {
+		} else if (vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				ENTITY_RIGHT_COLLISION(player);
 			}
 		}
-		if (player->vel.y < 0.0f) {
+		if (vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				ENTITY_UP_COLLISION(player);
 			}
-		} else if (player->vel.y > 0.0f) {
+		} else if (vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				ENTITY_DOWN_COLLISION(player);
@@ -94,15 +106,14 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 			}
 		}
 
-		MoveEntity(player);
-
 		if (player->touching_floor) {
-			if (input_x == 0 && player->vel.x == 0.0f) {
+			vec2s vel = EntityVel(player);
+			if (input_x == 0 && vel.x == 0.0f) {
 				SetSprite(player, player_idle);
 			} else {
 				SetSprite(player, player_run);
-				if (player->vel.x != 0.0f) {
-					player->dir = (int32_t)glm_signf(player->vel.x);
+				if (vel.x != 0.0f) {
+					player->dir = (int32_t)glm_signf(vel.x);
 				} else if (input_x != 0) {
 					player->dir = input_x;
 				}
@@ -115,12 +126,13 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 
 	if (SpritesEqual(player->anim.sprite, player_attack) && player->anim.ended) {
-		if (input_x == 0 && player->vel.x == 0.0f) {
+		vec2s vel = EntityVel(player);
+		if (input_x == 0 && vel.x == 0.0f) {
 			SetSprite(player, player_idle);
 		} else {
 			SetSprite(player, player_run);
-			if (player->vel.x != 0.0f) {
-				player->dir = (int32_t)glm_signf(player->vel.x);
+			if (vel.x != 0.0f) {
+				player->dir = (int32_t)glm_signf(vel.x);
 			} else if (input_x != 0) {
 				player->dir = input_x;
 			}
@@ -159,17 +171,18 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
 
-		boar->vel.y += GRAVITY;
+		EntityMoveY(boar, GRAVITY);
 
 		Level* level = GetCurrentLevel(ctx);
 
 		boar->touching_floor = false;
-		if (boar->vel.y < 0.0f) {
+		vec2s vel = EntityVel(boar);
+		if (vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				ENTITY_UP_COLLISION(boar);
 			}
-		} else if (boar->vel.y > 0.0f) {
+		} else if (vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				ENTITY_DOWN_COLLISION(boar);
@@ -179,40 +192,39 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		// BoarChasePlayer
 		if (boar->touching_floor) {
-			if (ctx->player->touching_floor && SDL_abs(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
+			if (ctx->player->touching_floor && SDL_fabsf(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
 				if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
-					boar->vel.x += BOAR_ACC;
-					boar->vel.x = SDL_min(boar->vel.x, BOAR_MAX_VEL);
+					EntityMoveX(boar, BOAR_ACC);
 					boar->dir = -1; // Boar sprite is flipped
 				} else if (boar->pos.x > ctx->player->pos.x + TILE_SIZE) {
 					SetSprite(boar, boar_run);
-					boar->vel.x -= BOAR_ACC;
-					boar->vel.x = SDL_max(boar->vel.x, -BOAR_MAX_VEL);
+					EntityMoveX(boar, -BOAR_ACC);
 					boar->dir = 1; // Boar sprite is flipped
 				} else {
 					SetSprite(boar, boar_attack);
 				}
 			}
 
+			#if 0
 			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL) && !SpritesEqual(boar->anim.sprite, boar_attack)) {
 				SetSprite(boar, boar_idle);
 			}
+			#endif
 		}
 
-		if (boar->vel.x < 0.0f) {
+		vel = EntityVel(boar);
+		if (vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				ENTITY_LEFT_COLLISION(boar);
 			}
-		} else if (boar->vel.x > 0.0f) {
+		} else if (vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				ENTITY_RIGHT_COLLISION(boar);
 			}
 		}
-
-		MoveEntity(boar);
 	}
 
 	bool loop = true;
@@ -230,38 +242,50 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
 
-	lh->min.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x);
+	vec2s vel = EntityVel(entity);
+
+	lh->min.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(vel.x);
 	lh->min.y = entity->pos.y + h->min.y + 1;
-	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(entity->vel.x) + 1;
+	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(vel.x) + 1;
 	lh->max.y = entity->pos.y + h->max.y - 1;
 	if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 		lh->min.x -= 22;
 		lh->max.x -= 22;
 	}
 
-	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x) - 1;
+	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(vel.x) - 1;
 	rh->min.y = entity->pos.y + h->min.y + 1;
-	rh->max.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(entity->vel.x);
+	rh->max.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(vel.x);
 	rh->max.y = entity->pos.y + h->max.y - 1;
 
 	uh->min.x = entity->pos.x + h->min.x + 1;
-	uh->min.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y);
+	uh->min.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(vel.y);
 	uh->max.x = entity->pos.x + h->max.x - 1;
-	uh->max.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(entity->vel.y) + 1;
+	uh->max.y = entity->pos.y + h->min.y + (int32_t)SDL_floorf(vel.y) + 1;
 
 	dh->min.x = entity->pos.x + h->min.x + 1;
-	dh->min.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y) - 1;
+	dh->min.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(vel.y) - 1;
 	dh->max.x = entity->pos.x + h->max.x - 1;
-	dh->max.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(entity->vel.y);
+	dh->max.y = entity->pos.y + h->max.y + (int32_t)SDL_floorf(vel.y);
 }
 
-void MoveEntity(Entity* entity) {
-    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
-    vec2s move = glms_vec2_floor(entity->pos_remainder);
-    entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(move));
-    entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, move);
+void EntityMoveX(Entity* entity, float acc) {
+	float prev_pos_x = entity->pos.x;
+	entity->pos.x += (entity->pos.x - entity->prev_pos.x) + acc*dt*dt;
+	entity->prev_pos.x = prev_pos_x;
 }
 
+void EntityMoveY(Entity* entity, float acc) {
+	float prev_pos_y = entity->pos.y;
+	entity->pos.y += (entity->pos.y - entity->prev_pos.y) + acc*dt*dt;
+	entity->prev_pos.y = prev_pos_y;
+}
+
+vec2s EntityVel(Entity* entity) {
+	return glms_vec2_divs(glms_vec2_sub(entity->pos, entity->prev_pos), dt);
+}
+
+#if 0
 bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     float vel_save = entity->vel.x;
     if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
@@ -269,3 +293,4 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
     return entity->vel.x != vel_save;
 }
+#endif

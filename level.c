@@ -47,7 +47,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				};
 
 				entity->flags = EntityFlags_Tile;
-				entity->start_pos = dst;
+				entity->start_pos = vec2_from_ivec2(dst);
 				entity->src_pos = src;
 				++entity;
 			}
@@ -59,7 +59,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				char* identifier = JSON_GetStringValue(identifier_node);
 				JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
 				JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
-				entity->start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
+				entity->start_pos = (vec2s){(float)JSON_GetIntValue(world_x), (float)JSON_GetIntValue(world_y)};
 				if (SDL_strcmp(identifier, "Player") == 0) {
 					entity->flags = EntityFlags_Player;
 				} else if (SDL_strcmp(identifier, "Boar") == 0) {
@@ -79,7 +79,7 @@ bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
         if (HAS_FLAG(entity->flags, EntityFlags_Tile) && HAS_FLAG(entity->flags, EntityFlags_Solid)) {
             Rect tile;
             tile.min = entity->pos;
-            tile.max = glms_ivec2_adds(tile.min, TILE_SIZE);
+            tile.max = glms_vec2_adds(tile.min, TILE_SIZE);
             if (RectsIntersect(a, tile)) {
                 if (b) *b = tile;
                 return true;

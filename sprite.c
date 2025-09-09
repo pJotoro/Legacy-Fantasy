@@ -219,7 +219,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t dir) {
+void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
@@ -232,8 +232,8 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, ivec2s pos, int32_t d
 			(float)(cell->size.y),
 		};
 		SDL_FRect dstrect = {
-			(float)(pos.x),
-			(float)(pos.y + cell->offset.y),
+			pos.x,
+			pos.y + (float)cell->offset.y,
 			(float)(cell->size.x),
 			(float)(cell->size.y),
 		};
@@ -279,7 +279,7 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, ivec2s dst) {
+void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, vec2s dst) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
@@ -319,7 +319,7 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 				*hitbox = (Rect){glms_ivec2_scale(cell->offset, -1), glms_ivec2_sub(glms_ivec2_scale(cell->offset, -1), cell->size)};
 			}
 			#else
-			*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+			*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
 			#endif
 			return true;
 		}
