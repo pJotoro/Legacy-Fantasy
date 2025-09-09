@@ -225,28 +225,28 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	SpriteFrame* sf = &sd->frames[frame];
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
-		SDL_FRect srcrect = {
-			0.0f,
-			0.0f,
-			(float)(cell->size.x),
-			(float)(cell->size.y),
-		};
-		SDL_FRect dstrect = {
-			pos.x,
-			pos.y + (float)cell->offset.y,
-			(float)(cell->size.x),
-			(float)(cell->size.y),
-		};
-
-		if (dir == 1) {
-			dstrect.x += (float)cell->offset.x;
-		} else {
-			dstrect.x -= (float)cell->offset.x;
-			dstrect.x += (float)sd->size.x;
-			dstrect.w = -dstrect.w;
-		}
-
 		if (cell->texture) {
+			SDL_FRect srcrect = {
+				0.0f,
+				0.0f,
+				(float)(cell->size.x),
+				(float)(cell->size.y),
+			};
+			SDL_FRect dstrect = {
+				pos.x,
+				pos.y + (float)cell->offset.y,
+				(float)(cell->size.x),
+				(float)(cell->size.y),
+			};
+
+			if (dir == 1) {
+				dstrect.x += (float)cell->offset.x;
+			} else {
+				dstrect.x -= (float)cell->offset.x;
+				dstrect.x += (float)sd->size.x;
+				dstrect.w = -dstrect.w;
+			}
+
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
 	}
