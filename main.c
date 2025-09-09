@@ -1,5 +1,9 @@
 #include "main.h"
 
+// I know global variables are bad, but sometimes they are just so convenient.
+
+float dt;
+
 static Sprite player_idle;
 static Sprite player_run;
 static Sprite player_jump_start;
@@ -34,7 +38,6 @@ void InitSprites(void) {
 }
 
 void ResetGame(Context* ctx) {
-	ctx->dt = ctx->default_dt;
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = GetCurrentLevel(ctx);
@@ -162,7 +165,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
-		ctx->default_dt = display_mode->refresh_rate;
+		dt = display_mode->refresh_rate;
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
@@ -317,23 +320,15 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
-	#if DELTA_TIME
-	#ifndef _DEBUG
 		{
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			ctx->dt = (float)dt_double;
+			dt = (float)dt_double;
 			ctx->time = current_time;
 		}
-	#else
-		ctx->dt = ctx->display_mode->refresh_rate;
-	#endif
-	#else
-		ctx->dt = 1.0f;
-	#endif
 
 		if (!ctx->vsync) {
 			SDL_Delay(16); // TODO

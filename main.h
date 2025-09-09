@@ -233,8 +233,6 @@ typedef struct Context {
 	vec2s mouse_pos;
 
 	SDL_Time time;
-	float dt;
-	float default_dt;
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
