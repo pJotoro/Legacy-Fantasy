@@ -339,14 +339,17 @@ int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
 }
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
-	--anim->timer;
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+	size_t dur = sd->frames[anim->frame_idx].dur;
+	size_t n_frames = sd->n_frames;
+
+	--anim->timer;
     if (loop || !anim->ended) {
         ++anim->frame_tick;
-        if (anim->frame_tick >= sd->frames[anim->frame_idx].dur) {
+        if (anim->frame_tick >= dur) {
             anim->frame_tick = 0;
             ++anim->frame_idx;
-            if (anim->frame_idx >= sd->n_frames) {
+            if (anim->frame_idx >= n_frames) {
                 if (loop) anim->frame_idx = 0;
                 else {
                     --anim->frame_idx;
