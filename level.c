@@ -13,8 +13,8 @@ Level LoadLevel(JSON_Node* level_node) {
 
 	JSON_Node* layer_instances = JSON_GetObjectItem(level_node, "layerInstances", true);
 	JSON_Node* layer_instance; JSON_ArrayForEach(layer_instance, layer_instances) {
-		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "identifier", true);
-		char* ident = JSON_GetStringValue(ident_node);
+		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
+		char* ident = JSON_GetStringValue(ident_node); SDL_assert(ident);
 
 		if (SDL_strcmp(ident, layer_enemies) == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
@@ -35,8 +35,8 @@ Level LoadLevel(JSON_Node* level_node) {
 	Entity* enemy = res.enemies;
 	Entity* tile = res.tiles;
 	JSON_ArrayForEach(layer_instance, layer_instances) {
-		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "identifier", true);
-		char* ident = JSON_GetStringValue(ident_node);
+		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
+		char* ident = JSON_GetStringValue(ident_node); SDL_assert(ident);
 		if (SDL_strcmp(ident, layer_player) == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
 			JSON_Node* entity_instance = entity_instances->child;
