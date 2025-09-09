@@ -338,16 +338,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->gamepad_left_stick.x = 0.0f;
 		}
 
-		{
-			SDL_Time current_time;
-			SDL_CHECK(SDL_GetCurrentTime(&current_time));
-			SDL_Time dt_int = current_time - ctx->time;
-			const double NANOSECONDS_IN_SECOND = 1000000000.0;
-			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			dt = (float)dt_double;
-			ctx->time = current_time;
-		}
-
 		if (!ctx->vsync) {
 			SDL_Delay(16); // TODO
 		}
@@ -397,6 +387,16 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!ctx->vsync) {
 				// TODO
 			}
+		}
+
+		{
+			SDL_Time current_time;
+			SDL_CHECK(SDL_GetCurrentTime(&current_time));
+			SDL_Time dt_int = current_time - ctx->time;
+			const double NANOSECONDS_IN_SECOND = 1000000000.0;
+			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+			dt = (float)dt_double;
+			ctx->time = current_time;
 		}
 	}
 	

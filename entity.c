@@ -1,3 +1,11 @@
+#define ENTITY_LEFT_COLLISION(entity) entity->pos.x = SDL_max(entity->pos.x, tile.max.x - hitbox.min.x);
+
+#define ENTITY_RIGHT_COLLISION(entity) entity->pos.x = SDL_min(entity->pos.x, tile.min.x - hitbox.max.x);
+
+#define ENTITY_UP_COLLISION(entity) entity->pos.y = SDL_max(entity->pos.y, tile.max.y - hitbox.min.y);
+
+#define ENTITY_DOWN_COLLISION(entity) entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y);
+
 void UpdatePlayer(Context* ctx, Entity* player) {
 	if (SpritesEqual(player->anim.sprite, player_die)) {
 		UpdateAnim(ctx, &player->anim, false);
