@@ -22,11 +22,10 @@ Level LoadLevel(JSON_Node* level_node) {
 				++res.n_enemies;
 			}
 		} else if (SDL_strcmp(ident, layer_tiles) == 0) {
-			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
-			JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
+			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
+			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
 				++res.n_tiles;
 			}
-
 		}
 	}
 
