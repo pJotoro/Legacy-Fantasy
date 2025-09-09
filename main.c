@@ -1,3 +1,23 @@
+#define FULLSCREEN 1
+
+#define GAME_WIDTH 960
+#define GAME_HEIGHT 540
+
+#define PLAYER_ACC 50000.0f
+#define PLAYER_FRIC 0.003f
+#define PLAYER_MAX_VEL 350000.0f
+#define PLAYER_JUMP 10000.0f
+#define PLAYER_JUMP_REMAINDER 10
+
+#define BOAR_ACC 0.002f
+#define BOAR_FRIC 0.001f
+#define BOAR_MAX_VEL 0.0016f
+
+#define TILE_SIZE 16
+#define GRAVITY 0.00000000000004f
+
+#define MAX_SPRITES 256
+
 #include "main.h"
 
 // I know global variables are bad, but sometimes they are just so convenient.

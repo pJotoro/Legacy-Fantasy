@@ -21,10 +21,6 @@ typedef int64_t ssize_t;
 
 #include "aseprite.h"
 
-// NOTE: Redefine these as needed.
-#define FULLSCREEN 1
-#define DELTA_TIME 0
-
 #define FORCEINLINE SDL_FORCE_INLINE
 
 #define KILOBYTE(X) ((X)*1024LL)
@@ -55,24 +51,6 @@ typedef int64_t ssize_t;
 #define SDL_ReadStructChecked(S, STRUCT) SDL_CHECK(SDL_ReadStruct(S, STRUCT) == sizeof(*(STRUCT)))
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
-
-#define GAME_WIDTH 960
-#define GAME_HEIGHT 540
-
-#define PLAYER_ACC 50000.0f
-#define PLAYER_FRIC 0.003f
-#define PLAYER_MAX_VEL 350000.0f
-#define PLAYER_JUMP 10000.0f
-#define PLAYER_JUMP_REMAINDER 10
-
-#define BOAR_ACC 0.002f
-#define BOAR_FRIC 0.001f
-#define BOAR_MAX_VEL 0.0016f
-
-#define TILE_SIZE 16
-#define GRAVITY 0.00000000000004f
-
-#define MAX_SPRITES 256
 
 #define ENTITY_LEFT_COLLISION(entity) \
 	entity->pos.x = SDL_max(entity->pos.x, tile.max.x - hitbox.min.x); \
