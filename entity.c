@@ -7,6 +7,10 @@
 #define ENTITY_DOWN_COLLISION(entity) entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y);
 
 void UpdatePlayer(Context* ctx, Entity* player) {
+    if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
+    	return;
+    }
+
 	if (SpritesEqual(player->anim.sprite, player_die)) {
 		UpdateAnim(ctx, &player->anim, false);
 		if (player->anim.ended) {
@@ -29,20 +33,18 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 	}
 
 	if (SpritesEqual(player->anim.sprite, player_attack)) {
-		size_t n_entities; Entity* entities = GetEntities(ctx, &n_entities);
-		for (size_t entity_idx = 0; entity_idx < n_entities; ++entity_idx) {
-			if (HAS_FLAG(entities[entity_idx].flags, EntityFlags_Enemy) && HAS_FLAG(entities[entity_idx].flags, EntityFlags_Active)) {
-				Entity* enemy = &entities[entity_idx];
-				if (EntitiesIntersect(ctx, player, enemy)) {
-					--enemy->health;
-					if (enemy->health <= 0) {
-						if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-							SetSprite(enemy, boar_hit);
-						} else {
-							// TODO
-						}
-
+		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+			Entity* enemy = &enemies[enemy_idx];
+			if (EntitiesIntersect(ctx, player, enemy)) {
+				--enemy->health;
+				if (enemy->health <= 0) {
+					if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+						SetSprite(enemy, boar_hit);
+					} else {
+						// TODO
 					}
+
 				}
 			}
 		}
@@ -158,6 +160,10 @@ void UpdatePlayer(Context* ctx, Entity* player) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
+	if (!HAS_FLAG(boar->flags, EntityFlags_Active)) {
+		return;
+	}
+
 	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
 		UpdateAnim(ctx, &boar->anim, false);
 		if (boar->anim.ended) {
@@ -254,10 +260,12 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	lh->min.y = entity->pos.y + h->min.y + 1;
 	lh->max.x = entity->pos.x + h->min.x + (int32_t)SDL_floorf(vel.x) + 1;
 	lh->max.y = entity->pos.y + h->max.y - 1;
+	#if 0
 	if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
 		lh->min.x -= 22;
 		lh->max.x -= 22;
 	}
+	#endif
 
 	rh->min.x = entity->pos.x + h->max.x + (int32_t)SDL_floorf(vel.x) - 1;
 	rh->min.y = entity->pos.y + h->min.y + 1;

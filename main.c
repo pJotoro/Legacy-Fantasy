@@ -60,20 +60,21 @@ void InitSprites(void) {
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
-		Level* level = GetCurrentLevel(ctx);
-		for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
-			Entity* entity = &level->entities[entity_idx];
-			entity->flags |= EntityFlags_Active;
-			entity->pos = entity->start_pos;
-			entity->dir = 1;
-			if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-				entity->touching_floor = PLAYER_JUMP_REMAINDER;
-				entity->health = 5;
-				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-				ctx->player = entity; // TODO: Don't just do this in ResetGame. Also do it when changing levels.
-			} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
-				entity->health = 1;
-				SetSpriteFromPath(entity, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+		Level* level = &ctx->levels[level_idx];
+		{
+			Entity* player = &level->player;
+			player->touching_floor = PLAYER_JUMP_REMAINDER;
+			player->health = 5;
+			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+		}
+		for (size_t enemy_idx = 0; enemy_idx < level->n_enemies; ++enemy_idx) {
+			Entity* enemy = &level->enemies[enemy_idx];
+			enemy->flags |= EntityFlags_Active;
+			enemy->pos = enemy->start_pos;
+			enemy->dir = 1;
+			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+				enemy->health = 1;
+				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
 		}
 	}
@@ -142,17 +143,15 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 			Level* level = &ctx->levels[level_idx];
-			for (size_t entity_idx = 0; entity_idx < level->n_entities; ++entity_idx) {
-				Entity* entity = &level->entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
-					ivec2s src = entity->src_pos;
-					for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
-						int32_t i = tiles_collide[tiles_collide_idx];
-						int32_t j = (src.x + src.y*25)/TILE_SIZE; // TODO: Replace 25 with tileset width.
-						if (i == j) {
-							entity->flags |= EntityFlags_Solid;
-							break;
-						}
+			for (size_t tile_idx = 0; tile_idx < level->n_tiles; ++tile_idx) {
+				Entity* tile = &level->tiles[tile_idx];
+				ivec2s src = tile->src;
+				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
+					int32_t i = tiles_collide[tiles_collide_idx];
+					int32_t j = (src.x + src.y*25)/TILE_SIZE; // TODO: Replace 25 with tileset width.
+					if (i == j) {
+						tile->flags |= EntityFlags_Solid;
+						break;
 					}
 				}
 			}
@@ -342,14 +341,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
-			Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-			if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
-				if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-					UpdatePlayer(ctx, entity);
-				} else if (HAS_FLAG(entity->flags, EntityFlags_Boar)) {
-					UpdateBoar(ctx, entity);
-				}
+		UpdatePlayer(ctx, GetPlayer(ctx));
+		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+			Entity* enemy = &enemies[enemy_idx];
+			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+				UpdateBoar(ctx, enemy);
 			}
 		}
 		
@@ -368,15 +365,16 @@ int32_t main(int32_t argc, char* argv[]) {
 				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 			}
 
-			for (size_t entity_idx = 0; entity_idx < ctx->levels[ctx->level_idx].n_entities; ++entity_idx) {
-				Entity* entity = &ctx->levels[ctx->level_idx].entities[entity_idx];
-				if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
-					if (HAS_FLAG(entity->flags, EntityFlags_Tile)) {
-						DrawSpriteTile(ctx, spr_tiles, entity->src_pos, entity->pos);
-					} else {
-						DrawEntity(ctx, entity);
-					}
-				}
+			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+				Entity* enemy = &enemies[enemy_idx];
+				DrawEntity(ctx, enemy);
+			}
+			DrawEntity(ctx, GetPlayer(ctx));
+			size_t n_tiles; Entity* tiles = GetTiles(ctx, &n_tiles);
+			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
+				Entity* tile = &tiles[tile_idx];
+				DrawSpriteTile(ctx, spr_tiles, tile->src, tile->pos);
 			}
 		}
 

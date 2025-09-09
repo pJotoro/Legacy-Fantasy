@@ -117,10 +117,20 @@ size_t HashString(char* key, size_t len) {
     return XXH3_64bits((const void*)key, len);
 }
 
-Entity* GetEntities(Context* ctx, size_t* n_entities) {
-    SDL_assert(n_entities);
-    *n_entities = ctx->levels[ctx->level_idx].n_entities;
-    return ctx->levels[ctx->level_idx].entities;
+Entity* GetPlayer(Context* ctx) {
+    return &ctx->levels[ctx->level_idx].player;
+}
+
+Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
+    SDL_assert(n_enemies);
+    *n_enemies = ctx->levels[ctx->level_idx].n_enemies;
+    return ctx->levels[ctx->level_idx].enemies;
+}
+
+Entity* GetTiles(Context* ctx, size_t* n_tiles) {
+    SDL_assert(n_tiles);
+    *n_tiles = ctx->levels[ctx->level_idx].n_tiles;
+    return ctx->levels[ctx->level_idx].tiles;
 }
 
 Level* GetCurrentLevel(Context* ctx) {
@@ -128,7 +138,9 @@ Level* GetCurrentLevel(Context* ctx) {
 }
 
 void DrawEntity(Context* ctx, Entity* entity) {
-    DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
+    if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
+        DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
+    }
 }
 
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
@@ -150,6 +162,7 @@ bool SpritesEqual(Sprite a, Sprite b) {
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+    if (!HAS_FLAG(a->flags, EntityFlags_Active) || !HAS_FLAG(b->flags, EntityFlags_Active)) return false;
     Rect ha = GetEntityHitbox(ctx, a);
     ha.min = glms_vec2_add(ha.min, a->pos);
     ha.max = glms_vec2_add(ha.max, a->pos);

@@ -121,32 +121,33 @@ typedef struct Anim {
 void ResetAnim(Anim* anim);
 
 enum {
+	// All entities
 	EntityFlags_Active = FLAG(0),
 
-	EntityFlags_Player = FLAG(1),
+	// Player
 	EntityFlags_JumpReleased = FLAG(2),
 
-	EntityFlags_Enemy = FLAG(3),
+	// Enemy
 	EntityFlags_Boar = FLAG(4),
 
-	EntityFlags_Tile = FLAG(5),
+	// Tile
 	EntityFlags_Solid = FLAG(6),
 };
 typedef uint32_t EntityFlags;
 
 typedef struct Entity {
+	Anim anim;
+
+	ivec2s src; // tile atlas pos
+	union {
+		vec2s pos; // entity pos
+		ivec2s dst; // tile level pos
+	};
 	vec2s start_pos;
-	vec2s pos;
 	vec2s prev_pos;
 
 	int32_t dir;
-
-	Anim anim;
-
 	int32_t touching_floor;
-
-	ivec2s src_pos;
-
 	int32_t health;
 
 	EntityFlags flags;
@@ -162,7 +163,9 @@ bool SetSprite(Entity* entity, Sprite sprite);
 typedef struct Level {
 	ivec2s size;
 	SDL_Time modify_time;
-	Entity* entities; size_t n_entities;
+	Entity player;
+	Entity* enemies; size_t n_enemies;
+	Entity* tiles; size_t n_tiles;
 } Level;
 
 bool IsSolid(Level* level, ivec2s grid_pos);
@@ -213,7 +216,9 @@ void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, vec2s dst);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir);
 
-Entity* GetEntities(Context* ctx, size_t* n_entities);
+Entity* GetPlayer(Context* ctx);
+Entity* GetEnemies(Context* ctx, size_t* n_enemies);
+Entity* GetTiles(Context* ctx, size_t* n_tiles);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
