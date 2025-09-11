@@ -73,6 +73,7 @@ Level LoadLevel(JSON_Node* level_node) {
 				};
 
 				tile->start_pos = vec2_from_ivec2(dst);
+				tile->pos = tile->start_pos; // TODO: Will these ever differ?
 				tile->src = src;
 				++tile;
 			}
