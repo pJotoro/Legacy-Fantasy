@@ -175,10 +175,11 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	}
 
 	if (SpritesEqual(boar->anim.sprite, boar_attack)) {
-		if (EntitiesIntersect(ctx, boar, ctx->player)) {
-			--ctx->player->health;
-			if (ctx->player->health <= 0) {
-				SetSprite(ctx->player, player_die);
+		Entity* player = GetPlayer(ctx);
+		if (EntitiesIntersect(ctx, boar, player)) {
+			--player->health;
+			if (player->health <= 0) {
+				SetSprite(player, player_die);
 			}
 		}
 	} else {
@@ -206,12 +207,13 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		// BoarChasePlayer
 		if (boar->touching_floor) {
-			if (ctx->player->touching_floor && SDL_fabsf(boar->pos.x - ctx->player->pos.x) < TILE_SIZE*15) {
-				if (boar->pos.x < ctx->player->pos.x - TILE_SIZE) {
+			Entity* player = GetPlayer(ctx);
+			if (player->touching_floor && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
+				if (boar->pos.x < player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
 					EntityMoveX(boar, BOAR_ACC);
 					boar->dir = -1; // Boar sprite is flipped
-				} else if (boar->pos.x > ctx->player->pos.x + TILE_SIZE) {
+				} else if (boar->pos.x > player->pos.x + TILE_SIZE) {
 					SetSprite(boar, boar_run);
 					EntityMoveX(boar, -BOAR_ACC);
 					boar->dir = 1; // Boar sprite is flipped

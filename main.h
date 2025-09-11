@@ -198,7 +198,6 @@ typedef struct Context {
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
-	Entity* player; // Player is really stored in the entity array of the level. This just makes it faster to access.
 
 	bool running;
 
