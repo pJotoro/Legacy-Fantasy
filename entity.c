@@ -54,7 +54,7 @@ void UpdatePlayer(Context* ctx) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
-		EntityMoveY(player, PLAYER_ACC);
+		EntityMoveY(player, GRAVITY);
 
 		player->touching_floor = SDL_max(player->touching_floor - 1, 0);
 
