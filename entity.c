@@ -6,7 +6,9 @@
 
 #define ENTITY_DOWN_COLLISION(entity) entity->pos.y = SDL_min(entity->pos.y, tile.min.y - hitbox.max.y);
 
-void UpdatePlayer(Context* ctx, Entity* player) {
+void UpdatePlayer(Context* ctx) {
+	Entity* player = GetPlayer(ctx);
+
     if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
     	return;
     }

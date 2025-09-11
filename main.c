@@ -3,18 +3,18 @@
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 
-#define PLAYER_ACC 50000.0f
-#define PLAYER_FRIC 0.003f
-#define PLAYER_MAX_VEL 350000.0f
-#define PLAYER_JUMP 10000.0f
+#define PLAYER_ACC 0.5f
+#define PLAYER_FRIC 0.3f
+#define PLAYER_MAX_VEL 3.5f
+#define PLAYER_JUMP 10.0f
 #define PLAYER_JUMP_REMAINDER 10
 
-#define BOAR_ACC 0.002f
-#define BOAR_FRIC 0.001f
-#define BOAR_MAX_VEL 0.0016f
+#define BOAR_ACC 0.2f
+#define BOAR_FRIC 0.1f
+#define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 0.00000000000004f
+#define GRAVITY 0.4f
 
 #define MAX_SPRITES 256
 
@@ -345,7 +345,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		UpdatePlayer(ctx, GetPlayer(ctx));
+		UpdatePlayer(ctx);
 		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
 			Entity* enemy = &enemies[enemy_idx];

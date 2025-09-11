@@ -224,7 +224,7 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
 
-void UpdatePlayer(Context* ctx, Entity* player);
+void UpdatePlayer(Context* ctx);
 void UpdateBoar(Context* ctx, Entity* boar);
 
 bool EntityApplyFriction(Entity* entity, float fric, float max_vel);
