@@ -20,6 +20,10 @@
 
 #include "main.h"
 
+#include "util.c"
+#include "level.c"
+#include "sprite.c"
+
 // I know global variables are bad, but sometimes they are just so convenient.
 
 static float dt;
@@ -37,9 +41,6 @@ static Sprite boar_run;
 static Sprite boar_attack;
 static Sprite boar_hit;
 
-#include "util.c"
-#include "level.c"
-#include "sprite.c"
 #include "entity.c"
 
 void InitSprites(void) {
