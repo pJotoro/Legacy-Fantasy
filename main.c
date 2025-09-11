@@ -14,7 +14,7 @@
 #define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 0.4f
+#define GRAVITY 9.6f
 
 #define MAX_SPRITES 256
 
@@ -66,6 +66,7 @@ void ResetGame(Context* ctx) {
 			Entity* player = &level->player;
 			player->flags |= EntityFlags_Active;
 			player->pos = player->start_pos;
+			player->prev_pos = player->pos;
 			player->dir = 1;
 			player->touching_floor = PLAYER_JUMP_REMAINDER;
 			player->health = 5;
@@ -75,6 +76,7 @@ void ResetGame(Context* ctx) {
 			Entity* enemy = &level->enemies[enemy_idx];
 			enemy->flags |= EntityFlags_Active;
 			enemy->pos = enemy->start_pos;
+			enemy->prev_pos = enemy->pos;
 			enemy->dir = 1;
 			enemy->health = 1;
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
