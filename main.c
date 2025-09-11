@@ -63,6 +63,9 @@ void ResetGame(Context* ctx) {
 		Level* level = &ctx->levels[level_idx];
 		{
 			Entity* player = &level->player;
+			player->flags |= EntityFlags_Active;
+			player->pos = player->start_pos;
+			player->dir = 1;
 			player->touching_floor = PLAYER_JUMP_REMAINDER;
 			player->health = 5;
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
@@ -72,8 +75,8 @@ void ResetGame(Context* ctx) {
 			enemy->flags |= EntityFlags_Active;
 			enemy->pos = enemy->start_pos;
 			enemy->dir = 1;
+			enemy->health = 1;
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-				enemy->health = 1;
 				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
 		}
