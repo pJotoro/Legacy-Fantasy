@@ -67,7 +67,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->touching_floor) {
 			if (ctx->button_jump) {
 				player->touching_floor = 0;
-				EntityMoveY(player, PLAYER_JUMP);
+				EntityMoveY(player, -PLAYER_JUMP);
 				SetSprite(player, player_jump_start);
 			} else {
 				float acc;
