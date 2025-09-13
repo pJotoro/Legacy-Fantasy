@@ -13,6 +13,7 @@
 
 void UpdatePlayer(Context* ctx) {
 	Entity* player = GetPlayer(ctx);
+	vec2s prev_pos = player->pos;
 
     if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
     	return;
@@ -163,10 +164,15 @@ void UpdatePlayer(Context* ctx) {
 	// TODO: Use actual level bounds.
 	if (player->pos.y > 1000.0f) {
 		ResetGame(ctx);
+		return;
 	}
+
+	player->prev_pos = prev_pos;
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
+	vec2s prev_pos = boar->prev_pos;
+
 	if (!HAS_FLAG(boar->flags, EntityFlags_Active)) {
 		return;
 	}
@@ -257,6 +263,8 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		SetSprite(boar, boar_idle);
 		boar->anim.timer = 30;
 	}
+
+	boar->prev_pos = prev_pos;
 }
 
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
@@ -293,15 +301,11 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 }
 
 void EntityMoveX(Entity* entity, float acc) {
-	float prev_pos_x = entity->pos.x;
 	entity->pos.x += entity->pos.x - entity->prev_pos.x + acc*dt*dt;
-	entity->prev_pos.x = prev_pos_x;
 }
 
 void EntityMoveY(Entity* entity, float acc) {
-	float prev_pos_y = entity->pos.y;
 	entity->pos.y += entity->pos.y - entity->prev_pos.y + acc*dt*dt;
-	entity->prev_pos.y = prev_pos_y;
 }
 
 vec2s EntityVel(Entity* entity) {
