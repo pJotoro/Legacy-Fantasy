@@ -60,6 +60,7 @@ void InitSprites(void) {
 
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
+	dt = ctx->refresh_rate;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
 		{
@@ -189,7 +190,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
-		dt = display_mode->refresh_rate;
+		ctx->refresh_rate = display_mode->refresh_rate;
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
