@@ -189,7 +189,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
 		}
 
+#if 0
 		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
+#endif
 		ctx->refresh_rate = display_mode->refresh_rate;
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));

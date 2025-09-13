@@ -175,9 +175,8 @@ typedef struct Context {
 
 	SDL_Renderer* renderer;
 	bool vsync;
-	float display_content_scale;
-
 #if 0
+	float display_content_scale;
 	TTF_TextEngine* text_engine;
 	TTF_Font* font_roboto_regular;
 #endif
