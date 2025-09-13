@@ -152,11 +152,6 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
     return &ctx->sprites[sprite.idx];
 }
 
-void SetSpriteFromPath(Entity* entity, const char* path) {
-    ResetAnim(&entity->anim);
-    entity->anim.sprite = GetSprite((char*)path);
-}
-
 bool SpritesEqual(Sprite a, Sprite b) {
     return a.idx == b.idx;
 }

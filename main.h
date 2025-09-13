@@ -157,7 +157,7 @@ void EntityMoveX(Entity* entity, float acc);
 void EntityMoveY(Entity* entity, float acc);
 vec2s EntityVel(Entity* entity);
 
-void SetSpriteFromPath(Entity* entity, const char* path);
+bool SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
 
 typedef struct Level {

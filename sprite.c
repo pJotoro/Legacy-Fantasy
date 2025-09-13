@@ -370,6 +370,11 @@ bool SetSprite(Entity* entity, Sprite sprite) {
     return sprite_changed;
 }
 
+bool SetSpriteFromPath(Entity* entity, const char* path) {
+    Sprite sprite = GetSprite((char*)path);
+    return SetSprite(entity, sprite);
+}
+
 void ResetAnim(Anim* anim) {
     anim->frame_idx = 0;
     anim->frame_tick = 0;
