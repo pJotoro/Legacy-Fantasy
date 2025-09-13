@@ -71,6 +71,7 @@ void ResetGame(Context* ctx) {
 			player->dir = 1;
 			player->touching_floor = 0;
 			player->health = 5;
+			ResetAnim(&player->anim);
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		}
 		for (size_t enemy_idx = 0; enemy_idx < level->n_enemies; ++enemy_idx) {
@@ -81,6 +82,7 @@ void ResetGame(Context* ctx) {
 			enemy->dir = 1;
 			enemy->touching_floor = false;
 			enemy->health = 1;
+			ResetAnim(&enemy->anim);
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
 				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
