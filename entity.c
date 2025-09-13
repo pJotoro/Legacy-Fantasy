@@ -98,23 +98,23 @@ void UpdatePlayer(Context* ctx) {
 		if (vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				ENTITY_LEFT_COLLISION(player);
+				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
 			}
 		} else if (vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
-				ENTITY_RIGHT_COLLISION(player);
+				player->pos.x = SDL_min(player->pos.x, tile.min.x - hitbox.max.x);
 			}
 		}
 		if (vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
-				ENTITY_UP_COLLISION(player);
+				player->pos.y = SDL_max(player->pos.y, tile.max.y - hitbox.min.y);
 			}
 		} else if (vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
-				ENTITY_DOWN_COLLISION(player);
+				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
 				player->flags &= ~EntityFlags_JumpReleased;
 			} else {
