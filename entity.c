@@ -99,13 +99,13 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
-		//	}
+			}
 		//} else if (vel.x > 0.0f) {
 		//	Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x = SDL_min(player->pos.x, tile.min.x - hitbox.max.x);
 			}
-		}
+		//}
 		//if (vel.y < 0.0f) {
 		//	Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
@@ -117,9 +117,10 @@ void UpdatePlayer(Context* ctx) {
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
 				player->flags &= ~EntityFlags_JumpReleased;
-			} else {
-				SetSprite(player, player_jump_end);
-			}
+			} 
+			// else {
+			// 	SetSprite(player, player_jump_end);
+			// }
 		//}
 
 		if (player->touching_floor) {
