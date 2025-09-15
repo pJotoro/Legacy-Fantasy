@@ -170,6 +170,12 @@ typedef struct Level {
 
 bool IsSolid(Level* level, ivec2s grid_pos);
 
+typedef struct ReplayFrame {
+	Entity player;
+	float dt;
+	// TODO
+} ReplayFrame;
+
 typedef struct Context {
 	SDL_Window* window;
 
@@ -202,6 +208,8 @@ typedef struct Context {
 	bool running;
 
 	SpriteDesc sprites[MAX_SPRITES];
+
+	ReplayFrame* replay_frames; size_t n_replay_frames; size_t c_replay_frames;
 } Context;
 
 void ResetGame(Context* ctx);

@@ -233,6 +233,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ResetGame(ctx);
 
+	ctx->c_replay_frames = 1024;
+	ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+
 	ctx->running = true;
 	while (ctx->running) {
 		if (!ctx->gamepad) {
@@ -399,6 +402,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		ReplayFrame replay_frame = {0};
+		replay_frame.player = *GetPlayer(ctx);
+
 		{
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
@@ -407,7 +413,21 @@ int32_t main(int32_t argc, char* argv[]) {
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 			dt = (float)dt_double;
 			ctx->time = current_time;
+
+			replay_frame.dt = dt;
 		}
+
+		ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
+		if (ctx->n_replay_frames >= ctx->c_replay_frames) {
+			ctx->c_replay_frames *= 8;
+			ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+		}
+	}
+
+	for (size_t i = 0; i < ctx->n_replay_frames; ++i) {
+		ReplayFrame* r = &ctx->replay_frames[i];
+		SDL_Log("dt = %f, player.pos = {%f, %f}, player.prev_pos = {%f, %f}", r->dt, r->player.pos.x, r->player.pos.y, r->player.prev_pos.x, r->player.prev_pos.y);
+
 	}
 	
 	SDL_Quit();
