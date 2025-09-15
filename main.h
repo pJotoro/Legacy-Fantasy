@@ -210,6 +210,7 @@ typedef struct Context {
 	SpriteDesc sprites[MAX_SPRITES];
 
 	ReplayFrame* replay_frames; size_t n_replay_frames; size_t c_replay_frames;
+	bool paused;
 } Context;
 
 void ResetGame(Context* ctx);

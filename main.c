@@ -261,12 +261,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 				if (!ctx->gamepad) {
 					switch (event.key.key) {
+					case SDLK_SPACE:
+						ctx->paused = !ctx->paused;
+						break;
 					case SDLK_0:
 						break;
 					case SDLK_X:
 						ctx->button_attack = true;
-						break;
-					case SDLK_SPACE:
 						break;
 					case SDLK_LEFT:
 						if (!event.key.repeat) {
@@ -356,13 +357,16 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Delay(16); // TODO
 		}
 
-		UpdatePlayer(ctx);
-		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
-		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
-			Entity* enemy = &enemies[enemy_idx];
-			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-				UpdateBoar(ctx, enemy);
+		if (!ctx->paused) {
+			UpdatePlayer(ctx);
+			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+				Entity* enemy = &enemies[enemy_idx];
+				if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+					UpdateBoar(ctx, enemy);
+				}
 			}
+
 		}
 		
 		// RenderBegin
@@ -417,11 +421,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			replay_frame.dt = dt;
 		}
 
-		ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
-		if (ctx->n_replay_frames >= ctx->c_replay_frames) {
-			ctx->c_replay_frames *= 8;
-			ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
-		}
+		if (!ctx->paused)
+ 		{
+	 		ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
+			if (ctx->n_replay_frames >= ctx->c_replay_frames) {
+				ctx->c_replay_frames *= 8;
+				ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+			}
+ 		}		
 	}
 
 	for (size_t i = 0; i < ctx->n_replay_frames; ++i) {
