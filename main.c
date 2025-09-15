@@ -273,10 +273,16 @@ int32_t main(int32_t argc, char* argv[]) {
 						if (!event.key.repeat) {
 							ctx->button_left = 1;
 						}
+						if (ctx->paused) {
+							ctx->replay_frame_idx = SDL_max(ctx->replay_frame_idx - 1, 0);
+						}
 						break;
 					case SDLK_RIGHT:
 						if (!event.key.repeat) {
 							ctx->button_right = 1;
+						}
+						if (ctx->paused) {
+							ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, (ssize_t)ctx->n_replay_frames - 1);
 						}
 						break;
 					case SDLK_UP:
@@ -366,7 +372,9 @@ int32_t main(int32_t argc, char* argv[]) {
 					UpdateBoar(ctx, enemy);
 				}
 			}
-
+		} else {
+			Entity* player = GetPlayer(ctx);
+			*player = ctx->replay_frames[ctx->replay_frame_idx].player;
 		}
 		
 		// RenderBegin
@@ -428,6 +436,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				ctx->c_replay_frames *= 8;
 				ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 			}
+			ctx->replay_frame_idx = ctx->n_replay_frames - 1;
  		}		
 	}
 
