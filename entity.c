@@ -94,25 +94,25 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		Level* level = GetCurrentLevel(ctx);
-		vec2s vel = EntityVel(player);
-		if (vel.x < 0.0f) {
+		//vec2s vel = EntityVel(player);
+		//if (vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
-			}
-		} else if (vel.x > 0.0f) {
-			Rect tile;
+		//	}
+		//} else if (vel.x > 0.0f) {
+		//	Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x = SDL_min(player->pos.x, tile.min.x - hitbox.max.x);
 			}
 		}
-		if (vel.y < 0.0f) {
-			Rect tile;
+		//if (vel.y < 0.0f) {
+		//	Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				player->pos.y = SDL_max(player->pos.y, tile.max.y - hitbox.min.y);
 			}
-		} else if (vel.y > 0.0f) {
-			Rect tile;
+		//} else if (vel.y > 0.0f) {
+		//	Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->touching_floor = PLAYER_JUMP_REMAINDER;
@@ -120,7 +120,7 @@ void UpdatePlayer(Context* ctx) {
 			} else {
 				SetSprite(player, player_jump_end);
 			}
-		}
+		//}
 
 		if (player->touching_floor) {
 			vec2s vel = EntityVel(player);
