@@ -302,11 +302,11 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 }
 
 void EntityMoveX(Entity* entity, float acc) {
-	entity->pos.x += entity->pos.x - entity->prev_pos.x + acc*dt*dt;
+	entity->pos.x = entity->pos.x + (entity->pos.x - entity->prev_pos.x)*(dt/prev_dt) + acc*dt*dt;
 }
 
 void EntityMoveY(Entity* entity, float acc) {
-	entity->pos.y += entity->pos.y - entity->prev_pos.y + acc*dt*dt;
+	entity->pos.y = entity->pos.y + (entity->pos.y - entity->prev_pos.y)*(dt/prev_dt) + acc*dt*dt;
 }
 
 vec2s EntityVel(Entity* entity) {
