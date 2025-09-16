@@ -60,7 +60,7 @@ void InitSprites(void) {
 
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
-	dt = ctx->refresh_rate;
+	dt = 1.0f/ctx->refresh_rate;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
 		{
