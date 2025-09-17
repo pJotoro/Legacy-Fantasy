@@ -144,7 +144,7 @@ typedef struct Entity {
 		ivec2s dst; // tile level pos
 	};
 	vec2s start_pos;
-	vec2s prev_pos;
+	vec2s vel;
 
 	int32_t dir;
 	int32_t touching_floor;
@@ -155,7 +155,6 @@ typedef struct Entity {
 
 void EntityMoveX(Entity* entity, float acc);
 void EntityMoveY(Entity* entity, float acc);
-vec2s EntityVel(Entity* entity);
 
 bool SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);

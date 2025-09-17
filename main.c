@@ -14,7 +14,7 @@
 #define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 9.6f
+#define GRAVITY 300.6f
 
 #define MAX_SPRITES 256
 
@@ -69,7 +69,7 @@ void ResetGame(Context* ctx) {
 			Entity* player = &level->player;
 			player->flags |= EntityFlags_Active;
 			player->pos = player->start_pos;
-			player->prev_pos = player->pos;
+			player->vel = (vec2s){0.0f, 0.0f};
 			player->dir = 1;
 			player->touching_floor = 0;
 			player->health = 5;
@@ -80,7 +80,7 @@ void ResetGame(Context* ctx) {
 			Entity* enemy = &level->enemies[enemy_idx];
 			enemy->flags |= EntityFlags_Active;
 			enemy->pos = enemy->start_pos;
-			enemy->prev_pos = enemy->pos;
+			enemy->vel = (vec2s){0.0f, 0.0f};
 			enemy->dir = 1;
 			enemy->touching_floor = false;
 			enemy->health = 1;
@@ -445,8 +445,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	for (size_t i = 0; i < ctx->n_replay_frames; ++i) {
-		ReplayFrame* r = &ctx->replay_frames[i];
-		SDL_Log("dt = %f, player.pos = {%f, %f}, player.prev_pos = {%f, %f}", r->dt, r->player.pos.x, r->player.pos.y, r->player.prev_pos.x, r->player.prev_pos.y);
+		// ReplayFrame* r = &ctx->replay_frames[i];
 
 	}
 	
