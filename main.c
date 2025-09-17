@@ -3,10 +3,10 @@
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 
-#define PLAYER_ACC 0.5f
-#define PLAYER_FRIC 0.3f
-#define PLAYER_MAX_VEL 3.5f
-#define PLAYER_JUMP 10.0f
+#define PLAYER_ACC 100.0f
+#define PLAYER_FRIC 20.0f
+#define PLAYER_MAX_VEL 500.0f
+#define PLAYER_JUMP 10000.0f
 #define PLAYER_JUMP_REMAINDER 10
 
 #define BOAR_ACC 0.2f
