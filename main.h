@@ -113,7 +113,10 @@ bool SpritesEqual(Sprite a, Sprite b);
 typedef struct Anim {
 	Sprite sprite;
 	size_t frame_idx;
+
+	 // TODO: Replace frame_tick with frame_time. Instead of incrementing it every frame, add dt to it.
 	size_t frame_tick;
+	
 	int32_t timer; // As long as this timer is > 0, don't change the animation.
 	bool ended;
 } Anim;
