@@ -4,7 +4,7 @@
 #define GAME_HEIGHT 540
 
 #define PLAYER_ACC 100.0f
-#define PLAYER_FRIC 20.0f
+#define PLAYER_FRIC 30.0f
 #define PLAYER_MAX_VEL 500.0f
 #define PLAYER_JUMP 10000.0f
 #define PLAYER_JUMP_REMAINDER 10

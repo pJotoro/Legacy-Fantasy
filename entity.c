@@ -76,9 +76,7 @@ void UpdatePlayer(Context* ctx) {
 					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 				}
 				EntityMoveX(player, acc);
-				#if 0
 				EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
-				#endif
 			
 			}	
 		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased)) {
@@ -295,8 +293,8 @@ void EntityMoveY(Entity* entity, float acc) {
 
 bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     float vel_save = entity->vel.x;
-    if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
-    else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+    if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
+    else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
     entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
     return entity->vel.x != vel_save;
 }
