@@ -27,6 +27,7 @@
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
 #define dt 0.00208333333333333333f
+#define dt_double 0.00208333333333333333
 
 // I know global variables are bad, but sometimes they are just so convenient.
 
@@ -239,9 +240,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-		while (ctx->dt_accumulator > dt) {
+		while (ctx->dt_accumulator > dt_double) {
 			UpdateGame(ctx);
-			ctx->dt_accumulator -= dt;
+			ctx->dt_accumulator -= dt_double;
 		}
 
 		// RenderBegin
@@ -289,8 +290,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
-			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			ctx->dt_accumulator += dt_double;
+			double _dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+			ctx->dt_accumulator += _dt_double;
 			ctx->time = current_time;
 		}
 
