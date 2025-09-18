@@ -24,9 +24,11 @@
 #include "level.c"
 #include "sprite.c"
 
-// I know global variables are bad, but sometimes they are just so convenient.
+// 1/60/8
+// So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
+#define dt 0.00208333333333333333f
 
-static float dt;
+// I know global variables are bad, but sometimes they are just so convenient.
 
 static Sprite player_idle;
 static Sprite player_run;
@@ -60,7 +62,6 @@ void InitSprites(void) {
 
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
-	dt = 1.0f/ctx->refresh_rate;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
 		{
@@ -238,7 +239,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-		UpdateGame(ctx);
+		while (ctx->dt_accumulator > dt) {
+			UpdateGame(ctx);
+			ctx->dt_accumulator -= dt;
+		}
 
 		// RenderBegin
 		{
@@ -277,8 +281,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		ReplayFrame replay_frame = {0};
-		replay_frame.player = *GetPlayer(ctx);
+		// ReplayFrame replay_frame = {0};
+		// replay_frame.player = *GetPlayer(ctx);
 
 		{			
 			SDL_Time current_time;
@@ -286,21 +290,19 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			dt = (float)dt_double;
+			ctx->dt_accumulator += dt_double;
 			ctx->time = current_time;
-
-			replay_frame.dt = dt;
 		}
 
-		if (!ctx->paused)
- 		{
-	 		ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
-			if (ctx->n_replay_frames >= ctx->c_replay_frames) {
-				ctx->c_replay_frames *= 8;
-				ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
-			}
-			ctx->replay_frame_idx = ctx->n_replay_frames - 1;
- 		}		
+		// if (!ctx->paused)
+ 		// {
+	 	// 	ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
+		// 	if (ctx->n_replay_frames >= ctx->c_replay_frames) {
+		// 		ctx->c_replay_frames *= 8;
+		// 		ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+		// 	}
+		// 	ctx->replay_frame_idx = ctx->n_replay_frames - 1;
+ 		// }		
 	}
 
 	for (size_t i = 0; i < ctx->n_replay_frames; ++i) {

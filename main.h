@@ -174,7 +174,6 @@ bool IsSolid(Level* level, ivec2s grid_pos);
 
 typedef struct ReplayFrame {
 	Entity player;
-	float dt;
 	// TODO
 } ReplayFrame;
 
@@ -203,6 +202,7 @@ typedef struct Context {
 
 	SDL_Time time;
 	float refresh_rate;
+	double dt_accumulator;
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
