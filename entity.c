@@ -26,7 +26,7 @@ void UpdatePlayer(Context* ctx) {
 		return;
 	}
 
-	if (player->touching_floor && ctx->button_attack) {
+	if (player->touching_floor > 0.0f && ctx->button_attack) {
 		SetSprite(player, player_attack);
 	}
 
@@ -61,11 +61,11 @@ void UpdatePlayer(Context* ctx) {
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 		EntityMoveY(player, GRAVITY);
 
-		player->touching_floor = SDL_max(player->touching_floor - 1, 0);
+		player->touching_floor -= dt;
 
-		if (player->touching_floor) {
+		if (player->touching_floor > 0.0f) {
 			if (ctx->button_jump) {
-				player->touching_floor = 0;
+				player->touching_floor = 0.0f;
 				EntityMoveY(player, -PLAYER_JUMP);
 				SetSprite(player, player_jump_start);
 			} else {
@@ -115,7 +115,7 @@ void UpdatePlayer(Context* ctx) {
 			}
 		}
 
-		if (player->touching_floor) {
+		if (player->touching_floor > 0.0f) {
 			if (input_x == 0 && player->vel.x == 0.0f) {
 				SetSprite(player, player_idle);
 			} else {
@@ -188,7 +188,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		Level* level = GetCurrentLevel(ctx);
 
-		boar->touching_floor = false;
+		boar->touching_floor = 0.0f;
 		if (boar->vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
@@ -198,14 +198,14 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				ENTITY_DOWN_COLLISION(boar);
-				boar->touching_floor = true;
+				boar->touching_floor = 1.0f;
 			}
 		}
 
 		// BoarChasePlayer
-		if (boar->touching_floor) {
+		if (boar->touching_floor > 0.0f) {
 			Entity* player = GetPlayer(ctx);
-			if (player->touching_floor && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
+			if (player->touching_floor > 0.0f && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
 				if (boar->pos.x < player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
 					EntityMoveX(boar, BOAR_ACC);

@@ -147,7 +147,7 @@ typedef struct Entity {
 	vec2s vel;
 
 	int32_t dir;
-	int32_t touching_floor;
+	float touching_floor;
 	int32_t health;
 
 	EntityFlags flags;

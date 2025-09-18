@@ -6,15 +6,15 @@
 #define PLAYER_ACC 100.0f
 #define PLAYER_FRIC 30.0f
 #define PLAYER_MAX_VEL 500.0f
-#define PLAYER_JUMP 10000.0f
-#define PLAYER_JUMP_REMAINDER 10
+#define PLAYER_JUMP 300000.0f
+#define PLAYER_JUMP_REMAINDER 10.0f
 
 #define BOAR_ACC 0.2f
 #define BOAR_FRIC 0.1f
 #define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 300.6f
+#define GRAVITY 300.0f
 
 #define MAX_SPRITES 256
 
@@ -72,7 +72,7 @@ void ResetGame(Context* ctx) {
 			player->pos = player->start_pos;
 			player->vel = (vec2s){0.0f, 0.0f};
 			player->dir = 1;
-			player->touching_floor = 0;
+			player->touching_floor = 0.0f;
 			player->health = 5;
 			ResetAnim(&player->anim);
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
@@ -83,7 +83,7 @@ void ResetGame(Context* ctx) {
 			enemy->pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f, 0.0f};
 			enemy->dir = 1;
-			enemy->touching_floor = false;
+			enemy->touching_floor = 0.0f;
 			enemy->health = 1;
 			ResetAnim(&enemy->anim);
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
