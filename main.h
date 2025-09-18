@@ -217,6 +217,7 @@ typedef struct Context {
 } Context;
 
 void ResetGame(Context* ctx);
+void UpdateGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);

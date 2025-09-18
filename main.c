@@ -240,145 +240,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-		if (!ctx->gamepad) {
-			int joystick_count = 0;
-			SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
-			if (joystick_count != 0) {
-				ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
-			}
-		}
+		UpdateGame(ctx);
 
-		ctx->button_jump = false;
-		ctx->button_jump_released = false;
-		ctx->button_attack = false;
-
-		ctx->left_mouse_pressed = false;
-
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			switch (event.type) {
-			case SDL_EVENT_KEY_DOWN:
-				if (event.key.key == SDLK_ESCAPE) {
-					ctx->running = false;
-				}
-				if (!ctx->gamepad) {
-					switch (event.key.key) {
-					case SDLK_SPACE:
-						ctx->paused = !ctx->paused;
-						break;
-					case SDLK_0:
-						break;
-					case SDLK_X:
-						ctx->button_attack = true;
-						break;
-					case SDLK_LEFT:
-						if (!event.key.repeat) {
-							ctx->button_left = 1;
-						}
-						if (ctx->paused) {
-							ctx->replay_frame_idx = SDL_max(ctx->replay_frame_idx - 1, 0);
-						}
-						break;
-					case SDLK_RIGHT:
-						if (!event.key.repeat) {
-							ctx->button_right = 1;
-						}
-						if (ctx->paused) {
-							ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, (ssize_t)ctx->n_replay_frames - 1);
-						}
-						break;
-					case SDLK_UP:
-						if (!event.key.repeat) {
-							ctx->button_jump = true;
-						}
-						break;
-					case SDLK_DOWN:
-						break;
-					case SDLK_R:
-						ResetGame(ctx);
-						break;
-					}
-				}
-				break;
-			case SDL_EVENT_MOUSE_MOTION:
-				ctx->mouse_pos.x = event.motion.x;
-				ctx->mouse_pos.y = event.motion.y;
-				break;
-			case SDL_EVENT_MOUSE_BUTTON_DOWN:
-				if (event.button.button == SDL_BUTTON_LEFT) {
-					ctx->left_mouse_pressed = true;
-				}
-				break;
-			case SDL_EVENT_KEY_UP:
-				if (!ctx->gamepad) {
-					switch (event.key.key) {
-					case SDLK_LEFT:
-						ctx->button_left = 0;
-						break;
-					case SDLK_RIGHT:
-						ctx->button_right = 0;
-						break;
-					case SDLK_UP:
-						ctx->button_jump_released = true;
-						break;
-					}					
-				}
-				break;
-			case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-				switch (event.gaxis.axis) {
-				case SDL_GAMEPAD_AXIS_LEFTX:
-					ctx->gamepad_left_stick.x = (float)event.gaxis.value / 32767.0f;
-					break;
-				case SDL_GAMEPAD_AXIS_LEFTY:
-					ctx->gamepad_left_stick.y = (float)event.gaxis.value / 32767.0f;
-					break;
-				}
-				break;
-			case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-				switch (event.gbutton.button) {
-				case SDL_GAMEPAD_BUTTON_SOUTH:
-					ctx->button_jump = true;
-					break;
-				case SDL_GAMEPAD_BUTTON_WEST:
-					ctx->button_attack = true;
-					break;
-				}
-				break;
-			case SDL_EVENT_GAMEPAD_BUTTON_UP:
-				switch (event.gbutton.button) {
-				case SDL_GAMEPAD_BUTTON_SOUTH:
-					ctx->button_jump_released = true;
-					break;
-				}
-				break;
-			case SDL_EVENT_QUIT:
-				ctx->running = false;
-				break;
-			}		
-		}
-
-		if (ctx->gamepad_left_stick.x < 0.5f && ctx->gamepad_left_stick.x > -0.5f) {
-			ctx->gamepad_left_stick.x = 0.0f;
-		}
-
-		if (!ctx->vsync) {
-			SDL_Delay(16); // TODO
-		}
-
-		if (!ctx->paused) {
-			UpdatePlayer(ctx);
-			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
-			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
-				Entity* enemy = &enemies[enemy_idx];
-				if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-					UpdateBoar(ctx, enemy);
-				}
-			}
-		} else {
-			Entity* player = GetPlayer(ctx);
-			*player = ctx->replay_frames[ctx->replay_frame_idx].player;
-		}
-		
 		// RenderBegin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
@@ -494,3 +357,143 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	return SDL_ENUM_CONTINUE;
 }
 
+void UpdateGame(Context* ctx) {
+	if (!ctx->gamepad) {
+		int joystick_count = 0;
+		SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
+		if (joystick_count != 0) {
+			ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
+		}
+	}
+
+	ctx->button_jump = false;
+	ctx->button_jump_released = false;
+	ctx->button_attack = false;
+
+	ctx->left_mouse_pressed = false;
+
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+		case SDL_EVENT_KEY_DOWN:
+			if (event.key.key == SDLK_ESCAPE) {
+				ctx->running = false;
+			}
+			if (!ctx->gamepad) {
+				switch (event.key.key) {
+				case SDLK_SPACE:
+					ctx->paused = !ctx->paused;
+					break;
+				case SDLK_0:
+					break;
+				case SDLK_X:
+					ctx->button_attack = true;
+					break;
+				case SDLK_LEFT:
+					if (!event.key.repeat) {
+						ctx->button_left = 1;
+					}
+					if (ctx->paused) {
+						ctx->replay_frame_idx = SDL_max(ctx->replay_frame_idx - 1, 0);
+					}
+					break;
+				case SDLK_RIGHT:
+					if (!event.key.repeat) {
+						ctx->button_right = 1;
+					}
+					if (ctx->paused) {
+						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, (ssize_t)ctx->n_replay_frames - 1);
+					}
+					break;
+				case SDLK_UP:
+					if (!event.key.repeat) {
+						ctx->button_jump = true;
+					}
+					break;
+				case SDLK_DOWN:
+					break;
+				case SDLK_R:
+					ResetGame(ctx);
+					break;
+				}
+			}
+			break;
+		case SDL_EVENT_MOUSE_MOTION:
+			ctx->mouse_pos.x = event.motion.x;
+			ctx->mouse_pos.y = event.motion.y;
+			break;
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				ctx->left_mouse_pressed = true;
+			}
+			break;
+		case SDL_EVENT_KEY_UP:
+			if (!ctx->gamepad) {
+				switch (event.key.key) {
+				case SDLK_LEFT:
+					ctx->button_left = 0;
+					break;
+				case SDLK_RIGHT:
+					ctx->button_right = 0;
+					break;
+				case SDLK_UP:
+					ctx->button_jump_released = true;
+					break;
+				}					
+			}
+			break;
+		case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+			switch (event.gaxis.axis) {
+			case SDL_GAMEPAD_AXIS_LEFTX:
+				ctx->gamepad_left_stick.x = (float)event.gaxis.value / 32767.0f;
+				break;
+			case SDL_GAMEPAD_AXIS_LEFTY:
+				ctx->gamepad_left_stick.y = (float)event.gaxis.value / 32767.0f;
+				break;
+			}
+			break;
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+			switch (event.gbutton.button) {
+			case SDL_GAMEPAD_BUTTON_SOUTH:
+				ctx->button_jump = true;
+				break;
+			case SDL_GAMEPAD_BUTTON_WEST:
+				ctx->button_attack = true;
+				break;
+			}
+			break;
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
+			switch (event.gbutton.button) {
+			case SDL_GAMEPAD_BUTTON_SOUTH:
+				ctx->button_jump_released = true;
+				break;
+			}
+			break;
+		case SDL_EVENT_QUIT:
+			ctx->running = false;
+			break;
+		}		
+	}
+
+	if (ctx->gamepad_left_stick.x < 0.5f && ctx->gamepad_left_stick.x > -0.5f) {
+		ctx->gamepad_left_stick.x = 0.0f;
+	}
+
+	if (!ctx->vsync) {
+		SDL_Delay(16); // TODO
+	}
+
+	if (!ctx->paused) {
+		UpdatePlayer(ctx);
+		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+			Entity* enemy = &enemies[enemy_idx];
+			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+				UpdateBoar(ctx, enemy);
+			}
+		}
+	} else {
+		Entity* player = GetPlayer(ctx);
+		*player = ctx->replay_frames[ctx->replay_frame_idx].player;
+	}
+}
