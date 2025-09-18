@@ -88,7 +88,7 @@ typedef struct SpriteCell {
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b);
 
 typedef struct SpriteFrame {
-	size_t dur;
+	double dur;
 	SpriteCell* cells; size_t n_cells;
 } SpriteFrame;
 
@@ -113,10 +113,7 @@ bool SpritesEqual(Sprite a, Sprite b);
 typedef struct Anim {
 	Sprite sprite;
 	size_t frame_idx;
-
-	 // TODO: Replace frame_tick with frame_time. Instead of incrementing it every frame, add dt to it.
-	size_t frame_tick;
-	
+	double dt_accumulator;
 	int32_t timer; // As long as this timer is > 0, don't change the animation.
 	bool ended;
 } Anim;

@@ -22,12 +22,13 @@
 
 #include "util.c"
 #include "level.c"
-#include "sprite.c"
 
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
 #define dt 0.00208333333333333333f
 #define dt_double 0.00208333333333333333
+
+#include "sprite.c"
 
 // I know global variables are bad, but sometimes they are just so convenient.
 
@@ -278,7 +279,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_RenderPresent(ctx->renderer);
 
 			if (!ctx->vsync) {
-				// TODO
+				SDL_Delay(16); // TODO
 			}
 		}
 
@@ -478,21 +479,12 @@ void UpdateGame(Context* ctx) {
 		ctx->gamepad_left_stick.x = 0.0f;
 	}
 
-	if (!ctx->vsync) {
-		SDL_Delay(16); // TODO
-	}
-
-	if (!ctx->paused) {
-		UpdatePlayer(ctx);
-		size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
-		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
-			Entity* enemy = &enemies[enemy_idx];
-			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-				UpdateBoar(ctx, enemy);
-			}
+	UpdatePlayer(ctx);
+	size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
+	for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
+		Entity* enemy = &enemies[enemy_idx];
+		if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+			UpdateBoar(ctx, enemy);
 		}
-	} else {
-		Entity* player = GetPlayer(ctx);
-		*player = ctx->replay_frames[ctx->replay_frame_idx].player;
 	}
 }

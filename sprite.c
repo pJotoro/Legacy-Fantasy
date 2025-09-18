@@ -101,7 +101,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.n_chunks != 0);
 
-		sd->frames[frame_idx].dur = (size_t)((float)frame.frame_dur / (1000.0f / 60.0f)); // TODO: delta time
+		sd->frames[frame_idx].dur = ((double)frame.frame_dur)/1000.0;
 
 		for (size_t chunk_idx = 0; chunk_idx < frame.n_chunks; ++chunk_idx) {
 			ASE_ChunkHeader chunk_header;
@@ -340,14 +340,14 @@ int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-	size_t dur = sd->frames[anim->frame_idx].dur;
+	double dur = sd->frames[anim->frame_idx].dur;
 	size_t n_frames = sd->n_frames;
 
 	--anim->timer;
     if (loop || !anim->ended) {
-        ++anim->frame_tick;
-        if (anim->frame_tick >= dur) {
-            anim->frame_tick = 0;
+        anim->dt_accumulator += dt_double;
+        if (anim->dt_accumulator >= dur) {
+            anim->dt_accumulator = 0.0;
             ++anim->frame_idx;
             if (anim->frame_idx >= n_frames) {
                 if (loop) anim->frame_idx = 0;
@@ -377,7 +377,7 @@ bool SetSpriteFromPath(Entity* entity, const char* path) {
 
 void ResetAnim(Anim* anim) {
     anim->frame_idx = 0;
-    anim->frame_tick = 0;
+    anim->dt_accumulator = 0.0;
     anim->ended = false;
     anim->timer = 0;
 }
