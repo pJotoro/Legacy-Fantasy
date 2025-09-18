@@ -27,7 +27,6 @@
 // I know global variables are bad, but sometimes they are just so convenient.
 
 static float dt;
-static float prev_dt;
 
 static Sprite player_idle;
 static Sprite player_run;
@@ -62,7 +61,6 @@ void InitSprites(void) {
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
 	dt = 1.0f/ctx->refresh_rate;
-	prev_dt = dt;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
 		{
@@ -282,9 +280,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		ReplayFrame replay_frame = {0};
 		replay_frame.player = *GetPlayer(ctx);
 
-		{
-			prev_dt = dt;
-			
+		{			
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
 			SDL_Time dt_int = current_time - ctx->time;
