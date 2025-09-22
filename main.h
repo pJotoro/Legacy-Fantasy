@@ -214,6 +214,7 @@ typedef struct Context {
 } Context;
 
 void ResetGame(Context* ctx);
+void GetInput(Context* ctx);
 void UpdateGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
 

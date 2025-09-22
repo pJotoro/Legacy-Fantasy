@@ -241,6 +241,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
+		GetInput(ctx);
 		while (ctx->dt_accumulator > dt_double) {
 			UpdateGame(ctx);
 			ctx->dt_accumulator -= dt_double;
@@ -357,7 +358,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 	return SDL_ENUM_CONTINUE;
 }
 
-void UpdateGame(Context* ctx) {
+void GetInput(Context* ctx) {
 	if (!ctx->gamepad) {
 		int joystick_count = 0;
 		SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
@@ -478,7 +479,9 @@ void UpdateGame(Context* ctx) {
 	if (ctx->gamepad_left_stick.x < 0.5f && ctx->gamepad_left_stick.x > -0.5f) {
 		ctx->gamepad_left_stick.x = 0.0f;
 	}
+}
 
+void UpdateGame(Context* ctx) {
 	UpdatePlayer(ctx);
 	size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 	for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
