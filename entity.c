@@ -175,9 +175,6 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		Level* level = GetCurrentLevel(ctx);
 
-		#define ENTITY_RIGHT_COLLISION(entity) \
-			entity->pos.x = SDL_min(entity->pos.x, tile.min.x - hitbox.max.x);
-
 		boar->touching_floor = 0.0f;
 		if (boar->vel.y < 0.0f) {
 			Rect tile;
