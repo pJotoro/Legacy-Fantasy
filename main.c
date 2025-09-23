@@ -3,18 +3,18 @@
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 
-#define PLAYER_ACC 100.0f
-#define PLAYER_FRIC 30.0f
-#define PLAYER_MAX_VEL 500.0f
-#define PLAYER_JUMP 300000.0f
-#define PLAYER_JUMP_REMAINDER 10.0f
+#define PLAYER_ACC 0.025f
+#define PLAYER_FRIC 0.0078125f
+#define PLAYER_MAX_VEL 0.125f
+#define PLAYER_JUMP 1.1f
+#define PLAYER_JUMP_REMAINDER 10.0
 
 #define BOAR_ACC 0.2f
 #define BOAR_FRIC 0.1f
 #define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 300.0f
+#define GRAVITY 0.00125f
 
 #define MAX_SPRITES 256
 
@@ -25,8 +25,7 @@
 
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
-#define dt 0.00208333333333333333f
-#define dt_double 0.00208333333333333333
+#define dt 0.00208333333333333333
 
 #include "sprite.c"
 
@@ -242,9 +241,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	ctx->running = true;
 	while (ctx->running) {
 		GetInput(ctx);
-		while (ctx->dt_accumulator > dt_double) {
+		while (ctx->dt_accumulator > dt) {
 			UpdateGame(ctx);
-			ctx->dt_accumulator -= dt_double;
+			ctx->dt_accumulator -= dt;
 		}
 
 		// RenderBegin

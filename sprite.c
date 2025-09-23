@@ -345,7 +345,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 
 	--anim->timer;
     if (loop || !anim->ended) {
-        anim->dt_accumulator += dt_double;
+        anim->dt_accumulator += dt;
         if (anim->dt_accumulator >= dur) {
             anim->dt_accumulator = 0.0;
             ++anim->frame_idx;

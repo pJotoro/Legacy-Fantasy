@@ -282,19 +282,19 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 }
 
 void EntityMoveX(Entity* entity, float acc) {
-	entity->pos.x += entity->vel.x*dt;
-	entity->vel.x += acc*dt;
+	entity->pos.x += entity->vel.x;
+	entity->vel.x += acc;
 }
 
 void EntityMoveY(Entity* entity, float acc) {
-	entity->pos.y += entity->vel.y*dt;
-	entity->vel.y += acc*dt;
+	entity->pos.y += entity->vel.y;
+	entity->vel.y += acc;
 }
 
 bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     float vel_save = entity->vel.x;
-    if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
-    else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
+    if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
+    else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
     entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
     return entity->vel.x != vel_save;
 }
