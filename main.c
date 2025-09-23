@@ -291,8 +291,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
-			double _dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			ctx->dt_accumulator += _dt_double;
+			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+			ctx->dt_accumulator += dt_double;
 			ctx->time = current_time;
 		}
 
