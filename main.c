@@ -240,7 +240,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
+		
+		// TODO: Should this be inside or outside the loop? I'm not sure. Either way, it doesn't seem to be the source of the problems I'm facing right now.
 		GetInput(ctx);
+
 		while (ctx->dt_accumulator > dt) {
 			UpdateGame(ctx);
 			ctx->dt_accumulator -= dt;
