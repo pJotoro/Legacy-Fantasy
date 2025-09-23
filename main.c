@@ -6,15 +6,15 @@
 #define PLAYER_ACC 0.015f
 #define PLAYER_FRIC 0.005f
 #define PLAYER_MAX_VEL 0.25f
-#define PLAYER_JUMP 1.1f
-#define PLAYER_JUMP_REMAINDER 10.0
+#define PLAYER_JUMP 1.0f
+#define PLAYER_JUMP_REMAINDER 0.1f
 
 #define BOAR_ACC 0.2f
 #define BOAR_FRIC 0.1f
 #define BOAR_MAX_VEL 1.6f
 
 #define TILE_SIZE 16
-#define GRAVITY 0.00125f
+#define GRAVITY 0.005f
 
 #define MAX_SPRITES 256
 
