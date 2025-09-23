@@ -7,7 +7,7 @@
 #define PLAYER_FRIC 0.005f
 #define PLAYER_MAX_VEL 0.25f
 #define PLAYER_JUMP 1.0f
-#define PLAYER_JUMP_REMAINDER 0.1f
+#define PLAYER_JUMP_REMAINDER 0.2f
 
 #define BOAR_ACC 0.2f
 #define BOAR_FRIC 0.1f

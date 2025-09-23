@@ -249,31 +249,25 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 
 	// vec2s vel = EntityVel(entity);
 
-	lh->min.x = entity->pos.x + h->min.x; //+ (int32_t)SDL_floorf(vel.x);
+	lh->min.x = entity->pos.x + h->min.x;
 	lh->min.y = entity->pos.y + h->min.y + 1;
-	lh->max.x = entity->pos.x + h->min.x + 1; //+ (int32_t)SDL_floorf(vel.x) + 1;
+	lh->max.x = entity->pos.x + h->min.x + 1;
 	lh->max.y = entity->pos.y + h->max.y - 1;
-	#if 0
-	if (HAS_FLAG(entity->flags, EntityFlags_Player)) {
-		lh->min.x -= 22;
-		lh->max.x -= 22;
-	}
-	#endif
 
-	rh->min.x = entity->pos.x + h->max.x - 1; // + (int32_t)SDL_floorf(vel.x) - 1;
+	rh->min.x = entity->pos.x + h->max.x - 1;
 	rh->min.y = entity->pos.y + h->min.y + 1;
-	rh->max.x = entity->pos.x + h->max.x; //+ (int32_t)SDL_floorf(vel.x);
+	rh->max.x = entity->pos.x + h->max.x;
 	rh->max.y = entity->pos.y + h->max.y - 1;
 
 	uh->min.x = entity->pos.x + h->min.x + 1;
-	uh->min.y = entity->pos.y + h->min.y; //+ (int32_t)SDL_floorf(vel.y);
+	uh->min.y = entity->pos.y + h->min.y;
 	uh->max.x = entity->pos.x + h->max.x - 1;
-	uh->max.y = entity->pos.y + h->min.y + 1; //(int32_t)SDL_floorf(vel.y) + 1;
+	uh->max.y = entity->pos.y + h->min.y + 1;
 
 	dh->min.x = entity->pos.x + h->min.x + 1;
-	dh->min.y = entity->pos.y + h->max.y - 1;//+ (int32_t)SDL_floorf(vel.y) - 1;
+	dh->min.y = entity->pos.y + h->max.y - 1;
 	dh->max.x = entity->pos.x + h->max.x - 1;
-	dh->max.y = entity->pos.y + h->max.y; //+ (int32_t)SDL_floorf(vel.y);
+	dh->max.y = entity->pos.y + h->max.y;
 }
 
 void EntityMoveX(Entity* entity, float acc) {
