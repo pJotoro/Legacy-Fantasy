@@ -48,7 +48,7 @@ void UpdatePlayer(Context* ctx) {
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 		EntityMoveY(player, GRAVITY);
 
-		player->touching_floor -= dt;
+		player->touching_floor = SDL_max(player->touching_floor - dt, 0.0f);
 
 		if (player->touching_floor > 0.0f) {
 			if (ctx->button_jump) {
