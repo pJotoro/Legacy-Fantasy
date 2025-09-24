@@ -13,7 +13,7 @@ void UpdatePlayer(Context* ctx) {
 		return;
 	}
 
-	if (player->touching_floor > 0.0f && ctx->button_attack) {
+	if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && ctx->button_attack) {
 		SetSprite(player, player_attack);
 	}
 
@@ -48,29 +48,25 @@ void UpdatePlayer(Context* ctx) {
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 		EntityMoveY(player, GRAVITY);
 
-		player->touching_floor = SDL_max(player->touching_floor - dt, 0.0f);
+		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
 
-		if (player->touching_floor > 0.0f) {
-			if (ctx->button_jump) {
-				player->touching_floor = 0.0f;
-				EntityMoveY(player, -PLAYER_JUMP);
-				SetSprite(player, player_jump_start);
+		if (player->coyote_time > 0.0f && ctx->button_jump) {
+			player->coyote_time = 0.0f;
+			player->flags &= ~EntityFlags_TouchingFloor;
+			EntityMoveY(player, -PLAYER_JUMP);
+			SetSprite(player, player_jump_start);
+		} else if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+			float acc;
+			if (!ctx->gamepad) {
+				acc = (float)input_x * PLAYER_ACC;
 			} else {
-				float acc;
-				if (!ctx->gamepad) {
-					acc = (float)input_x * PLAYER_ACC;
-				} else {
-					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
-				}
-				EntityMoveX(player, acc);
-				EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
-			
-			}	
-		} else if (ctx->button_jump_released && !HAS_FLAG(player->flags, EntityFlags_JumpReleased)) {
-			if (player->vel.y < 0.0f) {
-				player->flags |= EntityFlags_JumpReleased;
-				player->vel.y /= 2.0f;
+				acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 			}
+			EntityMoveX(player, acc);
+			EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
+		} else if (ctx->button_jump_released && player->vel.y < 0.0f) {
+			player->flags |= EntityFlags_JumpReleased;
+			player->vel.y /= 2.0f;
 		}
 
 		Level* level = GetCurrentLevel(ctx);
@@ -78,13 +74,17 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
-				player->vel.x = 0.0f;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
+			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+				EntityMoveX(player, 0.0f);
 			}
 		} else if (player->vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x = SDL_min(player->pos.x, tile.min.x - hitbox.max.x);
-				player->vel.x = 0.0f;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
+			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+				EntityMoveX(player, 0.0f);
 			}
 		}
 		if (player->vel.y < 0.0f) {
@@ -98,15 +98,15 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->vel.y = 0.0f;
-				player->touching_floor = PLAYER_JUMP_REMAINDER;
+				player->coyote_time = PLAYER_JUMP_REMAINDER;
+				player->flags |= EntityFlags_TouchingFloor;
 				player->flags &= ~EntityFlags_JumpReleased;
-			} 
-			else {
+			} else {
 				SetSprite(player, player_jump_end);
 			}
 		}
 
-		if (player->touching_floor > 0.0f) {
+		if (player->coyote_time > 0.0f) {
 			if (input_x == 0 && player->vel.x == 0.0f) {
 				SetSprite(player, player_idle);
 			} else {
@@ -179,7 +179,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 
 		Level* level = GetCurrentLevel(ctx);
 
-		boar->touching_floor = 0.0f;
+		boar->flags &= ~EntityFlags_TouchingFloor;
 		if (boar->vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
@@ -191,14 +191,14 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				boar->pos.y = SDL_min(boar->pos.y, tile.min.y - hitbox.max.y);
 				boar->vel.y = 0.0f;
-				boar->touching_floor = 1.0f;
+				boar->flags |= EntityFlags_TouchingFloor;
 			}
 		}
 
 		// BoarChasePlayer
-		if (boar->touching_floor > 0.0f) {
+		if (HAS_FLAG(boar->flags, EntityFlags_TouchingFloor)) {
 			Entity* player = GetPlayer(ctx);
-			if (player->touching_floor > 0.0f && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
+			if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) > 0.0f && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
 				if (boar->pos.x < player->pos.x - TILE_SIZE) {
 					SetSprite(boar, boar_run);
 					EntityMoveX(boar, BOAR_ACC);

@@ -125,13 +125,16 @@ enum {
 	EntityFlags_Active = FLAG(0),
 
 	// Player
-	EntityFlags_JumpReleased = FLAG(2),
+	EntityFlags_JumpReleased = FLAG(1),
 
 	// Enemy
-	EntityFlags_Boar = FLAG(4),
+	EntityFlags_Boar = FLAG(2),
+
+	// Player, Enemy
+	EntityFlags_TouchingFloor = FLAG(3),
 
 	// Tile
-	EntityFlags_Solid = FLAG(6),
+	EntityFlags_Solid = FLAG(4),
 };
 typedef uint32_t EntityFlags;
 
@@ -146,7 +149,7 @@ typedef struct Entity {
 	vec2s start_pos;
 	vec2s vel;
 
-	double touching_floor;
+	double coyote_time;
 	int32_t dir;
 	int32_t health;
 
