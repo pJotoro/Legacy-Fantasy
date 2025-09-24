@@ -161,88 +161,59 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		UpdateAnim(ctx, &boar->anim, false);
 		if (boar->anim.ended) {
 			boar->flags &= ~EntityFlags_Active;
-			return;
+		}
+		return;
+	}
+
+	Rect hitbox, lh, rh, uh, dh;
+	GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
+
+	EntityMoveY(boar, GRAVITY);
+
+	Level* level = GetCurrentLevel(ctx);
+
+	boar->flags &= ~EntityFlags_TouchingFloor;
+	if (boar->vel.y < 0.0f) {
+		Rect tile;
+		if (RectIntersectsLevel(level, uh, &tile)) {
+			boar->pos.y = SDL_max(boar->pos.y, tile.max.y - hitbox.min.y);
+			boar->vel.y = -boar->vel.y / 2.0f;
+		}
+	} else if (boar->vel.y > 0.0f) {
+		Rect tile;
+		if (RectIntersectsLevel(level, dh, &tile)) {
+			boar->pos.y = SDL_min(boar->pos.y, tile.min.y - hitbox.max.y);
+			boar->vel.y = 0.0f;
+			boar->flags |= EntityFlags_TouchingFloor;
 		}
 	}
 
-	if (SpritesEqual(boar->anim.sprite, boar_attack)) {
-		Entity* player = GetPlayer(ctx);
-		if (EntitiesIntersect(ctx, boar, player)) {
-			--player->health;
-			if (player->health <= 0) {
-				SetSprite(player, player_die);
-			}
+	// BoarChasePlayer
+	if (HAS_FLAG(boar->flags, EntityFlags_TouchingFloor)) {
+		if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL) && !SpritesEqual(boar->anim.sprite, boar_attack)) {
+			SetSprite(boar, boar_idle);
 		}
-	} else {
-		Rect hitbox, lh, rh, uh, dh;
-		GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
+	}
 
-		EntityMoveY(boar, GRAVITY);
-
-		Level* level = GetCurrentLevel(ctx);
-
-		boar->flags &= ~EntityFlags_TouchingFloor;
-		if (boar->vel.y < 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, uh, &tile)) {
-				boar->pos.y = SDL_max(boar->pos.y, tile.max.y - hitbox.min.y);
-				boar->vel.y = -boar->vel.y / 2.0f;
-			}
-		} else if (boar->vel.y > 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, dh, &tile)) {
-				boar->pos.y = SDL_min(boar->pos.y, tile.min.y - hitbox.max.y);
-				boar->vel.y = 0.0f;
-				boar->flags |= EntityFlags_TouchingFloor;
-			}
+	if (boar->vel.x < 0.0f) {
+		Rect tile;
+		if (RectIntersectsLevel(level, lh, &tile)) {
+			boar->pos.x = SDL_max(boar->pos.x, tile.max.x - hitbox.min.x);
+			boar->vel.x = 0.0f;
 		}
-
-		// BoarChasePlayer
-		if (HAS_FLAG(boar->flags, EntityFlags_TouchingFloor)) {
-			Entity* player = GetPlayer(ctx);
-			if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) > 0.0f && SDL_fabsf(boar->pos.x - player->pos.x) < TILE_SIZE*15) {
-				if (boar->pos.x < player->pos.x - TILE_SIZE) {
-					SetSprite(boar, boar_run);
-					EntityMoveX(boar, BOAR_ACC);
-					boar->dir = -1; // Boar sprite is flipped
-				} else if (boar->pos.x > player->pos.x + TILE_SIZE) {
-					SetSprite(boar, boar_run);
-					EntityMoveX(boar, -BOAR_ACC);
-					boar->dir = 1; // Boar sprite is flipped
-				} else {
-					SetSprite(boar, boar_attack);
-				}
-			}
-
-			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL) && !SpritesEqual(boar->anim.sprite, boar_attack)) {
-				SetSprite(boar, boar_idle);
-			}
-		}
-
-		if (boar->vel.x < 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, lh, &tile)) {
-				boar->pos.x = SDL_max(boar->pos.x, tile.max.x - hitbox.min.x);
-				boar->vel.x = 0.0f;
-			}
-		} else if (boar->vel.x > 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, rh, &tile)) {
-				boar->pos.x = SDL_min(boar->pos.x, tile.min.x - hitbox.max.x);
-				boar->vel.x = 0.0f;
-			}
+	} else if (boar->vel.x > 0.0f) {
+		Rect tile;
+		if (RectIntersectsLevel(level, rh, &tile)) {
+			boar->pos.x = SDL_min(boar->pos.x, tile.min.x - hitbox.max.x);
+			boar->vel.x = 0.0f;
 		}
 	}
 
 	bool loop = true;
-	if (SpritesEqual(boar->anim.sprite, boar_hit) || SpritesEqual(boar->anim.sprite, boar_attack)) {
+	if (SpritesEqual(boar->anim.sprite, boar_hit)) {
 		loop = false;
 	}
 	UpdateAnim(ctx, &boar->anim, loop);
-	if (boar->anim.ended && SpritesEqual(boar->anim.sprite, boar_attack)) {
-		SetSprite(boar, boar_idle);
-		boar->anim.timer = 30;
-	}
 }
 
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
