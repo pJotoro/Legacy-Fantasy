@@ -71,7 +71,6 @@ void ResetGame(Context* ctx) {
 			player->vel = (vec2s){0.0f, 0.0f};
 			player->dir = 1;
 			player->coyote_time = 0.0f;
-			player->health = 5;
 			ResetAnim(&player->anim);
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		}
@@ -81,7 +80,6 @@ void ResetGame(Context* ctx) {
 			enemy->pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f, 0.0f};
 			enemy->dir = 1;
-			enemy->health = 1;
 			ResetAnim(&enemy->anim);
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
 				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");

@@ -31,14 +31,10 @@ void UpdatePlayer(Context* ctx) {
 		for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
 			Entity* enemy = &enemies[enemy_idx];
 			if (EntitiesIntersect(ctx, player, enemy)) {
-				--enemy->health;
-				if (enemy->health <= 0) {
-					if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
-						SetSprite(enemy, boar_hit);
-					} else {
-						// TODO
-					}
-
+				if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+					SetSprite(enemy, boar_hit);
+				} else {
+					// TODO
 				}
 			}
 		}

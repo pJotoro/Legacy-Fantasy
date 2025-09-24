@@ -151,7 +151,6 @@ typedef struct Entity {
 
 	double coyote_time;
 	int32_t dir;
-	int32_t health;
 
 	EntityFlags flags;
 } Entity;
