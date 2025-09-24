@@ -46,6 +46,7 @@ void UpdatePlayer(Context* ctx) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
+		uh.min.y -= 10.0f; // HACK: For some reason, the player can't collide with the ceiling without this.
 		EntityMoveY(player, GRAVITY);
 
 		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
@@ -92,6 +93,7 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				player->pos.y = SDL_max(player->pos.y, tile.max.y - hitbox.min.y);
 				player->vel.y = -player->vel.y/2.0f;
+				SetSprite(player, player_jump_end);
 			}
 		} else if (player->vel.y > 0.0f) {
 			Rect tile;
