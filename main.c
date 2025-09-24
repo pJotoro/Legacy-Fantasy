@@ -27,8 +27,6 @@
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
 #define dt 0.00208333333333333333
 
-#include "sprite.c"
-
 // I know global variables are bad, but sometimes they are just so convenient.
 
 static Sprite player_idle;
@@ -44,6 +42,7 @@ static Sprite boar_run;
 static Sprite boar_attack;
 static Sprite boar_hit;
 
+#include "sprite.c"
 #include "entity.c"
 
 void InitSprites(void) {

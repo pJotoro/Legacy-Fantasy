@@ -365,7 +365,16 @@ bool SetSprite(Entity* entity, Sprite sprite) {
     if (entity->anim.sprite.idx != sprite.idx && entity->anim.timer <= 0) {
         sprite_changed = true;
         ResetAnim(&entity->anim);
+
+        // HACK: The player jump start/end animations are slightly off-center from the player idle and run animations.
+        if ((SpritesEqual(entity->anim.sprite, player_idle) || SpritesEqual(entity->anim.sprite, player_run)) && (SpritesEqual(sprite, player_jump_start) || SpritesEqual(sprite, player_jump_end))) {
+        	entity->pos.x += entity->dir*7.0f;
+        } else if ((SpritesEqual(entity->anim.sprite, player_jump_start) || SpritesEqual(entity->anim.sprite, player_jump_end)) && (SpritesEqual(sprite, player_idle) || SpritesEqual(sprite, player_run))) {
+        	entity->pos.x -= entity->dir*7.0f;
+        }
+
         entity->anim.sprite = sprite;
+
     }
     return sprite_changed;
 }
