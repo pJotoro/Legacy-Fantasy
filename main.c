@@ -271,6 +271,20 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		{
+			Rect hitbox, lh, rh, uh, dh;
+			GetEntityHitboxes(ctx, GetPlayer(ctx), &hitbox, &lh, &rh, &uh, &dh);
+			uh.min.y -= 10.0f;
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 0));
+			SDL_RenderRect(ctx->renderer, &(SDL_FRect){lh.min.x, lh.min.y, lh.max.x - lh.min.x, lh.max.y - lh.min.y});
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
+			SDL_RenderRect(ctx->renderer, &(SDL_FRect){rh.min.x, rh.min.y, rh.max.x - rh.min.x, rh.max.y - rh.min.y});
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
+			SDL_RenderRect(ctx->renderer, &(SDL_FRect){uh.min.x, uh.min.y, uh.max.x - uh.min.x, uh.max.y - uh.min.y});
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 255, 0, 0));
+			SDL_RenderRect(ctx->renderer, &(SDL_FRect){dh.min.x, dh.min.y, dh.max.x - dh.min.x, dh.max.y - dh.min.y});
+		}
+
 		// RenderEnd
 		{
 			SDL_RenderPresent(ctx->renderer);
@@ -369,6 +383,8 @@ void GetInput(Context* ctx) {
 
 	ctx->left_mouse_pressed = false;
 
+	ctx->button_left_released = false;
+
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
 		switch (event.type) {
@@ -429,6 +445,7 @@ void GetInput(Context* ctx) {
 				switch (event.key.key) {
 				case SDLK_LEFT:
 					ctx->button_left = 0;
+					ctx->button_left_released = true;
 					break;
 				case SDLK_RIGHT:
 					ctx->button_right = 0;

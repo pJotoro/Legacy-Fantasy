@@ -241,9 +241,10 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 
 			if (dir == 1) {
 				dstrect.x += (float)cell->offset.x;
-			} else {
+			} 
+			else {
 				dstrect.x -= (float)cell->offset.x;
-				dstrect.x += (float)sd->size.x;
+				//dstrect.x += (float)sd->size.x;
 				dstrect.w = -dstrect.w;
 			}
 
@@ -366,25 +367,25 @@ bool SetSprite(Entity* entity, Sprite sprite) {
         sprite_changed = true;
         ResetAnim(&entity->anim);
 
-        // HACK: The player jump start/end animations are slightly off-center from the player idle and run animations.
-        if ((SpritesEqual(entity->anim.sprite, player_idle) || SpritesEqual(entity->anim.sprite, player_run)) && (SpritesEqual(sprite, player_jump_start) || SpritesEqual(sprite, player_jump_end))) {
-        	entity->pos.x += entity->dir*7.0f;
-        } else if ((SpritesEqual(entity->anim.sprite, player_jump_start) || SpritesEqual(entity->anim.sprite, player_jump_end)) && (SpritesEqual(sprite, player_idle) || SpritesEqual(sprite, player_run))) {
-        	entity->pos.x -= entity->dir*7.0f;
-        // HACK: Same thing here, except with the attack animation. Interestingly, it is off by different amounts depending on the direction.
-        } else if (SpritesEqual(sprite, player_attack)) {
-        	if (entity->dir == -1.0f) {
-        		entity->pos.x -= 8.0f;
-        	} else if (entity->dir == 1.0f) {
-        		entity->pos.x -= 24.0f;
-        	}
-        } else if (SpritesEqual(entity->anim.sprite, player_attack)) {
-        	if (entity->dir == -1.0f) {
-        		entity->pos.x += 8.0f;
-        	} else if (entity->dir == 1.0f) {
-        		entity->pos.x += 24.0f;
-        	}
-        }
+        // // HACK: The player jump start/end animations are slightly off-center from the player idle and run animations.
+        // if ((SpritesEqual(entity->anim.sprite, player_idle) || SpritesEqual(entity->anim.sprite, player_run)) && (SpritesEqual(sprite, player_jump_start) || SpritesEqual(sprite, player_jump_end))) {
+        // 	entity->pos.x += entity->dir*7.0f;
+        // } else if ((SpritesEqual(entity->anim.sprite, player_jump_start) || SpritesEqual(entity->anim.sprite, player_jump_end)) && (SpritesEqual(sprite, player_idle) || SpritesEqual(sprite, player_run))) {
+        // 	entity->pos.x -= entity->dir*7.0f;
+        // // HACK: Same thing here, except with the attack animation. Interestingly, it is off by different amounts depending on the direction.
+        // } else if (SpritesEqual(sprite, player_attack)) {
+        // 	if (entity->dir == -1.0f) {
+        // 		entity->pos.x -= 8.0f;
+        // 	} else if (entity->dir == 1.0f) {
+        // 		entity->pos.x -= 24.0f;
+        // 	}
+        // } else if (SpritesEqual(entity->anim.sprite, player_attack)) {
+        // 	if (entity->dir == -1.0f) {
+        // 		entity->pos.x += 8.0f;
+        // 	} else if (entity->dir == 1.0f) {
+        // 		entity->pos.x += 24.0f;
+        // 	}
+        // }
 
         entity->anim.sprite = sprite;
 

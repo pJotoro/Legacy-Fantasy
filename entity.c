@@ -42,7 +42,7 @@ void UpdatePlayer(Context* ctx) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
-		uh.min.y -= 10.0f; // HACK: For some reason, the player can't collide with the ceiling without this.
+		// uh.min.y -= 10.0f; // HACK: For some reason, the player can't collide with the ceiling without this.
 		EntityMoveY(player, GRAVITY);
 
 		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
@@ -64,6 +64,11 @@ void UpdatePlayer(Context* ctx) {
 		} else if (ctx->button_jump_released && player->vel.y < 0.0f) {
 			player->flags |= EntityFlags_JumpReleased;
 			player->vel.y /= 2.0f;
+		}
+
+		if (ctx->button_left_released) {
+			SDL_Log("Blah");
+
 		}
 
 		Level* level = GetCurrentLevel(ctx);
@@ -218,24 +223,24 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 
 	// vec2s vel = EntityVel(entity);
 
-	lh->min.x = entity->pos.x + h->min.x;
+	lh->min.x = entity->pos.x + entity->dir*h->min.x;
 	lh->min.y = entity->pos.y + h->min.y + 1;
-	lh->max.x = entity->pos.x + h->min.x + 1;
+	lh->max.x = entity->pos.x + entity->dir*h->min.x + 1;
 	lh->max.y = entity->pos.y + h->max.y - 1;
 
-	rh->min.x = entity->pos.x + h->max.x - 1;
+	rh->min.x = entity->pos.x + entity->dir*h->max.x - 1;
 	rh->min.y = entity->pos.y + h->min.y + 1;
-	rh->max.x = entity->pos.x + h->max.x;
+	rh->max.x = entity->pos.x + entity->dir*h->max.x;
 	rh->max.y = entity->pos.y + h->max.y - 1;
 
-	uh->min.x = entity->pos.x + h->min.x + 1;
+	uh->min.x = entity->pos.x + entity->dir*h->min.x + 1;
 	uh->min.y = entity->pos.y + h->min.y;
-	uh->max.x = entity->pos.x + h->max.x - 1;
+	uh->max.x = entity->pos.x + entity->dir*h->max.x - 1;
 	uh->max.y = entity->pos.y + h->min.y + 1;
 
-	dh->min.x = entity->pos.x + h->min.x + 1;
+	dh->min.x = entity->pos.x + entity->dir*h->min.x + 1;
 	dh->min.y = entity->pos.y + h->max.y - 1;
-	dh->max.x = entity->pos.x + h->max.x - 1;
+	dh->max.x = entity->pos.x + entity->dir*h->max.x - 1;
 	dh->max.y = entity->pos.y + h->max.y;
 }
 

@@ -190,7 +190,7 @@ typedef struct Context {
 	SDL_Gamepad* gamepad;
 	vec2s gamepad_left_stick;
 
-	int32_t button_left;
+	int32_t button_left; bool button_left_released;
 	int32_t button_right;
 	bool button_jump;
 	bool button_jump_released;
