@@ -45,6 +45,9 @@ void UpdatePlayer(Context* ctx) {
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 
 		// HACK
+		uh.min.y -= 10.0f;
+
+		// HACK
 		const float AMOUNT = -20.0f;
 		if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
 			lh.min.x += AMOUNT;
