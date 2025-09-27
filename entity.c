@@ -69,7 +69,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				player->pos.x = SDL_max(player->pos.x, tile.max.x - hitbox.min.x);
+				player->pos.x = SDL_max(player->pos.x, tile.max.x + hitbox.min.x);
 				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
