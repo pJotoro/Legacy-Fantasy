@@ -42,6 +42,8 @@ static Sprite boar_run;
 static Sprite boar_attack;
 static Sprite boar_hit;
 
+static Sprite spr_tiles;
+
 #include "sprite.c"
 #include "entity.c"
 
@@ -58,6 +60,8 @@ void InitSprites(void) {
 	boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
 	boar_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
 	boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
+
+	spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 }
 
 void ResetGame(Context* ctx) {
@@ -100,74 +104,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
 
 	InitSprites();
-
-	// LoadLevels
-	{
-		JSON_Node* head;
-		{
-			size_t file_len;
-			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
-			head = JSON_ParseWithLength((const char*)file_data, file_len);
-			SDL_free(file_data);
-		}
-		SDL_assert(HAS_FLAG(head->type, JSON_Object));
-
-		JSON_Node* levels = JSON_GetObjectItem(head, "levels", true);
-		JSON_Node* level; JSON_ArrayForEach(level, levels) {
-			++ctx->n_levels;
-		}
-		ctx->levels = SDL_calloc(ctx->n_levels, sizeof(Level)); SDL_CHECK(ctx->levels);
-		size_t level_idx = 0;
-		JSON_ArrayForEach(level, levels) {
-			ctx->levels[level_idx++] = LoadLevel(level);
-		}
-
-		int32_t* tiles_collide = NULL; size_t n_tiles_collide = 0;
-		JSON_Node* defs = JSON_GetObjectItem(head, "defs", true);
-		JSON_Node* tilesets = JSON_GetObjectItem(defs, "tilesets", true);
-		bool break_all = false;
-		JSON_Node* tileset; JSON_ArrayForEach(tileset, tilesets) {
-			JSON_Node* enum_tags = JSON_GetObjectItem(tileset, "enumTags", true);
-			JSON_Node* enum_tag; JSON_ArrayForEach(enum_tag, enum_tags) {
-				JSON_Node* id_node = JSON_GetObjectItem(enum_tag, "enumValueId", true);
-				char* id = JSON_GetStringValue(id_node);
-				if (SDL_strcmp(id, "Collide") != 0) continue;
-				
-				JSON_Node* tile_ids = JSON_GetObjectItem(enum_tag, "tileIds", true);
-				JSON_Node* tile_id; JSON_ArrayForEach(tile_id, tile_ids) {
-					++n_tiles_collide;
-				}
-				tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
-				size_t i = 0;
-				JSON_ArrayForEach(tile_id, tile_ids) {
-					tiles_collide[i++] = JSON_GetIntValue(tile_id);
-				}
-				break_all = true;
-				break;
-			}
-			if (break_all) break;
-		}
-		break_all = false;
-
-		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_idx = 0; tile_idx < level->n_tiles; ++tile_idx) {
-				Entity* tile = &level->tiles[tile_idx];
-				ivec2s src = tile->src;
-				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
-					int32_t i = tiles_collide[tiles_collide_idx];
-					int32_t j = (src.x + src.y*25)/TILE_SIZE; // TODO: Replace 25 with tileset width.
-					if (i == j) {
-						tile->flags |= EntityFlags_Solid;
-						break;
-					}
-				}
-			}
-		}
-
-		SDL_free(tiles_collide);
-		JSON_Delete(head);
-	}
 
 	// InitTime
 	{
@@ -229,6 +165,75 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
+	// LoadLevels
+	{
+		JSON_Node* head;
+		{
+			size_t file_len;
+			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
+			head = JSON_ParseWithLength((const char*)file_data, file_len);
+			SDL_free(file_data);
+		}
+		SDL_assert(HAS_FLAG(head->type, JSON_Object));
+
+		JSON_Node* levels = JSON_GetObjectItem(head, "levels", true);
+		JSON_Node* level; JSON_ArrayForEach(level, levels) {
+			++ctx->n_levels;
+		}
+		ctx->levels = SDL_calloc(ctx->n_levels, sizeof(Level)); SDL_CHECK(ctx->levels);
+		size_t level_idx = 0;
+		JSON_ArrayForEach(level, levels) {
+			ctx->levels[level_idx++] = LoadLevel(level);
+		}
+
+		int32_t* tiles_collide = NULL; size_t n_tiles_collide = 0;
+		JSON_Node* defs = JSON_GetObjectItem(head, "defs", true);
+		JSON_Node* tilesets = JSON_GetObjectItem(defs, "tilesets", true);
+		bool break_all = false;
+		JSON_Node* tileset; JSON_ArrayForEach(tileset, tilesets) {
+			JSON_Node* enum_tags = JSON_GetObjectItem(tileset, "enumTags", true);
+			JSON_Node* enum_tag; JSON_ArrayForEach(enum_tag, enum_tags) {
+				JSON_Node* id_node = JSON_GetObjectItem(enum_tag, "enumValueId", true);
+				char* id = JSON_GetStringValue(id_node);
+				if (SDL_strcmp(id, "Collide") != 0) continue;
+				
+				JSON_Node* tile_ids = JSON_GetObjectItem(enum_tag, "tileIds", true);
+				JSON_Node* tile_id; JSON_ArrayForEach(tile_id, tile_ids) {
+					++n_tiles_collide;
+				}
+				tiles_collide = SDL_calloc(n_tiles_collide, sizeof(int32_t)); SDL_CHECK(tiles_collide);
+				size_t i = 0;
+				JSON_ArrayForEach(tile_id, tile_ids) {
+					tiles_collide[i++] = JSON_GetIntValue(tile_id);
+				}
+				break_all = true;
+				break;
+			}
+			if (break_all) break;
+		}
+		break_all = false;
+
+		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_idx = 0; tile_idx < level->n_tiles; ++tile_idx) {
+				Entity* tile = &level->tiles[tile_idx];
+				ivec2s src = tile->src;
+				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
+					int32_t i = tiles_collide[tiles_collide_idx];
+					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
+					int32_t j = (src.x + src.y*tileset_dimensions.x)/TILE_SIZE;
+					if (i == j) {
+						tile->flags |= EntityFlags_Solid;
+						break;
+					}
+				}
+			}
+		}
+
+		SDL_free(tiles_collide);
+		JSON_Delete(head);
+	}
+
 	ResetGame(ctx);
 
 	ctx->c_replay_frames = 1024;
@@ -251,13 +256,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// RenderLevel
 		{
-			static Sprite spr_tiles;
-			static bool initialized_sprites = false;
-			if (!initialized_sprites) {
-				initialized_sprites = true;
-				spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-			}
-
 			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
 				Entity* enemy = &enemies[enemy_idx];

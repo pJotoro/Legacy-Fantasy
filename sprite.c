@@ -280,8 +280,19 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-void DrawSpriteTile(Context* ctx, Sprite sprite, ivec2s src, vec2s dst) {
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
+	SDL_assert(sd->n_layers == 1);
+	SDL_assert(sd->n_frames == 1);
+	SDL_assert(sd->frames[0].n_cells == 1);
+
+	SDL_Texture* texture = sd->frames[0].cells[0].texture;
+
+	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
+}
+
+void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
 	SDL_assert(sd->frames[0].n_cells == 1);
