@@ -66,11 +66,6 @@ void UpdatePlayer(Context* ctx) {
 			player->vel.y /= 2.0f;
 		}
 
-		if (ctx->button_left_released) {
-			SDL_Log("Blah");
-
-		}
-
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
@@ -98,6 +93,11 @@ void UpdatePlayer(Context* ctx) {
 		} else if (player->vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
+				if (dh.min.x != 0.0f && dh.min.y != 0.0f && dh.max.x != 0.0f && dh.max.y != 0.0f) {
+					SDL_Log("Collision: hitbox = {%d,%d,%d,%d}, tile = {%d,%d,%d,%d}", dh.min.x, dh.min.y, dh.max.x-dh.min.x, dh.max.y-dh.min.y, tile.min.x, tile.min.y, tile.max.x-tile.min.x, tile.max.y-tile.min.y);
+				}
+				
+
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->vel.y = 0.0f;
 				player->coyote_time = PLAYER_JUMP_REMAINDER;
