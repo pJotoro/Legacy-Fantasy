@@ -1,5 +1,6 @@
 void UpdatePlayer(Context* ctx) {
 	Entity* player = GetPlayer(ctx);
+	Level* level = GetCurrentLevel(ctx);
 
     if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
     	return;
@@ -70,7 +71,6 @@ void UpdatePlayer(Context* ctx) {
 
 		}
 
-		Level* level = GetCurrentLevel(ctx);
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
@@ -145,8 +145,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &player->anim, loop);
 
-	// TODO: Use actual level bounds.
-	if (player->pos.y > 1000.0f) {
+	if (player->pos.y > (float)(level->size.y*TILE_SIZE)) {
 		ResetGame(ctx);
 		return;
 	}
