@@ -2,10 +2,10 @@ Level LoadLevel(JSON_Node* level_node) {
 	Level res = {0};
 
 	JSON_Node* w = JSON_GetObjectItem(level_node, "pxWid", true);
-	res.size.x = JSON_GetIntValue(w) / TILE_SIZE;
+	res.size.x = JSON_GetIntValue(w);
 
 	JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
-	res.size.y = JSON_GetIntValue(h) / TILE_SIZE;
+	res.size.y = JSON_GetIntValue(h);
 
 	char* layer_player = "Player";
 	char* layer_enemies = "Enemies";

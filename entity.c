@@ -145,7 +145,7 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &player->anim, loop);
 
-	if (player->pos.y > (float)(level->size.y*TILE_SIZE)) {
+	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
 		return;
 	}
