@@ -219,8 +219,6 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
 
-	// vec2s vel = EntityVel(entity);
-
 	lh->min.x = entity->pos.x + entity->dir*h->min.x;
 	lh->min.y = entity->pos.y + h->min.y + 1;
 	lh->max.x = entity->pos.x + entity->dir*h->min.x + 1;

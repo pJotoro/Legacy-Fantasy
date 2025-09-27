@@ -239,14 +239,17 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				(float)(cell->size.y),
 			};
 
-			if (dir == 1) {
-				dstrect.x += (float)cell->offset.x;
-			} 
-			else {
-				dstrect.x -= (float)cell->offset.x;
-				//dstrect.x += (float)sd->size.x;
-				dstrect.w = -dstrect.w;
-			}
+			dstrect.x += (float)(dir*cell->offset.x);
+			dstrect.w *= (float)dir;
+
+			// if (dir == 1) {
+			// 	dstrect.x += (float)cell->offset.x;
+			// } 
+			// else {
+			// 	dstrect.x -= (float)cell->offset.x;
+			// 	//dstrect.x += (float)sd->size.x;
+			// 	dstrect.w = -dstrect.w;
+			// }
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
