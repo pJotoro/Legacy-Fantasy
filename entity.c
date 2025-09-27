@@ -43,6 +43,19 @@ void UpdatePlayer(Context* ctx) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
+
+		if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
+			const float AMOUNT = -24.0f;
+			lh.min.x += AMOUNT;
+			lh.max.x += AMOUNT;
+			rh.min.x += AMOUNT;
+			rh.max.x += AMOUNT;
+			uh.min.x += AMOUNT;
+			uh.max.x += AMOUNT;
+			dh.min.x += AMOUNT;
+			dh.max.x += AMOUNT;
+		}
+
 		EntityMoveY(player, GRAVITY);
 
 		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);

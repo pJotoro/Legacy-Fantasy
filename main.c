@@ -271,7 +271,19 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		{
 			Rect hitbox, lh, rh, uh, dh;
-			GetEntityHitboxes(ctx, GetPlayer(ctx), &hitbox, &lh, &rh, &uh, &dh);
+			Entity* player = GetPlayer(ctx);
+			GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
+			if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
+				const float AMOUNT = -24.0f;
+				lh.min.x += AMOUNT;
+				lh.max.x += AMOUNT;
+				rh.min.x += AMOUNT;
+				rh.max.x += AMOUNT;
+				uh.min.x += AMOUNT;
+				uh.max.x += AMOUNT;
+				dh.min.x += AMOUNT;
+				dh.max.x += AMOUNT;
+			}
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 0));
 			SDL_RenderRect(ctx->renderer, &(SDL_FRect){lh.min.x, lh.min.y, lh.max.x - lh.min.x, lh.max.y - lh.min.y});
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
