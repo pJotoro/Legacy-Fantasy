@@ -45,8 +45,8 @@ void UpdatePlayer(Context* ctx) {
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 
 		// HACK
+		const float AMOUNT = -20.0f;
 		if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
-			const float AMOUNT = -24.0f;
 			lh.min.x += AMOUNT;
 			lh.max.x += AMOUNT;
 			rh.min.x += AMOUNT;
@@ -83,7 +83,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				player->pos.x = SDL_max(player->pos.x, tile.max.x + hitbox.min.x);
+				player->pos.x = SDL_max(player->pos.x, tile.max.x + hitbox.min.x + 20.0f);
 				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);

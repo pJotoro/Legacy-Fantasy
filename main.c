@@ -275,7 +275,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 			// HACK
 			if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
-				const float AMOUNT = -24.0f;
+				const float AMOUNT = -20.0f;
 				lh.min.x += AMOUNT;
 				lh.max.x += AMOUNT;
 				rh.min.x += AMOUNT;
