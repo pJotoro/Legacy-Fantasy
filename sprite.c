@@ -319,7 +319,6 @@ void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst) {
 }
 
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
-	UNUSED(dir);
 	SDL_assert(hitbox);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->n_frames);
@@ -327,11 +326,13 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (HAS_FLAG(cell->flags, SpriteCellFlags_Hitbox)) {
-			#if 0
+			#if 1
 			if (dir == 1) {
-				*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+				*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
 			} else {
-				*hitbox = (Rect){glms_ivec2_scale(cell->offset, -1), glms_ivec2_sub(glms_ivec2_scale(cell->offset, -1), cell->size)};
+				*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
+				hitbox->min.x *= -1.0f;
+				hitbox->max.x *= -1.0f;
 			}
 			#else
 			*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};

@@ -93,8 +93,11 @@ void UpdatePlayer(Context* ctx) {
 		} else if (player->vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
-				if (dh.min.x != 0.0f && dh.min.y != 0.0f && dh.max.x != 0.0f && dh.max.y != 0.0f) {
-					SDL_Log("Collision: hitbox = {%d,%d,%d,%d}, tile = {%d,%d,%d,%d}", dh.min.x, dh.min.y, dh.max.x-dh.min.x, dh.max.y-dh.min.y, tile.min.x, tile.min.y, tile.max.x-tile.min.x, tile.max.y-tile.min.y);
+				static bool pressed_left = false;
+				if (ctx->button_left) pressed_left = true;
+				if (pressed_left) {
+					SDL_Log("Collision: hitbox = {%f,%f,%f,%f}, tile = {%f,%f}", dh.min.x, dh.min.y, dh.max.x-dh.min.x, dh.max.y-dh.min.y, tile.min.x, tile.min.y);
+
 				}
 				
 
