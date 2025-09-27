@@ -274,7 +274,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			Rect hitbox, lh, rh, uh, dh;
 			GetEntityHitboxes(ctx, GetPlayer(ctx), &hitbox, &lh, &rh, &uh, &dh);
-			uh.min.y -= 10.0f;
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 0));
 			SDL_RenderRect(ctx->renderer, &(SDL_FRect){lh.min.x, lh.min.y, lh.max.x - lh.min.x, lh.max.y - lh.min.y});
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));

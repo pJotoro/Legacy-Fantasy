@@ -42,7 +42,6 @@ void UpdatePlayer(Context* ctx) {
 		// PlayerCollision
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
-		// uh.min.y -= 10.0f; // HACK: For some reason, the player can't collide with the ceiling without this.
 		EntityMoveY(player, GRAVITY);
 
 		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
