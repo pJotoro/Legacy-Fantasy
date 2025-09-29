@@ -356,17 +356,9 @@ ivec2s GetSpriteCenter(Context* ctx, Sprite sprite, int32_t dir) {
 			if (dir == 1) {
 				return cell->offset;
 			} else {
-				/*
-				if in the center of the canvas:
-					return cell->offset;
-				else if to the right of the center of the canvas:
-					return cell->offset - diff;
-				else:
-					return cell->offset + diff;
-				*/
-				ivec2s center = glms_ivec2_divs(sd->size, 2);
-				ivec2s diff = glms_ivec2_abs(glms_ivec2_sub(cell->offset, center));
-				return glms_ivec2_sub(cell->offset, diff);
+				int32_t center_x = sd->size.x / 2;
+				int32_t diff = SDL_abs(cell->offset.x - center_x);
+				return (ivec2s){cell->offset.x - diff, cell->offset.y};
 			}
 		}
 	}
