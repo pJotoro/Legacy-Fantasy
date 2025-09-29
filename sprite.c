@@ -322,6 +322,7 @@ void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst) {
 
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SDL_assert(hitbox);
+	SDL_assert(dir == 1 || dir == -1);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->n_frames);
 	SpriteFrame* frame = &sd->frames[frame_idx];
@@ -343,6 +344,33 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 		}
 	}
 	return false;
+}
+
+ivec2s GetSpriteCenter(Context* ctx, Sprite sprite, int32_t dir) {
+	SDL_assert(dir == 1 || dir == -1);
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SpriteFrame* frame = &sd->frames[0];
+	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
+		SpriteCell* cell = &frame->cells[cell_idx];
+		if (HAS_FLAG(cell->flags, SpriteCellFlags_Center)) {
+			if (dir == 1) {
+				return cell->offset;
+			} else {
+				/*
+				if in the center of the canvas:
+					return cell->offset;
+				else if to the right of the center of the canvas:
+					return cell->offset - diff;
+				else:
+					return cell->offset + diff;
+				*/
+				ivec2s center = glms_ivec2_divs(sd->size, 2);
+				ivec2s diff = glms_ivec2_abs(glms_ivec2_sub(cell->offset, center));
+				return glms_ivec2_sub(cell->offset, diff);
+			}
+		}
+	}
+	return (ivec2s){0, 0};
 }
 
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
