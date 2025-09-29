@@ -225,6 +225,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
+	ivec2s center = GetSpriteCenter(ctx, sprite, dir);
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 		if (cell->texture) {
@@ -252,6 +253,9 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				dstrect.x += (float)sd->size.x;
 				dstrect.w = -dstrect.w;
 			}
+
+			dstrect.x += (float)center.x;
+			dstrect.y += (float)center.y;
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
