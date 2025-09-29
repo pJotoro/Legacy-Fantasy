@@ -136,7 +136,11 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 						cell.size.x = chunk->compressed_image.w;
 						cell.size.y = chunk->compressed_image.h;
 
-						if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") != 0) {
+						if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
+							cell.flags |= SpriteCellFlags_Hitbox;
+						} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Center") == 0) {
+							cell.flags |= SpriteCellFlags_Center;
+						} else {
 							// It's the zero-sized array at the end of ASE_CellChunk.
 							size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
 							void* src_buf = (void*)((&chunk->compressed_image.h)+1);
@@ -150,8 +154,6 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 							cell.texture = SDL_CreateTextureFromSurface(renderer, surf); SDL_CHECK(cell.texture);
 							SDL_DestroySurface(surf);
 							SDL_free(dst_buf);
-						} else {
-							cell.flags |= SpriteCellFlags_Hitbox;
 						}
 					} break;
 					case ASE_CellType_CompressedTilemap: {

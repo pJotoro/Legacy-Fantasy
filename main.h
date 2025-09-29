@@ -72,6 +72,7 @@ typedef struct SpriteLayer {
 
 enum {
 	SpriteCellFlags_Hitbox = FLAG(0),
+	SpriteCellFlags_Center = FLAG(1),
 };
 typedef uint32_t SpriteCellFlags;
 
