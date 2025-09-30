@@ -262,33 +262,6 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	}
 }
 
-/* 	
-I'll admit this function is kind of weird. I might end up changing it later.
-The way it works is: we start from the current frame and go backward.
-For each frame, check if there is a corresponding hitbox. If so, pick that one.
-
-There is an edge case where we start at the first frame and the first frame has no hitbox.
-In this case, we just go forward instead of backward, starting at the second frame.
-*/
-Rect GetEntityHitbox(Context* ctx, Entity* entity) {
-	Rect hitbox = {0};
-	bool res; ssize_t frame_idx;
-	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
-	}
-
-	if (!res && entity->anim.frame_idx == 0) {
-		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
-		}
-	}
-
-	SDL_assert(res);
-
-	return hitbox;
-}
-
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->n_layers == 1);

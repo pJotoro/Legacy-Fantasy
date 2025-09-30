@@ -88,7 +88,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				player->pos.x = SDL_max(player->pos.x, tile.max.x + hitbox.min.x + 20.0f);
+				player->pos.x = SDL_max(player->pos.x, tile.max.x + hitbox.min.x);
 				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
@@ -116,9 +116,7 @@ void UpdatePlayer(Context* ctx) {
 				if (ctx->button_left) pressed_left = true;
 				if (pressed_left) {
 					SDL_Log("Collision: hitbox = {%f,%f,%f,%f}, tile = {%f,%f}", dh.min.x, dh.min.y, dh.max.x-dh.min.x, dh.max.y-dh.min.y, tile.min.x, tile.min.y);
-
 				}
-				
 
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->vel.y = 0.0f;
@@ -237,31 +235,63 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	UpdateAnim(ctx, &boar->anim, loop);
 }
 
+/* 	
+I'll admit this function is kind of weird. I might end up changing it later.
+The way it works is: we start from the current frame and go backward.
+For each frame, check if there is a corresponding hitbox. If so, pick that one.
+
+There is an edge case where we start at the first frame and the first frame has no hitbox.
+In this case, we just go forward instead of backward, starting at the second frame.
+*/
+Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+	Rect hitbox = {0};
+	bool res; ssize_t frame_idx;
+	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+	}
+
+	if (!res && entity->anim.frame_idx == 0) {
+		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+		}
+	}
+
+	SDL_assert(res);
+
+	hitbox.min = glms_vec2_add(hitbox.min, entity->pos);
+	hitbox.max = glms_vec2_add(hitbox.max, entity->pos);
+
+	vec2s center = vec2_from_ivec2(GetEntityCenter(ctx, entity));
+	hitbox.min = glms_vec2_add(hitbox.min, center);
+	hitbox.max = glms_vec2_add(hitbox.max, center);
+
+	return hitbox;
+}
+
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
-	ivec2s center = GetSpriteCenter(ctx, entity->anim.sprite, entity->dir);
-	vec2s uncentered_pos = glms_vec2_add(entity->pos, vec2_from_ivec2(center));
 
-	lh->min.x = uncentered_pos.x + entity->dir*h->min.x;
-	lh->min.y = uncentered_pos.y + h->min.y + 1;
-	lh->max.x = uncentered_pos.x + entity->dir*h->min.x + 1;
-	lh->max.y = uncentered_pos.y + h->max.y - 1;
+	lh->min.x = entity->dir*h->min.x;
+	lh->min.y = h->min.y + 1;
+	lh->max.x = entity->dir*h->min.x + 1;
+	lh->max.y = h->max.y - 1;
 
-	rh->min.x = uncentered_pos.x + entity->dir*h->max.x - 1;
-	rh->min.y = uncentered_pos.y + h->min.y + 1;
-	rh->max.x = uncentered_pos.x + entity->dir*h->max.x;
-	rh->max.y = uncentered_pos.y + h->max.y - 1;
+	rh->min.x = entity->dir*h->max.x - 1;
+	rh->min.y = h->min.y + 1;
+	rh->max.x = entity->dir*h->max.x;
+	rh->max.y = h->max.y - 1;
 
-	uh->min.x = uncentered_pos.x + entity->dir*h->min.x + 1;
-	uh->min.y = uncentered_pos.y + h->min.y;
-	uh->max.x = uncentered_pos.x + entity->dir*h->max.x - 1;
-	uh->max.y = uncentered_pos.y + h->min.y + 1;
+	uh->min.x = entity->dir*h->min.x + 1;
+	uh->min.y = h->min.y;
+	uh->max.x = entity->dir*h->max.x - 1;
+	uh->max.y = h->min.y + 1;
 
-	dh->min.x = uncentered_pos.x + entity->dir*h->min.x + 1;
-	dh->min.y = uncentered_pos.y + h->max.y - 1;
-	dh->max.x = uncentered_pos.x + entity->dir*h->max.x - 1;
-	dh->max.y = uncentered_pos.y + h->max.y;
+	dh->min.x = entity->dir*h->min.x + 1;
+	dh->min.y = h->max.y - 1;
+	dh->max.x = entity->dir*h->max.x - 1;
+	dh->max.y = h->max.y;
 }
 
 void EntityMoveX(Entity* entity, float acc) {
@@ -280,4 +310,8 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
     entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
     return entity->vel.x != vel_save;
+}
+
+ivec2s GetEntityCenter(Context* ctx, Entity* entity) {
+	return GetSpriteCenter(ctx, entity->anim.sprite, entity->dir);
 }
