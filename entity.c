@@ -44,6 +44,7 @@ void UpdatePlayer(Context* ctx) {
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 
+#if 0
 		// HACK
 		uh.min.y -= 10.0f;
 
@@ -59,6 +60,7 @@ void UpdatePlayer(Context* ctx) {
 			dh.min.x += AMOUNT;
 			dh.max.x += AMOUNT;
 		}
+#endif
 
 		EntityMoveY(player, GRAVITY);
 

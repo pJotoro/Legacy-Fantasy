@@ -274,6 +274,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			Entity* player = GetPlayer(ctx);
 			GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 
+#if 0
 			// HACK
 			uh.min.y -= 10.0f;
 
@@ -289,6 +290,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				dh.min.x += AMOUNT;
 				dh.max.x += AMOUNT;
 			}
+#endif
 			
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 0));
 			SDL_RenderRect(ctx->renderer, &(SDL_FRect){lh.min.x, lh.min.y, lh.max.x - lh.min.x, lh.max.y - lh.min.y});
