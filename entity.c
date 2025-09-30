@@ -240,26 +240,28 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh) {
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
+	ivec2s center = GetSpriteCenter(ctx, entity->anim.sprite, entity->dir);
+	vec2s uncentered_pos = glms_vec2_add(entity->pos, vec2_from_ivec2(center));
 
-	lh->min.x = entity->pos.x + entity->dir*h->min.x;
-	lh->min.y = entity->pos.y + h->min.y + 1;
-	lh->max.x = entity->pos.x + entity->dir*h->min.x + 1;
-	lh->max.y = entity->pos.y + h->max.y - 1;
+	lh->min.x = uncentered_pos.x + entity->dir*h->min.x;
+	lh->min.y = uncentered_pos.y + h->min.y + 1;
+	lh->max.x = uncentered_pos.x + entity->dir*h->min.x + 1;
+	lh->max.y = uncentered_pos.y + h->max.y - 1;
 
-	rh->min.x = entity->pos.x + entity->dir*h->max.x - 1;
-	rh->min.y = entity->pos.y + h->min.y + 1;
-	rh->max.x = entity->pos.x + entity->dir*h->max.x;
-	rh->max.y = entity->pos.y + h->max.y - 1;
+	rh->min.x = uncentered_pos.x + entity->dir*h->max.x - 1;
+	rh->min.y = uncentered_pos.y + h->min.y + 1;
+	rh->max.x = uncentered_pos.x + entity->dir*h->max.x;
+	rh->max.y = uncentered_pos.y + h->max.y - 1;
 
-	uh->min.x = entity->pos.x + entity->dir*h->min.x + 1;
-	uh->min.y = entity->pos.y + h->min.y;
-	uh->max.x = entity->pos.x + entity->dir*h->max.x - 1;
-	uh->max.y = entity->pos.y + h->min.y + 1;
+	uh->min.x = uncentered_pos.x + entity->dir*h->min.x + 1;
+	uh->min.y = uncentered_pos.y + h->min.y;
+	uh->max.x = uncentered_pos.x + entity->dir*h->max.x - 1;
+	uh->max.y = uncentered_pos.y + h->min.y + 1;
 
-	dh->min.x = entity->pos.x + entity->dir*h->min.x + 1;
-	dh->min.y = entity->pos.y + h->max.y - 1;
-	dh->max.x = entity->pos.x + entity->dir*h->max.x - 1;
-	dh->max.y = entity->pos.y + h->max.y;
+	dh->min.x = uncentered_pos.x + entity->dir*h->min.x + 1;
+	dh->min.y = uncentered_pos.y + h->max.y - 1;
+	dh->max.x = uncentered_pos.x + entity->dir*h->max.x - 1;
+	dh->max.y = uncentered_pos.y + h->max.y;
 }
 
 void EntityMoveX(Entity* entity, float acc) {
