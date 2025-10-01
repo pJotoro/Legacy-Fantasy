@@ -159,10 +159,11 @@ bool SpritesEqual(Sprite a, Sprite b) {
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     if (!HAS_FLAG(a->flags, EntityFlags_Active) || !HAS_FLAG(b->flags, EntityFlags_Active)) return false;
     Rect ha = GetEntityHitbox(ctx, a);
-    ha.min = glms_vec2_add(ha.min, a->pos);
-    ha.max = glms_vec2_add(ha.max, a->pos);
+    // NOTE: GetEntityHitbox already adds the entity position anyway.
+    //ha.min = glms_vec2_add(ha.min, a->pos);
+    //ha.max = glms_vec2_add(ha.max, a->pos);
     Rect hb = GetEntityHitbox(ctx, b);
-    hb.min = glms_vec2_add(hb.min, b->pos);
-    hb.max = glms_vec2_add(hb.max, b->pos);
+    //hb.min = glms_vec2_add(hb.min, b->pos);
+    //hb.max = glms_vec2_add(hb.max, b->pos);
     return RectsIntersect(ha, hb);
 }
