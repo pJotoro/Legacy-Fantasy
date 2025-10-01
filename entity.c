@@ -44,24 +44,6 @@ void UpdatePlayer(Context* ctx) {
 		Rect hitbox, lh, rh, uh, dh;
 		GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
 
-#if 0
-		// HACK
-		uh.min.y -= 10.0f;
-
-		// HACK
-		const float AMOUNT = -20.0f;
-		if (SpritesEqual(player->anim.sprite, player_run) && player->dir == -1.0f) {
-			lh.min.x += AMOUNT;
-			lh.max.x += AMOUNT;
-			rh.min.x += AMOUNT;
-			rh.max.x += AMOUNT;
-			uh.min.x += AMOUNT;
-			uh.max.x += AMOUNT;
-			dh.min.x += AMOUNT;
-			dh.max.x += AMOUNT;
-		}
-#endif
-
 		EntityMoveY(player, GRAVITY);
 
 		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
@@ -112,12 +94,6 @@ void UpdatePlayer(Context* ctx) {
 		} else if (player->vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
-				static bool pressed_left = false;
-				if (ctx->button_left) pressed_left = true;
-				if (pressed_left) {
-					SDL_Log("Collision: hitbox = {%f,%f,%f,%f}, tile = {%f,%f}", dh.min.x, dh.min.y, dh.max.x-dh.min.x, dh.max.y-dh.min.y, tile.min.x, tile.min.y);
-				}
-
 				player->pos.y = SDL_min(player->pos.y, tile.min.y - hitbox.max.y);
 				player->vel.y = 0.0f;
 				player->coyote_time = PLAYER_JUMP_REMAINDER;
