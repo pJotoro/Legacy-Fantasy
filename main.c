@@ -241,11 +241,24 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-		
 		while (ctx->dt_accumulator > dt) {
 			GetInput(ctx); // TODO: Should this be inside or outside the loop?
-			UpdateGame(ctx);
-			ctx->dt_accumulator -= dt;
+			if (!ctx->paused) {
+				UpdateGame(ctx);
+			}
+
+			if (!ctx->paused)
+	 		{
+	 			ReplayFrame replay_frame = {0};
+				replay_frame.player = *GetPlayer(ctx);
+		 		ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
+				if (ctx->replay_frame_idx >= ctx->c_replay_frames) {
+					ctx->c_replay_frames *= 8;
+					ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+				}
+	 		}
+
+	 		ctx->dt_accumulator -= dt;
 		}
 
 		// RenderBegin
@@ -293,9 +306,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// ReplayFrame replay_frame = {0};
-		// replay_frame.player = *GetPlayer(ctx);
-
 		{			
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
@@ -304,20 +314,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 			ctx->dt_accumulator += dt_double;
 			ctx->time = current_time;
-		}
-
-		// if (!ctx->paused)
- 		// {
-	 	// 	ctx->replay_frames[ctx->n_replay_frames++] = replay_frame;
-		// 	if (ctx->n_replay_frames >= ctx->c_replay_frames) {
-		// 		ctx->c_replay_frames *= 8;
-		// 		ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
-		// 	}
-		// 	ctx->replay_frame_idx = ctx->n_replay_frames - 1;
- 		// }		
+		}	
 	}
 
-	for (size_t i = 0; i < ctx->n_replay_frames; ++i) {
+	for (size_t i = 0; i < ctx->replay_frame_idx; ++i) {
 		// ReplayFrame* r = &ctx->replay_frames[i];
 
 	}
@@ -407,6 +407,7 @@ void GetInput(Context* ctx) {
 					}
 					if (ctx->paused) {
 						ctx->replay_frame_idx = SDL_max(ctx->replay_frame_idx - 1, 0);
+						*GetPlayer(ctx) = ctx->replay_frames[ctx->replay_frame_idx].player;
 					}
 					break;
 				case SDLK_RIGHT:
@@ -414,7 +415,8 @@ void GetInput(Context* ctx) {
 						ctx->button_right = 1;
 					}
 					if (ctx->paused) {
-						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, (ssize_t)ctx->n_replay_frames - 1);
+						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx - 1);
+						*GetPlayer(ctx) = ctx->replay_frames[ctx->replay_frame_idx].player;
 					}
 					break;
 				case SDLK_UP:
