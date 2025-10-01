@@ -252,10 +252,11 @@ int32_t main(int32_t argc, char* argv[]) {
 	 			ReplayFrame replay_frame = {0};
 				replay_frame.player = *GetPlayer(ctx);
 		 		ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
-				if (ctx->replay_frame_idx >= ctx->c_replay_frames) {
+				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
 					ctx->c_replay_frames *= 8;
 					ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 				}
+				ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
 	 		}
 
 	 		ctx->dt_accumulator -= dt;
@@ -415,7 +416,7 @@ void GetInput(Context* ctx) {
 						ctx->button_right = 1;
 					}
 					if (ctx->paused) {
-						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx - 1);
+						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1);
 						*GetPlayer(ctx) = ctx->replay_frames[ctx->replay_frame_idx].player;
 					}
 					break;
