@@ -250,7 +250,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!ctx->paused)
 	 		{
 	 			ReplayFrame replay_frame = {0};
-				replay_frame.player = *GetPlayer(ctx);
+				
+				// RecordReplayFrame
+				Level* level = GetCurrentLevel(ctx);
+				replay_frame.player = level->player;
+				replay_frame.enemies = SDL_malloc(level->n_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
+				SDL_memcpy(replay_frame.enemies, level->enemies, level->n_enemies * sizeof(Entity));
+				replay_frame.n_enemies = level->n_enemies;
+		 		
 		 		ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
 				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
 					ctx->c_replay_frames *= 8;
@@ -407,8 +414,7 @@ void GetInput(Context* ctx) {
 						ctx->button_left = 1;
 					}
 					if (ctx->paused) {
-						ctx->replay_frame_idx = SDL_max(ctx->replay_frame_idx - 1, 0);
-						*GetPlayer(ctx) = ctx->replay_frames[ctx->replay_frame_idx].player;
+						SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
 					}
 					break;
 				case SDLK_RIGHT:
@@ -416,8 +422,7 @@ void GetInput(Context* ctx) {
 						ctx->button_right = 1;
 					}
 					if (ctx->paused) {
-						ctx->replay_frame_idx = SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1);
-						*GetPlayer(ctx) = ctx->replay_frames[ctx->replay_frame_idx].player;
+						SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
 					}
 					break;
 				case SDLK_UP:
@@ -505,4 +510,18 @@ void UpdateGame(Context* ctx) {
 			UpdateBoar(ctx, enemy);
 		}
 	}
+}
+
+ReplayFrame* GetReplayFrame(Context* ctx) {
+	return &ctx->replay_frames[ctx->replay_frame_idx];
+}
+
+void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
+	ctx->replay_frame_idx = replay_frame_idx;
+	Level* level = GetCurrentLevel(ctx);
+	ReplayFrame* replay_frame = GetReplayFrame(ctx);
+	level->player = replay_frame->player;
+	SDL_memcpy(level->enemies, replay_frame->enemies, replay_frame->n_enemies * sizeof(Entity));
+	level->n_enemies = replay_frame->n_enemies;
+
 }
