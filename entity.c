@@ -66,7 +66,7 @@ void UpdatePlayer(Context* ctx) {
 			player->flags |= EntityFlags_JumpReleased;
 			player->vel.y /= 2.0f;
 		}
-
+		
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
@@ -171,13 +171,13 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	if (boar->vel.y < 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, uh, &tile)) {
-			boar->pos.y = SDL_max(boar->pos.y, tile.max.y - hitbox.min.y);
+			boar->pos.y = tile.max.y - hitbox.min.y;
 			boar->vel.y = -boar->vel.y / 2.0f;
 		}
 	} else if (boar->vel.y > 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, dh, &tile)) {
-			boar->pos.y = SDL_min(boar->pos.y, tile.min.y - hitbox.max.y);
+			boar->pos.y = tile.min.x - hitbox.max.x;
 			boar->vel.y = 0.0f;
 			boar->flags |= EntityFlags_TouchingFloor;
 		}
@@ -193,13 +193,13 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	if (boar->vel.x < 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, lh, &tile)) {
-			boar->pos.x = SDL_max(boar->pos.x, tile.max.x - hitbox.min.x);
+			boar->pos.x = tile.max.x - hitbox.min.x;
 			boar->vel.x = 0.0f;
 		}
 	} else if (boar->vel.x > 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, rh, &tile)) {
-			boar->pos.x = SDL_min(boar->pos.x, tile.min.x - hitbox.max.x);
+			boar->pos.x = tile.min.x - hitbox.max.x;
 			boar->vel.x = 0.0f;
 		}
 	}
