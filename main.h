@@ -72,7 +72,7 @@ typedef struct SpriteLayer {
 
 enum {
 	SpriteCellFlags_Hitbox = FLAG(0),
-	SpriteCellFlags_Center = FLAG(1),
+	SpriteCellFlags_Origin = FLAG(1),
 };
 typedef uint32_t SpriteCellFlags;
 
@@ -225,7 +225,7 @@ void UpdateGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
-ivec2s GetSpriteCenter(Context* ctx, Sprite sprite, int32_t dir);
+ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
 void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst);
@@ -239,7 +239,7 @@ Entity* GetEnemies(Context* ctx, size_t* n_enemies);
 Entity* GetTiles(Context* ctx, size_t* n_tiles);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
-ivec2s GetEntityCenter(Context* ctx, Entity* entity);
+ivec2s GetEntityOrigin(Context* ctx, Entity* entity);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
 

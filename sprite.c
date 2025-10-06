@@ -138,8 +138,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 
 						if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
 							cell.flags |= SpriteCellFlags_Hitbox;
-						} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Center") == 0) {
-							cell.flags |= SpriteCellFlags_Center;
+						} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Origin") == 0) {
+							cell.flags |= SpriteCellFlags_Origin;
 						} else {
 							// It's the zero-sized array at the end of ASE_CellChunk.
 							size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
@@ -225,7 +225,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
-	ivec2s center = GetSpriteCenter(ctx, sprite, dir);
+	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 		if (cell->texture) {
@@ -251,8 +251,8 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				dstrect.w = -dstrect.w;
 			}
 
-			dstrect.x += (float)center.x;
-			dstrect.y += (float)center.y;
+			dstrect.x += (float)origin.x;
+			dstrect.y += (float)origin.y;
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
@@ -320,18 +320,18 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 	return false;
 }
 
-ivec2s GetSpriteCenter(Context* ctx, Sprite sprite, int32_t dir) {
+ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	SDL_assert(dir == 1 || dir == -1);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SpriteFrame* frame = &sd->frames[0];
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
-		if (HAS_FLAG(cell->flags, SpriteCellFlags_Center)) {
+		if (HAS_FLAG(cell->flags, SpriteCellFlags_Origin)) {
 			if (dir == 1) {
 				return cell->offset;
 			} else {
-				int32_t center_x = sd->size.x / 2;
-				int32_t diff = SDL_abs(cell->offset.x - center_x);
+				int32_t origin_x = sd->size.x / 2;
+				int32_t diff = SDL_abs(cell->offset.x - origin_x);
 				return (ivec2s){cell->offset.x - diff, cell->offset.y};
 			}
 		}

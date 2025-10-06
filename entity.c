@@ -243,8 +243,8 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
 
-	vec2s center = vec2_from_ivec2(GetEntityCenter(ctx, entity));
-	vec2s offset = glms_vec2_add(entity->pos, center);
+	vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, entity));
+	vec2s offset = glms_vec2_add(entity->pos, origin);
 
 	lh->min.x = offset.x + entity->dir*h->min.x;
 	lh->min.y = offset.y + h->min.y + 1;
@@ -277,9 +277,9 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
         ha.min = glms_vec2_add(ha.min, a->pos);
         ha.max = glms_vec2_add(ha.max, a->pos);
 
-        vec2s center = vec2_from_ivec2(GetEntityCenter(ctx, a));
-        ha.min = glms_vec2_add(ha.min, center);
-        ha.max = glms_vec2_add(ha.max, center);
+        vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, a));
+        ha.min = glms_vec2_add(ha.min, origin);
+        ha.max = glms_vec2_add(ha.max, origin);
     }
 
     Rect hb = GetEntityHitbox(ctx, b);
@@ -287,9 +287,9 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
         hb.min = glms_vec2_add(hb.min, b->pos);
         hb.max = glms_vec2_add(hb.max, b->pos);
 
-        vec2s center = vec2_from_ivec2(GetEntityCenter(ctx, b));
-        hb.min = glms_vec2_add(hb.min, center);
-        hb.max = glms_vec2_add(hb.max, center);
+        vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, b));
+        hb.min = glms_vec2_add(hb.min, origin);
+        hb.max = glms_vec2_add(hb.max, origin);
     }
 
     return RectsIntersect(ha, hb);
@@ -313,6 +313,6 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
     return entity->vel.x != vel_save;
 }
 
-ivec2s GetEntityCenter(Context* ctx, Entity* entity) {
-	return GetSpriteCenter(ctx, entity->anim.sprite, entity->dir);
+ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
+	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
