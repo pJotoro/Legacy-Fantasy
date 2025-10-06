@@ -225,7 +225,7 @@ void UpdateGame(Context* ctx);
 Level* GetCurrentLevel(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
-ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
+ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
 void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst);

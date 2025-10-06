@@ -244,30 +244,37 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	*h = GetEntityHitbox(ctx, entity);
 
 	vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, entity));
+	
+	SDL_assert(entity->dir == 1 || entity->dir == -1);
+	if (entity->dir == -1) {
+		float prev_min_x = h->min.x;
+		h->min.x = origin.x - (h->max.x - origin.x);
+		h->max.x = h->min.x + (h->max.x - prev_min_x);
+	}
+
 	vec2s offset = glms_vec2_add(entity->pos, origin);
-
-	lh->min.x = offset.x + entity->dir*h->min.x;
-	lh->min.y = offset.y + h->min.y + 1;
-	lh->max.x = offset.x + entity->dir*h->min.x + 1;
-	lh->max.y = offset.y + h->max.y - 1;
-
-	rh->min.x = offset.x + entity->dir*h->max.x - 1;
-	rh->min.y = offset.y + h->min.y + 1;
-	rh->max.x = offset.x + entity->dir*h->max.x;
-	rh->max.y = offset.y + h->max.y - 1;
-
-	uh->min.x = offset.x + entity->dir*h->min.x + 1;
-	uh->min.y = offset.y + h->min.y;
-	uh->max.x = offset.x + entity->dir*h->max.x - 1;
-	uh->max.y = offset.y + h->min.y + 1;
-
-	dh->min.x = offset.x + entity->dir*h->min.x + 1;
-	dh->min.y = offset.y + h->max.y - 1;
-	dh->max.x = offset.x + entity->dir*h->max.x - 1;
-	dh->max.y = offset.y + h->max.y;
-
 	h->min = glms_vec2_add(h->min, offset);
 	h->max = glms_vec2_add(h->max, offset);
+
+	lh->min.x = h->min.x;
+	lh->min.y = h->min.y + 1;
+	lh->max.x = h->min.x + 1;
+	lh->max.y = h->max.y - 1;
+
+	rh->min.x = h->max.x - 1;
+	rh->min.y = h->min.y + 1;
+	rh->max.x = h->max.x;
+	rh->max.y = h->max.y - 1;
+
+	uh->min.x = h->min.x + 1;
+	uh->min.y = h->min.y;
+	uh->max.x = h->max.x - 1;
+	uh->max.y = h->min.y + 1;
+
+	dh->min.x = h->min.x + 1;
+	dh->min.y = h->max.y - 1;
+	dh->max.x = h->max.x - 1;
+	dh->max.y = h->max.y;
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
@@ -314,5 +321,5 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
 }
 
 ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
-	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
+	return GetSpriteOrigin(ctx, entity->anim.sprite);
 }
