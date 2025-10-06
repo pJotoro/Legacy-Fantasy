@@ -222,19 +222,36 @@ In this case, we just go forward instead of backward, starting at the second fra
 */
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	Rect hitbox = {0};
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+
 	bool res; ssize_t frame_idx;
 	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
 		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 	}
 
 	if (!res && entity->anim.frame_idx == 0) {
-		SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 		}
 	}
 
 	SDL_assert(res);
+
+	ivec2s origin = GetEntityOrigin(ctx, entity);
+
+	SDL_assert(entity->dir == 1 || entity->dir == -1);
+	if (entity->dir == -1) {
+		float prev_min_x = hitbox.min.x;
+		hitbox.min.x = origin.x - (hitbox.max.x - origin.x);
+		hitbox.max.x = hitbox.min.x + (hitbox.max.x - prev_min_x);
+
+		hitbox.min.x += sd->size.x;
+		hitbox.max.x += sd->size.x;
+	}
+
+	vec2s offset = glms_vec2_add(entity->pos, vec2_from_ivec2(origin));
+	hitbox.min = glms_vec2_add(hitbox.min, offset);
+	hitbox.max = glms_vec2_add(hitbox.max, offset);
 
 	return hitbox;
 }
@@ -243,25 +260,12 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	SDL_assert(h && lh && rh && uh && dh);
 	*h = GetEntityHitbox(ctx, entity);
 
-	vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, entity));
-	
-	SDL_assert(entity->dir == 1 || entity->dir == -1);
-	if (entity->dir == -1) {
-		float prev_min_x = h->min.x;
-		h->min.x = origin.x - (h->max.x - origin.x);
-		h->max.x = h->min.x + (h->max.x - prev_min_x);
-	}
-
-	vec2s offset = glms_vec2_add(entity->pos, origin);
-	h->min = glms_vec2_add(h->min, offset);
-	h->max = glms_vec2_add(h->max, offset);
-
 	lh->min.x = h->min.x;
 	lh->min.y = h->min.y + 1;
-	lh->max.x = h->min.x + 1;
+	lh->max.x = h->min.x;
 	lh->max.y = h->max.y - 1;
 
-	rh->min.x = h->max.x - 1;
+	rh->min.x = h->max.x;
 	rh->min.y = h->min.y + 1;
 	rh->max.x = h->max.x;
 	rh->max.y = h->max.y - 1;
@@ -275,30 +279,20 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	dh->min.y = h->max.y - 1;
 	dh->max.x = h->max.x - 1;
 	dh->max.y = h->max.y;
+
+	if (entity->dir == 1) {
+		lh->max.x += 1;
+		rh->min.x -= 1;
+	} else {
+		lh->min.x -= 1;
+		rh->max.x += 1;
+	}
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     if (!HAS_FLAG(a->flags, EntityFlags_Active) || !HAS_FLAG(b->flags, EntityFlags_Active)) return false;
     Rect ha = GetEntityHitbox(ctx, a);
-    {
-        ha.min = glms_vec2_add(ha.min, a->pos);
-        ha.max = glms_vec2_add(ha.max, a->pos);
-
-        vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, a));
-        ha.min = glms_vec2_add(ha.min, origin);
-        ha.max = glms_vec2_add(ha.max, origin);
-    }
-
     Rect hb = GetEntityHitbox(ctx, b);
-    {
-        hb.min = glms_vec2_add(hb.min, b->pos);
-        hb.max = glms_vec2_add(hb.max, b->pos);
-
-        vec2s origin = vec2_from_ivec2(GetEntityOrigin(ctx, b));
-        hb.min = glms_vec2_add(hb.min, origin);
-        hb.max = glms_vec2_add(hb.max, origin);
-    }
-
     return RectsIntersect(ha, hb);
 }
 
