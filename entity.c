@@ -81,6 +81,8 @@ void UpdatePlayer(Context* ctx) {
 				EntityMoveX(player, 0.0f);
 			}
 		}
+		
+		player->flags &= ~EntityFlags_TouchingFloor;
 		if (player->vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
