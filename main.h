@@ -150,7 +150,6 @@ typedef struct Entity {
 	vec2s start_pos;
 	vec2s vel;
 
-	double coyote_time;
 	int32_t dir;
 
 	EntityFlags flags;

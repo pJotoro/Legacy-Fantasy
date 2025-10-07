@@ -46,10 +46,7 @@ void UpdatePlayer(Context* ctx) {
 
 		EntityMoveY(player, GRAVITY);
 
-		player->coyote_time = SDL_max(player->coyote_time - dt, 0.0f);
-
-		if (player->coyote_time > 0.0f && ctx->button_jump) {
-			player->coyote_time = 0.0f;
+		if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && ctx->button_jump) {
 			player->flags &= ~EntityFlags_TouchingFloor;
 			EntityMoveY(player, -PLAYER_JUMP);
 			SetSprite(player, player_jump_start);
@@ -96,7 +93,6 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				player->pos.y += tile.min.y - hitbox.max.y;
 				player->vel.y = 0.0f;
-				player->coyote_time = PLAYER_JUMP_REMAINDER;
 				player->flags |= EntityFlags_TouchingFloor;
 				player->flags &= ~EntityFlags_JumpReleased;
 			} else {
@@ -104,7 +100,7 @@ void UpdatePlayer(Context* ctx) {
 			}
 		}
 
-		if (player->coyote_time > 0.0f) {
+		if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 			if (input_x == 0 && player->vel.x == 0.0f) {
 				SetSprite(player, player_idle);
 			} else {

@@ -74,7 +74,6 @@ void ResetGame(Context* ctx) {
 			player->pos = player->start_pos;
 			player->vel = (vec2s){0.0f, 0.0f};
 			player->dir = 1;
-			player->coyote_time = 0.0f;
 			ResetAnim(&player->anim);
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		}
