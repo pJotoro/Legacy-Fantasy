@@ -1,3 +1,9 @@
+/* 
+This function loops through the frames in three passes. These are:
+1. Get layer count and for each frame, get cell count.
+2. Get layer names.
+3. Everything else, including decompressing texture data and uploading it to the GPU.
+*/
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	ASE_Header header;
 	SDL_ReadStructChecked(fs, &header);

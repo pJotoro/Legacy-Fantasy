@@ -211,47 +211,44 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	UpdateAnim(ctx, &boar->anim, loop);
 }
 
-/* 	
-I'll admit this function is kind of weird. I might end up changing it later.
-The way it works is: we start from the current frame and go backward.
-For each frame, check if there is a corresponding hitbox. If so, pick that one.
-Also, the "hitbox" is literally the area in the game world where the entity can get hit, not just its dimensions.
-
-There is an edge case where we start at the first frame and the first frame has no hitbox.
-In this case, we just go forward instead of backward, starting at the second frame.
-*/
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
-	bool res; ssize_t frame_idx;
-	for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
-	}
-
-	if (!res && entity->anim.frame_idx == 0) {
-		for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+	/* 	
+	I'll admit this part of the function is kind of weird. I might end up changing it later.
+	The way it works is: we start from the current frame and go backward.
+	For each frame, check if there is a corresponding hitbox. If so, pick that one.
+	*/
+	{
+		bool res; ssize_t frame_idx;
+		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
+		if (!res && entity->anim.frame_idx == 0) {
+			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
+				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+			}
+		}
+		SDL_assert(res);
 	}
 
-	SDL_assert(res);
+	// AdjustEntityHitbox
+	{
+		ivec2s origin = GetEntityOrigin(ctx, entity);
+		SDL_assert(entity->dir == 1 || entity->dir == -1);
+		if (entity->dir == -1) {
+			float prev_min_x = hitbox.min.x;
+			hitbox.min.x = origin.x - (hitbox.max.x - origin.x);
+			hitbox.max.x = hitbox.min.x + (hitbox.max.x - prev_min_x);
 
-	ivec2s origin = GetEntityOrigin(ctx, entity);
-
-	SDL_assert(entity->dir == 1 || entity->dir == -1);
-	if (entity->dir == -1) {
-		float prev_min_x = hitbox.min.x;
-		hitbox.min.x = origin.x - (hitbox.max.x - origin.x);
-		hitbox.max.x = hitbox.min.x + (hitbox.max.x - prev_min_x);
-
-		hitbox.min.x += sd->size.x;
-		hitbox.max.x += sd->size.x;
+			hitbox.min.x += sd->size.x;
+			hitbox.max.x += sd->size.x;
+		}
+		vec2s offset = glms_vec2_add(entity->pos, vec2_from_ivec2(origin));
+		hitbox.min = glms_vec2_add(hitbox.min, offset);
+		hitbox.max = glms_vec2_add(hitbox.max, offset);
 	}
-
-	vec2s offset = glms_vec2_add(entity->pos, vec2_from_ivec2(origin));
-	hitbox.min = glms_vec2_add(hitbox.min, offset);
-	hitbox.max = glms_vec2_add(hitbox.max, offset);
 
 	return hitbox;
 }

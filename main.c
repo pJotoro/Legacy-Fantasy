@@ -271,6 +271,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		// RenderHitboxes
 		{
 			Rect hitbox, lh, rh, uh, dh;
 			Entity* player = GetPlayer(ctx);
@@ -295,6 +296,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
+		// UpdateTime
 		{			
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
@@ -304,11 +306,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->dt_accumulator += dt_double;
 			ctx->time = current_time;
 		}	
-	}
-
-	for (size_t i = 0; i < ctx->replay_frame_idx; ++i) {
-		// ReplayFrame* r = &ctx->replay_frames[i];
-
 	}
 	
 	SDL_Quit();
