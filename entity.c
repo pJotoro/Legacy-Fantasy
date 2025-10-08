@@ -46,19 +46,21 @@ void UpdatePlayer(Context* ctx) {
 
 		EntityMoveY(player, GRAVITY);
 
-		if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && ctx->button_jump) {
-			player->flags &= ~EntityFlags_TouchingFloor;
-			EntityMoveY(player, -PLAYER_JUMP);
-			SetSprite(player, player_jump_start);
-		} else if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
-			float acc;
-			if (!ctx->gamepad) {
-				acc = (float)input_x * PLAYER_ACC;
+		if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+			if (ctx->button_jump) {
+				player->flags &= ~EntityFlags_TouchingFloor;
+				EntityMoveY(player, -PLAYER_JUMP);
+				SetSprite(player, player_jump_start);
 			} else {
-				acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+				float acc;
+				if (!ctx->gamepad) {
+					acc = (float)input_x * PLAYER_ACC;
+				} else {
+					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+				}
+				EntityMoveX(player, acc);
+				EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
 			}
-			EntityMoveX(player, acc);
-			EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
 		} else if (ctx->button_jump_released && player->vel.y < 0.0f) {
 			player->flags |= EntityFlags_JumpReleased;
 			player->vel.y /= 2.0f;
