@@ -242,8 +242,11 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 			hitbox.min.x = origin.x - (hitbox.max.x - origin.x);
 			hitbox.max.x = hitbox.min.x + (hitbox.max.x - prev_min_x);
 
+			// This causes the hitbox to be way to the right of where it's supposed to be while turned left.
+			#if 0
 			hitbox.min.x += sd->size.x;
 			hitbox.max.x += sd->size.x;
+			#endif
 		}
 		vec2s offset = glms_vec2_add(entity->pos, vec2_from_ivec2(origin));
 		hitbox.min = glms_vec2_add(hitbox.min, offset);
