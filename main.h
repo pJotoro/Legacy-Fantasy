@@ -221,7 +221,7 @@ typedef struct Context {
 void ResetGame(Context* ctx);
 void GetInput(Context* ctx);
 void UpdateGame(Context* ctx);
-Level* GetCurrentLevel(Context* ctx);
+void RecordReplayFrame(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite);
@@ -233,6 +233,7 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset);
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir);
 
+Level* GetCurrentLevel(Context* ctx);
 Entity* GetPlayer(Context* ctx);
 Entity* GetEnemies(Context* ctx, size_t* n_enemies);
 Entity* GetTiles(Context* ctx, size_t* n_tiles);

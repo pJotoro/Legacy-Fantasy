@@ -244,26 +244,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			GetInput(ctx); // TODO: Should this be inside or outside the loop?
 			if (!ctx->paused) {
 				UpdateGame(ctx);
+				RecordReplayFrame(ctx);
 			}
-
-			if (!ctx->paused)
-	 		{
-	 			ReplayFrame replay_frame = {0};
-				
-				// RecordReplayFrame
-				Level* level = GetCurrentLevel(ctx);
-				replay_frame.player = level->player;
-				replay_frame.enemies = SDL_malloc(level->n_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
-				SDL_memcpy(replay_frame.enemies, level->enemies, level->n_enemies * sizeof(Entity));
-				replay_frame.n_enemies = level->n_enemies;
-		 		
-		 		ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
-				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
-					ctx->c_replay_frames *= 8;
-					ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
-				}
-				ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
-	 		}
 
 	 		ctx->dt_accumulator -= dt;
 		}
@@ -523,4 +505,22 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	SDL_memcpy(level->enemies, replay_frame->enemies, replay_frame->n_enemies * sizeof(Entity));
 	level->n_enemies = replay_frame->n_enemies;
 
+}
+
+void RecordReplayFrame(Context* ctx) {
+	ReplayFrame replay_frame = {0};
+	
+	// RecordReplayFrame
+	Level* level = GetCurrentLevel(ctx);
+	replay_frame.player = level->player;
+	replay_frame.enemies = SDL_malloc(level->n_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
+	SDL_memcpy(replay_frame.enemies, level->enemies, level->n_enemies * sizeof(Entity));
+	replay_frame.n_enemies = level->n_enemies;
+		
+	ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
+	if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
+		ctx->c_replay_frames *= 8;
+		ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+	}
+	ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
 }
