@@ -18,13 +18,13 @@ void UpdatePlayer(Context* ctx) {
 		SetSprite(player, player_attack);
 	}
 
-	int32_t input_x = 0;
+	int32_t input_dir = 0;
 	if (ctx->gamepad) {
-		if (ctx->gamepad_left_stick.x == 0.0f) input_x = 0;
-		else if (ctx->gamepad_left_stick.x > 0.0f) input_x = 1;
-		else if (ctx->gamepad_left_stick.x < 0.0f) input_x = -1;
+		if (ctx->gamepad_left_stick.x == 0.0f) input_dir = 0;
+		else if (ctx->gamepad_left_stick.x > 0.0f) input_dir = 1;
+		else if (ctx->gamepad_left_stick.x < 0.0f) input_dir = -1;
 	} else {
-		input_x = ctx->button_right - ctx->button_left;
+		input_dir = ctx->button_right - ctx->button_left;
 	}
 
 	if (SpritesEqual(player->anim.sprite, player_attack)) {
@@ -54,7 +54,7 @@ void UpdatePlayer(Context* ctx) {
 			} else {
 				float acc;
 				if (!ctx->gamepad) {
-					acc = (float)input_x * PLAYER_ACC;
+					acc = (float)input_dir * PLAYER_ACC;
 				} else {
 					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 				}
@@ -70,7 +70,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x += tile.max.x - hitbox.min.x;
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
@@ -78,7 +78,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x += tile.min.x - hitbox.max.x;
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_x == 0) player->vel.x = 0.0f;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
@@ -89,7 +89,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				player->pos.y += tile.max.y - hitbox.min.y;
-				player->vel.y = -player->vel.y/2.0f;
+				player->vel.y = 0.0f;
 				SetSprite(player, player_jump_end);
 			}
 		} else if (player->vel.y > 0.0f) {
@@ -105,14 +105,14 @@ void UpdatePlayer(Context* ctx) {
 		}
 
 		if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
-			if (input_x == 0 && player->vel.x == 0.0f) {
+			if (input_dir == 0 && player->vel.x == 0.0f) {
 				SetSprite(player, player_idle);
 			} else {
 				SetSprite(player, player_run);
 				if (player->vel.x != 0.0f) {
 					player->dir = (int32_t)glm_signf(player->vel.x);
-				} else if (input_x != 0) {
-					player->dir = input_x;
+				} else if (input_dir != 0) {
+					player->dir = input_dir;
 				}
 			}
 		} else {
@@ -123,14 +123,14 @@ void UpdatePlayer(Context* ctx) {
 	}
 
 	if (SpritesEqual(player->anim.sprite, player_attack) && player->anim.ended) {
-		if (input_x == 0 && player->vel.x == 0.0f) {
+		if (input_dir == 0 && player->vel.x == 0.0f) {
 			SetSprite(player, player_idle);
 		} else {
 			SetSprite(player, player_run);
 			if (player->vel.x != 0.0f) {
 				player->dir = (int32_t)glm_signf(player->vel.x);
-			} else if (input_x != 0) {
-				player->dir = input_x;
+			} else if (input_dir != 0) {
+				player->dir = input_dir;
 			}
 		}
 	}
