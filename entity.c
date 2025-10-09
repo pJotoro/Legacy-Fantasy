@@ -264,6 +264,7 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	I'll admit this part of the function is kind of weird. I might end up changing it later.
 	The way it works is: we start from the current frame and go backward.
 	For each frame, check if there is a corresponding hitbox. If so, pick that one.
+	If no hitbox is found and the frame index is 0, loop forward instead.
 	*/
 	{
 		bool res; ssize_t frame_idx;
