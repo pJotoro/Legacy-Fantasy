@@ -142,11 +142,13 @@ typedef uint32_t EntityFlags;
 typedef struct Entity {
 	Anim anim;
 
-	ivec2s src; // tile atlas pos
-	union {
-		vec2s pos; // entity pos
-		ivec2s dst; // tile level pos
-	};
+	// tile
+	ivec2s src;
+	ivec2s dst;
+
+	// entity
+	vec2s pos;
+	vec2s prev_pos;
 	vec2s start_pos;
 	vec2s vel;
 

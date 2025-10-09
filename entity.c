@@ -1,6 +1,7 @@
 void UpdatePlayer(Context* ctx) {
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
+	vec2s prev_pos = player->pos;
 
     if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
     	return;
@@ -145,6 +146,8 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &player->anim, loop);
 
+	player->prev_pos = prev_pos;
+
 	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
 		return;
@@ -152,6 +155,8 @@ void UpdatePlayer(Context* ctx) {
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
+	vec2s prev_pos = boar->pos;
+
 	if (!HAS_FLAG(boar->flags, EntityFlags_Active)) {
 		return;
 	}
@@ -213,6 +218,8 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		loop = false;
 	}
 	UpdateAnim(ctx, &boar->anim, loop);
+
+	boar->prev_pos = prev_pos;
 }
 
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
