@@ -70,18 +70,36 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.x < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
-				player->pos.x += tile.max.x - hitbox.min.x;
-				player->pos.x = SDL_ceilf(player->pos.x);
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
+				Rect lh_prev_y = lh;
+				lh_prev_y.min.y -= player->pos.y;
+				lh_prev_y.min.y += prev_pos.y;
+				lh_prev_y.max.y -= player->pos.y;
+				lh_prev_y.max.y += prev_pos.y;
+				if (RectIntersectsLevel(level, lh_prev_y, &tile)) {
+					player->pos.x += tile.max.x - hitbox.min.x;
+					player->pos.x = SDL_ceilf(player->pos.x);
+					if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
+				} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+					EntityMoveX(player, 0.0f);
+				}
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
 		} else if (player->vel.x > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
-				player->pos.x += tile.min.x - hitbox.max.x;
-				player->pos.x = SDL_floorf(player->pos.x);
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
+				Rect rh_prev_y = rh;
+				rh_prev_y.min.y -= player->pos.y;
+				rh_prev_y.min.y += prev_pos.y;
+				rh_prev_y.max.y -= player->pos.y;
+				rh_prev_y.max.y += prev_pos.y;
+				if (RectIntersectsLevel(level, rh_prev_y, &tile)) {
+					player->pos.x += tile.min.x - hitbox.max.x;
+					player->pos.x = SDL_floorf(player->pos.x);
+					if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
+				} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
+					EntityMoveX(player, 0.0f);
+				}
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
@@ -91,19 +109,35 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
-				player->pos.y += tile.max.y - hitbox.min.y;
-				player->pos.y = SDL_ceilf(player->pos.y);
-				player->vel.y = 0.0f;
-				SetSprite(player, player_jump_end);
+				Rect uh_prev_x = uh;
+				uh_prev_x.min.x -= player->pos.x;
+				uh_prev_x.min.x += prev_pos.x;
+				uh_prev_x.max.x -= player->pos.x;
+				uh_prev_x.max.x += prev_pos.x;
+				if (RectIntersectsLevel(level, uh_prev_x, &tile)) {
+					player->pos.y += tile.max.y - hitbox.min.y;
+					player->pos.y = SDL_ceilf(player->pos.y);
+					player->vel.y = 0.0f;
+					SetSprite(player, player_jump_end);
+				}
 			}
 		} else if (player->vel.y > 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
-				player->pos.y += tile.min.y - hitbox.max.y;
-				player->pos.y = SDL_floorf(player->pos.y);
-				player->vel.y = 0.0f;
-				player->flags |= EntityFlags_TouchingFloor;
-				player->flags &= ~EntityFlags_JumpReleased;
+				Rect dh_prev_x = dh;
+				dh_prev_x.min.x -= player->pos.x;
+				dh_prev_x.min.x += prev_pos.x;
+				dh_prev_x.max.x -= player->pos.x;
+				dh_prev_x.max.x += prev_pos.x;
+				if (RectIntersectsLevel(level, dh_prev_x, &tile)) {
+					player->pos.y += tile.min.y - hitbox.max.y;
+					player->pos.y = SDL_floorf(player->pos.y);
+					player->vel.y = 0.0f;
+					player->flags |= EntityFlags_TouchingFloor;
+					player->flags &= ~EntityFlags_JumpReleased;
+				} else {
+					SetSprite(player, player_jump_end);
+				}
 			} else {
 				SetSprite(player, player_jump_end);
 			}
