@@ -70,6 +70,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x += tile.max.x - hitbox.min.x;
+				player->pos.x = SDL_ceilf(player->pos.x);
 				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
@@ -78,6 +79,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x += tile.min.x - hitbox.max.x;
+				player->pos.x = SDL_floorf(player->pos.x);
 				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->vel.x = 0.0f;
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
@@ -89,6 +91,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
 				player->pos.y += tile.max.y - hitbox.min.y;
+				player->pos.y = SDL_ceilf(player->pos.y);
 				player->vel.y = 0.0f;
 				SetSprite(player, player_jump_end);
 			}
@@ -96,6 +99,7 @@ void UpdatePlayer(Context* ctx) {
 			Rect tile;
 			if (RectIntersectsLevel(level, dh, &tile)) {
 				player->pos.y += tile.min.y - hitbox.max.y;
+				player->pos.y = SDL_floorf(player->pos.y);
 				player->vel.y = 0.0f;
 				player->flags |= EntityFlags_TouchingFloor;
 				player->flags &= ~EntityFlags_JumpReleased;
