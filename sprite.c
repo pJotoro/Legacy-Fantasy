@@ -319,6 +319,8 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 			}
 			#else
 			*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
+			hitbox->min = glms_vec2_floor(hitbox->min);
+			hitbox->max = glms_vec2_floor(hitbox->max);
 			#endif
 			return true;
 		}

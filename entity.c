@@ -253,6 +253,9 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 		hitbox.max = glms_vec2_add(hitbox.max, offset);
 	}
 
+	hitbox.min = glms_vec2_floor(hitbox.min);
+	hitbox.max = glms_vec2_floor(hitbox.max);
+
 	return hitbox;
 }
 
@@ -261,32 +264,43 @@ void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh
 	*h = GetEntityHitbox(ctx, entity);
 
 	lh->min.x = h->min.x;
-	lh->min.y = h->min.y + 1;
+	lh->min.y = h->min.y + 1.0f;
 	lh->max.x = h->min.x;
-	lh->max.y = h->max.y - 1;
+	lh->max.y = h->max.y - 1.0f;
 
 	rh->min.x = h->max.x;
-	rh->min.y = h->min.y + 1;
+	rh->min.y = h->min.y + 1.0f;
 	rh->max.x = h->max.x;
-	rh->max.y = h->max.y - 1;
+	rh->max.y = h->max.y - 1.0f;
 
-	uh->min.x = h->min.x + 1;
-	uh->min.y = h->min.y;
-	uh->max.x = h->max.x - 1;
-	uh->max.y = h->min.y + 1;
-
-	dh->min.x = h->min.x + 1;
-	dh->min.y = h->max.y - 1;
-	dh->max.x = h->max.x - 1;
-	dh->max.y = h->max.y;
-
-	if (entity->dir == 1) {
-		lh->max.x += 1;
-		rh->min.x -= 1;
+	if (entity->dir == 1.0f) {
+		lh->max.x += 1.0f;
+		rh->min.x -= 1.0f;
 	} else {
-		lh->min.x -= 1;
-		rh->max.x += 1;
+		lh->min.x -= 1.0f;
+		rh->max.x += 1.0f;
 	}
+
+	lh->min = glms_vec2_floor(lh->min);
+	lh->max = glms_vec2_floor(lh->max);
+
+	rh->min = glms_vec2_floor(rh->min);
+	rh->max = glms_vec2_floor(rh->max);
+
+	uh->min.x = h->min.x + 1.0f;
+	uh->min.y = h->min.y;
+	uh->max.x = h->max.x - 1.0f;
+	uh->max.y = h->min.y + 1.0f;
+	uh->min = glms_vec2_floor(uh->min);
+	uh->max = glms_vec2_floor(uh->max);
+
+	dh->min.x = h->min.x + 1.0f;
+	dh->min.y = h->max.y - 1.0f;
+	dh->max.x = h->max.x - 1.0f;
+	dh->max.y = h->max.y;
+	dh->min = glms_vec2_floor(dh->min);
+	dh->max = glms_vec2_floor(dh->max);
+
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
