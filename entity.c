@@ -88,7 +88,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->vel.y < 0.0f) {
 			Rect tile;
 			if (RectIntersectsLevel(level, uh, &tile)) {
-				player->pos.y += tile.max.y - hitbox.min.y + 1.0f;
+				player->pos.y += tile.max.y - hitbox.min.y;
 				player->vel.y = 0.0f;
 				SetSprite(player, player_jump_end);
 			}
