@@ -392,7 +392,8 @@ void GetInput(Context* ctx) {
 						ctx->button_left = 1;
 					}
 					if (ctx->paused) {
-						SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
+						ctx->replay_frame_idx = ctx->replay_frame_idx > 0 ? ctx->replay_frame_idx-1 : 0; 
+						SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx, 0));
 					}
 					break;
 				case SDLK_RIGHT:

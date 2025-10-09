@@ -2,6 +2,8 @@ void UpdatePlayer(Context* ctx) {
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
 	vec2s prev_pos = player->pos;
+	bool set_prev_x = false;
+	bool set_prev_y = false;
 
     if (!HAS_FLAG(player->flags, EntityFlags_Active)) {
     	return;
@@ -65,6 +67,7 @@ void UpdatePlayer(Context* ctx) {
 		} else if (ctx->button_jump_released && EntityVelY(player) < 0.0f) {
 			player->flags |= EntityFlags_JumpReleased;
 			player->prev_pos.y -= EntityVelY(player)/2.0f; // TODO: Is this right?
+			set_prev_y = true;
 		}
 
 		if (EntityVelX(player) < 0.0f) {
@@ -72,7 +75,10 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(level, lh, &tile)) {
 				player->pos.x += tile.max.x - hitbox.min.x;
 				player->pos.x = SDL_ceilf(player->pos.x);
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->prev_pos.x = player->pos.x;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) {
+					player->prev_pos.x = player->pos.x;
+					set_prev_x = true;
+				}
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
@@ -81,7 +87,10 @@ void UpdatePlayer(Context* ctx) {
 			if (RectIntersectsLevel(level, rh, &tile)) {
 				player->pos.x += tile.min.x - hitbox.max.x;
 				player->pos.x = SDL_floorf(player->pos.x);
-				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) player->prev_pos.x = player->pos.x;
+				if (HAS_FLAG(player->flags, EntityFlags_TouchingFloor) && input_dir == 0) {
+					player->prev_pos.x = player->pos.x;
+					set_prev_x = true;
+				}
 			} else if (!HAS_FLAG(player->flags, EntityFlags_TouchingFloor)) {
 				EntityMoveX(player, 0.0f);
 			}
@@ -94,6 +103,7 @@ void UpdatePlayer(Context* ctx) {
 				player->pos.y += tile.max.y - hitbox.min.y;
 				player->pos.y = SDL_ceilf(player->pos.y);
 				player->prev_pos.y = player->pos.y;
+				set_prev_y = true;
 				SetSprite(player, player_jump_end);
 			}
 		} else if (EntityVelY(player) > 0.0f) {
@@ -102,6 +112,7 @@ void UpdatePlayer(Context* ctx) {
 				player->pos.y += tile.min.y - hitbox.max.y;
 				player->pos.y = SDL_floorf(player->pos.y);
 				player->prev_pos.y = player->pos.y;
+				set_prev_y = true;
 				player->flags |= EntityFlags_TouchingFloor;
 				player->flags &= ~EntityFlags_JumpReleased;
 			} else {
@@ -146,7 +157,8 @@ void UpdatePlayer(Context* ctx) {
 	}
 	UpdateAnim(ctx, &player->anim, loop);
 
-	player->prev_pos = prev_pos;
+	if (!set_prev_x) player->prev_pos.x = prev_pos.x;
+	if (!set_prev_y) player->prev_pos.y = prev_pos.y;
 
 	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
@@ -168,6 +180,8 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	}
 
 	vec2s prev_pos = boar->pos;
+	bool set_prev_x = false;
+	bool set_prev_y = false;
 
 	Rect hitbox, lh, rh, uh, dh;
 	GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
@@ -182,12 +196,14 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		if (RectIntersectsLevel(level, uh, &tile)) {
 			boar->pos.y += tile.max.y - hitbox.min.y;
 			boar->prev_pos.y = boar->pos.y;
+			set_prev_y = true;
 		}
 	} else if (EntityVelY(boar) > 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, dh, &tile)) {
 			boar->pos.y += tile.min.y - hitbox.max.y;
 			boar->prev_pos.y = boar->pos.y;
+			set_prev_y = true;
 			boar->flags |= EntityFlags_TouchingFloor;
 		}
 	}
@@ -204,12 +220,14 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		if (RectIntersectsLevel(level, lh, &tile)) {
 			boar->pos.x += tile.max.x - hitbox.min.x;
 			boar->prev_pos.x = boar->pos.x;
+			set_prev_x = true;
 		}
 	} else if (EntityVelX(boar) > 0.0f) {
 		Rect tile;
 		if (RectIntersectsLevel(level, rh, &tile)) {
 			boar->pos.x += tile.min.x - hitbox.max.x;
 			boar->prev_pos.x = boar->pos.x;
+			set_prev_x = true;
 		}
 	}
 
@@ -219,18 +237,15 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	}
 	UpdateAnim(ctx, &boar->anim, loop);
 
-	boar->prev_pos = prev_pos;
+	if (!set_prev_x) boar->prev_pos.x = prev_pos.x;
+	if (!set_prev_y) boar->prev_pos.y = prev_pos.y;
 }
 
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
-	/* 	
-	I'll admit this part of the function is kind of weird. I might end up changing it later.
-	The way it works is: we start from the current frame and go backward.
-	For each frame, check if there is a corresponding hitbox. If so, pick that one.
-	*/
+	// ChooseEntityHitbox
 	{
 		bool res; ssize_t frame_idx;
 		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
