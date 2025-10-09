@@ -142,21 +142,25 @@ typedef uint32_t EntityFlags;
 typedef struct Entity {
 	Anim anim;
 
-	ivec2s src; // tile atlas pos
-	union {
-		vec2s pos; // entity pos
-		ivec2s dst; // tile level pos
-	};
+	// player, enemies
+	vec2s pos;
+	vec2s prev_pos;
 	vec2s start_pos;
-	vec2s vel;
-
 	int32_t dir;
+
+	// tile
+	ivec2s src;
+	ivec2s dst;
 
 	EntityFlags flags;
 } Entity;
 
-void EntityMoveX(Entity* entity, float acc);
-void EntityMoveY(Entity* entity, float acc);
+FORCEINLINE float EntityVelX(Entity* entity);
+FORCEINLINE float EntityVelY(Entity* entity);
+FORCEINLINE vec2s EntityVel(Entity* entity);
+
+FORCEINLINE void EntityMoveX(Entity* entity, float acc);
+FORCEINLINE void EntityMoveY(Entity* entity, float acc);
 
 bool SetSpriteFromPath(Entity* entity, const char* path);
 bool SetSprite(Entity* entity, Sprite sprite);
@@ -239,7 +243,7 @@ Entity* GetEnemies(Context* ctx, size_t* n_enemies);
 Entity* GetTiles(Context* ctx, size_t* n_tiles);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
-ivec2s GetEntityOrigin(Context* ctx, Entity* entity);
+FORCEINLINE ivec2s GetEntityOrigin(Context* ctx, Entity* entity);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
 

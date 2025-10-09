@@ -72,7 +72,7 @@ void ResetGame(Context* ctx) {
 			Entity* player = &level->player;
 			player->flags |= EntityFlags_Active;
 			player->pos = player->start_pos;
-			player->vel = (vec2s){0.0f, 0.0f};
+			player->prev_pos = player->start_pos;
 			player->dir = 1;
 			ResetAnim(&player->anim);
 			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
@@ -81,7 +81,7 @@ void ResetGame(Context* ctx) {
 			Entity* enemy = &level->enemies[enemy_idx];
 			enemy->flags |= EntityFlags_Active;
 			enemy->pos = enemy->start_pos;
-			enemy->vel = (vec2s){0.0f, 0.0f};
+			enemy->prev_pos = enemy->start_pos;
 			enemy->dir = 1;
 			ResetAnim(&enemy->anim);
 			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
