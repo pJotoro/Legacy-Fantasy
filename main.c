@@ -303,7 +303,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-			ctx->dt_accumulator += dt_double;
+			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0f/30.0f);
 			ctx->time = current_time;
 		}	
 	}
