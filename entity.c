@@ -56,30 +56,30 @@ void UpdatePlayer(Context* ctx) {
     	
     case EntityState_Fall: {
     	SetSprite(player, player_jump_end);
-    	bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
 
-		// EntityMoveY(player, GRAVITY);
+    	vec2s acc = {0.0f, GRAVITY};
+    	EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+
     	/*
 		if (hit_ground) {
     		player->state = EntityState_Free;
 		}
     	*/
+
+    	bool loop = false;
+    	UpdateAnim(ctx, &player->anim, loop);
+
 		return;
 	}
     	
 	case EntityState_Jump: {
-		// float move_y = 0.0f;
+		vec2s acc = {0.0f};
 		if (SetSprite(player, player_jump_start)) {
-			// move_y -= PLAYER_JUMP;
+			acc.y -= PLAYER_JUMP;
 		}
-		bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
 
-    	// EntityMoveX(player, 0.0f);
-    	// move_y += GRAVITY;
-		// EntityMoveY(player, move_y);
-
+    	acc.y += GRAVITY;
+    	EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 		/*
 		if (hit_ground) {
 			player->state = EntityState_Free;
@@ -87,6 +87,10 @@ void UpdatePlayer(Context* ctx) {
 			player->state = EntityState_Fall;
 		}
 		*/
+
+		bool loop = false;
+    	UpdateAnim(ctx, &player->anim, loop);
+
 
 		return;
 	}
