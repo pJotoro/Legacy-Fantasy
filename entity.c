@@ -69,12 +69,16 @@ void UpdatePlayer(Context* ctx) {
 	}
     	
 	case EntityState_Jump: {
-		SetSprite(player, player_jump_start);
+		float move_y = 0.0f;
+		if (SetSprite(player, player_jump_start)) {
+			move_y -= PLAYER_JUMP;
+		}
 		bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
 
     	EntityMoveX(player, 0.0f);
-		EntityMoveY(player, GRAVITY);
+    	move_y += GRAVITY;
+		EntityMoveY(player, move_y);
 
 		/*
 		if (hit_ground) {
