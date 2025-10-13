@@ -154,6 +154,8 @@ void UpdatePlayer(Context* ctx) {
 					player->vel.y -= glm_sign(player->vel.y);
 				}
 			}
+
+			player->pos = hitbox.min;
 		}
 
 		return;		
