@@ -82,7 +82,7 @@ Level LoadLevel(JSON_Node* level_node) {
 	return res;
 }
 
-bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
+bool RectIntersectsLevel(Level* level, Rect a) {
 	Tile* tiles = level->tiles; size_t n_tiles = level->n_tiles;
     for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
         Tile* tile = &tiles[tile_idx];
@@ -91,7 +91,6 @@ bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
             tile_rect.min = tile->dst;
             tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
             if (RectsIntersect(a, tile_rect)) {
-                if (b) *b = tile_rect;
                 return true;
             }
         }

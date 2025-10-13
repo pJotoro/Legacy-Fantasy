@@ -123,13 +123,35 @@ void UpdatePlayer(Context* ctx) {
 			player->vel = glms_ivec2_add(player->vel, ivec2_from_vec2(glms_vec2_floor(player->vel_remainder)));
 			player->vel_remainder = glms_vec2_sub(player->vel_remainder, glms_vec2_floor(player->vel_remainder));
 
+			Rect hitbox = GetEntityHitbox(ctx, player);
+			bool move_x = true;
+			bool move_y = true;
+			while ((move_x && player->vel.x != 0) || (move_y && player->vel.y != 0)) {
+				if (move_x) {
+					hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
+					if (RectIntersectsLevel(level, hitbox)) {
+						move_x = false;
+					}
+					hitbox.min.x -= glm_sign(player->vel.x); hitbox.max.x -= glm_sign(player->vel.x);
 
+				}
+				if (move_y) {
+					hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
+					if (RectIntersectsLevel(level, hitbox)) {
+						move_y = false;
+					}
+					hitbox.min.y -= glm_sign(player->vel.y); hitbox.max.y -= glm_sign(player->vel.y);
+				}
 
-
-			// TODO: collision detection
-
-
-
+				if (move_x) {
+					hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
+					player->vel.x -= glm_sign(player->vel.x);
+				}
+				if (move_y) {
+					hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
+					player->vel.y -= glm_sign(player->vel.y);
+				}
+			}
 
 			// EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
 		}
