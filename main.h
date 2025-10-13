@@ -146,8 +146,8 @@ typedef struct Entity {
 
 	ivec2s start_pos;
 	ivec2s pos;
-	vec2s pos_remainder;
-	vec2s vel;
+	ivec2s vel;
+	vec2s vel_remainder;
 
 	int32_t dir;
 
@@ -240,6 +240,3 @@ ReplayFrame* GetReplayFrame(Context* ctx);
 void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 
 FORCEINLINE float NormInt16(int16_t i16);
-
-void EntityMoveX(Entity* entity, float acc);
-void EntityMoveY(Entity* entity, float acc);
