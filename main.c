@@ -3,6 +3,8 @@
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 
+#define GAMEPAD_THRESHOLD 0.5f
+
 #define PLAYER_ACC 0.015f
 #define PLAYER_FRIC 0.005f
 #define PLAYER_MAX_VEL 0.25f
@@ -26,8 +28,6 @@
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
 #define dt 0.00208333333333333333
-
-// I know global variables are bad, but sometimes they are just so convenient.
 
 static Sprite player_idle;
 static Sprite player_run;
@@ -70,7 +70,7 @@ void ResetGame(Context* ctx) {
 		Level* level = &ctx->levels[level_idx];
 		{
 			Entity* player = &level->player;
-			player->flags |= EntityFlags_Active;
+			player->state = EntityState_Free;
 			player->pos = player->start_pos;
 			player->vel = (vec2s){0.0f, 0.0f};
 			player->dir = 1;
@@ -79,12 +79,12 @@ void ResetGame(Context* ctx) {
 		}
 		for (size_t enemy_idx = 0; enemy_idx < level->n_enemies; ++enemy_idx) {
 			Entity* enemy = &level->enemies[enemy_idx];
-			enemy->flags |= EntityFlags_Active;
+			enemy->state = EntityState_Free;
 			enemy->pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f, 0.0f};
 			enemy->dir = 1;
 			ResetAnim(&enemy->anim);
-			if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+			if (enemy->type == EntityType_Boar) {
 				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
 			}
 		}
@@ -95,19 +95,12 @@ int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
 
-	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO));
-#if 0
-	SDL_CHECK(TTF_Init());
-#endif
-
-	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
-
 	InitSprites();
 
-	// InitTime
-	{
-		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
-	}
+	// InitContext
+	SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO));
+	Context* ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
+	SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
 
 	// CreateWindowAndRenderer
 	{
@@ -124,36 +117,16 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
 		}
 
-#if 0
-		ctx->display_content_scale = SDL_GetDisplayContentScale(display);
-#endif
 		ctx->refresh_rate = display_mode->refresh_rate;
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
-
 	}
 
-#if 0
-	// InitTextEngine
-	{
-		ctx->text_engine = TTF_CreateRendererTextEngine(ctx->renderer); SDL_CHECK(ctx->text_engine);
-	}
+	// Calls EnumerateSpriteDirectory.
+	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
-	// LoadFont
-	{
-		SDL_PropertiesID props = SDL_CreateProperties(); SDL_CHECK(props);
-		SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, "assets\\fonts\\Roboto-Regular.ttf");
-		SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 15.0f);
-		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_HORIZONTAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
-		SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_VERTICAL_DPI_NUMBER, (int64_t)(72.0f*ctx->display_content_scale));
-		ctx->font_roboto_regular = TTF_OpenFontWithProperties(props); SDL_CHECK(ctx->font_roboto_regular);
-		SDL_DestroyProperties(props);
-	}
-#endif
-
-	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateDirectoryCallback, ctx));
-
+	// SortSprites
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
 		SpriteDesc* sd = &ctx->sprites[sprite_idx];
 		if (sd->path) {
@@ -163,7 +136,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 	}
-
+	
 	// LoadLevels
 	{
 		JSON_Node* head;
@@ -215,14 +188,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_idx = 0; tile_idx < level->n_tiles; ++tile_idx) {
-				Entity* tile = &level->tiles[tile_idx];
+				Tile* tile = &level->tiles[tile_idx];
 				ivec2s src = tile->src;
 				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
 					int32_t i = tiles_collide[tiles_collide_idx];
 					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
 					int32_t j = (src.x + src.y*tileset_dimensions.x)/TILE_SIZE;
 					if (i == j) {
-						tile->flags |= EntityFlags_Solid;
+						tile->solid = true;
 						break;
 					}
 				}
@@ -235,8 +208,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ResetGame(ctx);
 
-	ctx->c_replay_frames = 1024;
-	ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+	// InitReplayFrames
+	{
+		ctx->c_replay_frames = 1024;
+		ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
+	}
 
 	ctx->running = true;
 	while (ctx->running) {
@@ -264,27 +240,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				DrawEntity(ctx, enemy);
 			}
 			DrawEntity(ctx, GetPlayer(ctx));
-			size_t n_tiles; Entity* tiles = GetTiles(ctx, &n_tiles);
+			size_t n_tiles; Tile* tiles = GetTiles(ctx, &n_tiles);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-				Entity* tile = &tiles[tile_idx];
-				DrawSpriteTile(ctx, spr_tiles, tile->src, tile->pos);
+				Tile* tile = &tiles[tile_idx];
+				DrawSpriteTile(ctx, spr_tiles, tile->src, tile->dst);
 			}
-		}
-
-		// RenderHitboxes
-		{
-			Rect hitbox, lh, rh, uh, dh;
-			Entity* player = GetPlayer(ctx);
-			GetEntityHitboxes(ctx, player, &hitbox, &lh, &rh, &uh, &dh);
-			
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 0));
-			SDL_RenderRect(ctx->renderer, &(SDL_FRect){lh.min.x, lh.min.y, lh.max.x - lh.min.x, lh.max.y - lh.min.y});
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 255, 0, 0));
-			SDL_RenderRect(ctx->renderer, &(SDL_FRect){rh.min.x, rh.min.y, rh.max.x - rh.min.x, rh.max.y - rh.min.y});
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 255, 0));
-			SDL_RenderRect(ctx->renderer, &(SDL_FRect){uh.min.x, uh.min.y, uh.max.x - uh.min.x, uh.max.y - uh.min.y});
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 255, 0, 0));
-			SDL_RenderRect(ctx->renderer, &(SDL_FRect){dh.min.x, dh.min.y, dh.max.x - dh.min.x, dh.max.y - dh.min.y});
 		}
 
 		// RenderEnd
@@ -312,7 +272,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	return 0;
 }
 
-SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname) {
+SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 
 	// dirname\fname\file
@@ -346,7 +306,7 @@ SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dir
 			SDL_CloseIO(fs);
 		}
 	} else if (n_files == 0) {
-		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateDirectoryCallback, ctx));
+		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
 	
 	SDL_free(files);
@@ -365,10 +325,7 @@ void GetInput(Context* ctx) {
 	ctx->button_jump = false;
 	ctx->button_jump_released = false;
 	ctx->button_attack = false;
-
 	ctx->left_mouse_pressed = false;
-
-	ctx->button_left_released = false;
 
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
@@ -430,7 +387,6 @@ void GetInput(Context* ctx) {
 				switch (event.key.key) {
 				case SDLK_LEFT:
 					ctx->button_left = 0;
-					ctx->button_left_released = true;
 					break;
 				case SDLK_RIGHT:
 					ctx->button_right = 0;
@@ -444,10 +400,10 @@ void GetInput(Context* ctx) {
 		case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 			switch (event.gaxis.axis) {
 			case SDL_GAMEPAD_AXIS_LEFTX:
-				ctx->gamepad_left_stick.x = (float)event.gaxis.value / 32767.0f;
+				ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
 				break;
 			case SDL_GAMEPAD_AXIS_LEFTY:
-				ctx->gamepad_left_stick.y = (float)event.gaxis.value / 32767.0f;
+				ctx->gamepad_left_stick.y = NormInt16(event.gaxis.value);
 				break;
 			}
 			break;
@@ -474,7 +430,7 @@ void GetInput(Context* ctx) {
 		}		
 	}
 
-	if (ctx->gamepad_left_stick.x < 0.5f && ctx->gamepad_left_stick.x > -0.5f) {
+	if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) {
 		ctx->gamepad_left_stick.x = 0.0f;
 	}
 }
@@ -484,7 +440,7 @@ void UpdateGame(Context* ctx) {
 	size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 	for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
 		Entity* enemy = &enemies[enemy_idx];
-		if (HAS_FLAG(enemy->flags, EntityFlags_Boar)) {
+		if (enemy->type == EntityType_Boar) {
 			UpdateBoar(ctx, enemy);
 		}
 	}

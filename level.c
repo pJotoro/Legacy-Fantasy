@@ -30,9 +30,9 @@ Level LoadLevel(JSON_Node* level_node) {
 	}
 
 	res.enemies = SDL_calloc(res.n_enemies, sizeof(Entity)); SDL_CHECK(res.enemies);
-	res.tiles = SDL_calloc(res.n_tiles, sizeof(Entity)); SDL_CHECK(res.tiles);
+	res.tiles = SDL_calloc(res.n_tiles, sizeof(Tile)); SDL_CHECK(res.tiles);
 	Entity* enemy = res.enemies;
-	Entity* tile = res.tiles;
+	Tile* tile = res.tiles;
 	JSON_ArrayForEach(layer_instance, layer_instances) {
 		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
 		char* ident = JSON_GetStringValue(ident_node); SDL_assert(ident);
@@ -41,7 +41,7 @@ Level LoadLevel(JSON_Node* level_node) {
 			JSON_Node* entity_instance = entity_instances->child;
 			JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
 			JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
-			res.player.start_pos = (vec2s){(float)JSON_GetIntValue(world_x), (float)JSON_GetIntValue(world_y)};
+			res.player.start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
 		} else if (SDL_strcmp(ident, layer_enemies) == 0) {
 			JSON_Node* entity_instances = JSON_GetObjectItem(layer_instance, "entityInstances", true);
 
@@ -50,9 +50,9 @@ Level LoadLevel(JSON_Node* level_node) {
 				char* identifier = JSON_GetStringValue(identifier_node);
 				JSON_Node* world_x = JSON_GetObjectItem(entity_instance, "__worldX", true);
 				JSON_Node* world_y = JSON_GetObjectItem(entity_instance, "__worldY", true);
-				enemy->start_pos = (vec2s){(float)JSON_GetIntValue(world_x), (float)JSON_GetIntValue(world_y)};
+				enemy->start_pos = (ivec2s){JSON_GetIntValue(world_x), JSON_GetIntValue(world_y)};
 				if (SDL_strcmp(identifier, "Boar") == 0) {
-					enemy->flags = EntityFlags_Boar;
+					enemy->type = EntityType_Boar;
 				} // else if (SDL_strcmp(identifier, "") == 0) {}
 				++enemy;
 			}
@@ -72,9 +72,8 @@ Level LoadLevel(JSON_Node* level_node) {
 					JSON_GetIntValue(dst_node->child->next),
 				};
 
-				tile->start_pos = vec2_from_ivec2(dst);
-				tile->pos = tile->start_pos; // TODO: Will these ever differ?
 				tile->src = src;
+				tile->dst = dst;
 				++tile;
 			}
 		}
@@ -84,13 +83,13 @@ Level LoadLevel(JSON_Node* level_node) {
 }
 
 bool RectIntersectsLevel(Level* level, Rect a, Rect* b) {
-	Entity* tiles = level->tiles; size_t n_tiles = level->n_tiles;
+	Tile* tiles = level->tiles; size_t n_tiles = level->n_tiles;
     for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-        Entity* tile = &tiles[tile_idx];
-        if (HAS_FLAG(tile->flags, EntityFlags_Solid)) {
+        Tile* tile = &tiles[tile_idx];
+        if (tile->solid) {
             Rect tile_rect;
-            tile_rect.min = tile->pos;
-            tile_rect.max = glms_vec2_adds(tile_rect.min, TILE_SIZE);
+            tile_rect.min = tile->dst;
+            tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
             if (RectsIntersect(a, tile_rect)) {
                 if (b) *b = tile_rect;
                 return true;

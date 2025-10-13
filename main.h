@@ -1,8 +1,5 @@
 #include <SDL.h>
 #include <SDL_main.h>
-#if 0
-#include <SDL_ttf.h>
-#endif
 
 typedef int64_t ssize_t;
 
@@ -52,38 +49,41 @@ typedef int64_t ssize_t;
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
-#if 0
-void DrawCircle(SDL_Renderer* renderer, ivec2s center, int32_t radius);
-void DrawCircleFilled(SDL_Renderer* renderer, ivec2s center, int32_t radius);
-#endif
-
-SDL_EnumerationResult EnumerateDirectoryCallback(void *userdata, const char *dirname, const char *fname);
+SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname);
 
 size_t HashString(char* key, size_t len);
 
 typedef struct Rect {
-	vec2s min;
-	vec2s max;
+	ivec2s min;
+	ivec2s max;
 } Rect;
+
+typedef struct Tile {
+	ivec2s src;
+	ivec2s dst;
+	bool solid;
+} Tile;
 
 typedef struct SpriteLayer {
 	char* name;
 } SpriteLayer;
 
 enum {
-	SpriteCellFlags_Hitbox = FLAG(0),
-	SpriteCellFlags_Origin = FLAG(1),
+	SpriteCellType_Sprite,
+	SpriteCellType_Hitbox,
+	SpriteCellType_Hurtbox,
+	SpriteCellType_Origin,
 };
-typedef uint32_t SpriteCellFlags;
+typedef uint32_t SpriteCellType;
 
 typedef struct SpriteCell {
-	size_t layer_idx;
-	size_t frame_idx;
 	ivec2s offset;
 	ivec2s size;
-	ssize_t z_idx;
 	SDL_Texture* texture;
-	SpriteCellFlags flags;
+	uint32_t layer_idx;
+	uint32_t frame_idx;
+	int32_t z_idx;
+	SpriteCellType type;
 } SpriteCell;
 
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b);
@@ -106,15 +106,15 @@ typedef struct SpriteDesc {
 void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd);
 
 typedef struct Sprite {
-	ssize_t idx;
+	int32_t idx;
 } Sprite;
 
 bool SpritesEqual(Sprite a, Sprite b);
 
 typedef struct Anim {
 	Sprite sprite;
-	size_t frame_idx;
 	double dt_accumulator;
+	uint32_t frame_idx;
 	int32_t timer; // As long as this timer is > 0, don't change the animation.
 	bool ended;
 } Anim;
@@ -122,53 +122,44 @@ typedef struct Anim {
 void ResetAnim(Anim* anim);
 
 enum {
-	// All entities
-	EntityFlags_Active = FLAG(0),
-
-	// Player
-	EntityFlags_JumpReleased = FLAG(1),
-
-	// Enemy
-	EntityFlags_Boar = FLAG(2),
-
-	// Player, Enemy
-	EntityFlags_TouchingFloor = FLAG(3),
-
-	// Tile
-	EntityFlags_Solid = FLAG(4),
+	EntityType_Player,
+	EntityType_Boar,
 };
-typedef uint32_t EntityFlags;
+typedef uint32_t EntityType;
+
+enum {
+	EntityState_Inactive,
+	EntityState_Die,
+	EntityState_Attack,
+	EntityState_Fall,
+	EntityState_Jump,
+	EntityState_Free,
+	
+	// TODO
+	EntityState_Hurt,
+	
+};
+typedef uint32_t EntityState;
 
 typedef struct Entity {
 	Anim anim;
 
-	// tile
-	ivec2s src;
-	ivec2s dst;
-
-	// entity
-	vec2s pos;
-	vec2s prev_pos;
-	vec2s start_pos;
+	ivec2s start_pos;
+	ivec2s pos;
+	vec2s pos_remainder;
 	vec2s vel;
 
 	int32_t dir;
 
-	EntityFlags flags;
+	EntityType type;
+	EntityState state;
 } Entity;
-
-void EntityMoveX(Entity* entity, float acc);
-void EntityMoveY(Entity* entity, float acc);
-
-bool SetSpriteFromPath(Entity* entity, const char* path);
-bool SetSprite(Entity* entity, Sprite sprite);
 
 typedef struct Level {
 	ivec2s size;
-	SDL_Time modify_time;
 	Entity player;
 	Entity* enemies; size_t n_enemies;
-	Entity* tiles; size_t n_tiles;
+	Tile* tiles; size_t n_tiles;
 } Level;
 
 bool IsSolid(Level* level, ivec2s grid_pos);
@@ -184,17 +175,12 @@ typedef struct Context {
 
 	SDL_Renderer* renderer;
 	bool vsync;
-#if 0
-	float display_content_scale;
-	TTF_TextEngine* text_engine;
-	TTF_Font* font_roboto_regular;
-#endif
 
 	SDL_Gamepad* gamepad;
 	vec2s gamepad_left_stick;
 
-	int32_t button_left; bool button_left_released;
-	int32_t button_right;
+	bool button_left;
+	bool button_right;
 	bool button_jump;
 	bool button_jump_released;
 	bool button_attack;
@@ -203,8 +189,8 @@ typedef struct Context {
 	vec2s mouse_pos;
 
 	SDL_Time time;
-	float refresh_rate;
 	double dt_accumulator;
+	float refresh_rate;
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
@@ -229,7 +215,7 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
-void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst);
+void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, ivec2s dst);
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset);
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
@@ -238,7 +224,7 @@ void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir);
 Level* GetCurrentLevel(Context* ctx);
 Entity* GetPlayer(Context* ctx);
 Entity* GetEnemies(Context* ctx, size_t* n_enemies);
-Entity* GetTiles(Context* ctx, size_t* n_tiles);
+Tile* GetTiles(Context* ctx, size_t* n_tiles);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
 ivec2s GetEntityOrigin(Context* ctx, Entity* entity);
@@ -252,3 +238,8 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel);
 
 ReplayFrame* GetReplayFrame(Context* ctx);
 void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
+
+FORCEINLINE float NormInt16(int16_t i16);
+
+void EntityMoveX(Entity* entity, float acc);
+void EntityMoveY(Entity* entity, float acc);

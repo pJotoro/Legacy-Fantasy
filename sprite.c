@@ -126,8 +126,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 			case ASE_ChunkType_Cell: {
 				ASE_CellChunk* chunk = raw_chunk;
 				SpriteCell cell = {
-					.layer_idx = layer_idx,
-					.frame_idx = frame_idx,
+					.layer_idx = (uint32_t)layer_idx,
+					.frame_idx = (uint32_t)frame_idx,
 					.offset.x = chunk->x,
 					.offset.y = chunk->y,
 					.z_idx = (ssize_t)chunk->z_idx,
@@ -143,9 +143,9 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 						cell.size.y = chunk->compressed_image.h;
 
 						if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
-							cell.flags |= SpriteCellFlags_Hitbox;
+							cell.type = SpriteCellType_Hitbox;
 						} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Origin") == 0) {
-							cell.flags |= SpriteCellFlags_Origin;
+							cell.type = SpriteCellType_Origin;
 						} else {
 							// It's the zero-sized array at the end of ASE_CellChunk.
 							size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
@@ -276,7 +276,7 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
 }
 
-void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, vec2s dst) {
+void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, ivec2s dst) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
@@ -308,20 +308,8 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 	SpriteFrame* frame = &sd->frames[frame_idx];
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
-		if (HAS_FLAG(cell->flags, SpriteCellFlags_Hitbox)) {
-			#if 0
-			if (dir == 1) {
-				*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
-			} else {
-				*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
-				hitbox->min.x *= -1.0f;
-				hitbox->max.x *= -1.0f;
-			}
-			#else
-			*hitbox = (Rect){vec2_from_ivec2(cell->offset), vec2_from_ivec2(glms_ivec2_add(cell->offset, cell->size))};
-			hitbox->min = glms_vec2_floor(hitbox->min);
-			hitbox->max = glms_vec2_floor(hitbox->max);
-			#endif
+		if (cell->type == SpriteCellType_Hitbox) {
+			*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
 			return true;
 		}
 	}
@@ -333,7 +321,7 @@ ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite) {
 	SpriteFrame* frame = &sd->frames[0];
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
-		if (HAS_FLAG(cell->flags, SpriteCellFlags_Origin)) return cell->offset;
+		if (cell->type == SpriteCellType_Origin) return cell->offset;
 	}
 	return (ivec2s){0, 0};
 }

@@ -127,7 +127,7 @@ Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
     return ctx->levels[ctx->level_idx].enemies;
 }
 
-Entity* GetTiles(Context* ctx, size_t* n_tiles) {
+Tile* GetTiles(Context* ctx, size_t* n_tiles) {
     SDL_assert(n_tiles);
     *n_tiles = ctx->levels[ctx->level_idx].n_tiles;
     return ctx->levels[ctx->level_idx].tiles;
@@ -138,8 +138,8 @@ Level* GetCurrentLevel(Context* ctx) {
 }
 
 void DrawEntity(Context* ctx, Entity* entity) {
-    if (HAS_FLAG(entity->flags, EntityFlags_Active)) {
-        DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->pos, entity->dir);
+    if (entity->state != EntityState_Inactive) {
+        DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, vec2_from_ivec2(entity->pos), entity->dir);
     }
 }
 
@@ -154,4 +154,12 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 
 bool SpritesEqual(Sprite a, Sprite b) {
     return a.idx == b.idx;
+}
+
+// Why not just divide by 32768.0f? It's because there is one more negative value than positive value.
+FORCEINLINE float NormInt16(int16_t i16) {
+    int32_t i32 = (int32_t)i16;
+    i32 += 32768;
+    float res = ((float)i32 / 32768.0f) - 1.0f;
+    return res;
 }
