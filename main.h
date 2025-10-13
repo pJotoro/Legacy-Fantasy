@@ -242,3 +242,5 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 FORCEINLINE float NormInt16(int16_t i16);
 
 bool RectIntersectsLevel(Level* level, Rect rect);
+
+void EntityMove(Entity* entity, vec2s acc);

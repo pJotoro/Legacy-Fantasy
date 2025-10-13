@@ -118,10 +118,7 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
-			// PlayerComputeVelocity
-			player->vel_remainder = glms_vec2_add(player->vel_remainder, acc);
-			player->vel = glms_ivec2_add(player->vel, ivec2_from_vec2(glms_vec2_floor(player->vel_remainder)));
-			player->vel_remainder = glms_vec2_sub(player->vel_remainder, glms_vec2_floor(player->vel_remainder));
+			EntityMove(player, acc);
 
 			EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
 
@@ -287,4 +284,10 @@ bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
 
 ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
 	return GetSpriteOrigin(ctx, entity->anim.sprite);
+}
+
+void EntityMove(Entity* entity, vec2s acc) {
+	entity->vel_remainder = glms_vec2_add(entity->vel_remainder, acc);
+	entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_floor(entity->vel_remainder)));
+	entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_floor(entity->vel_remainder));
 }
