@@ -234,8 +234,6 @@ void DrawEntity(Context* ctx, Entity* entity);
 void UpdatePlayer(Context* ctx);
 void UpdateBoar(Context* ctx, Entity* boar);
 
-bool EntityApplyFriction(Entity* entity, float fric, float max_vel);
-
 ReplayFrame* GetReplayFrame(Context* ctx);
 void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 
@@ -243,4 +241,4 @@ FORCEINLINE float NormInt16(int16_t i16);
 
 bool RectIntersectsLevel(Level* level, Rect rect);
 
-void EntityMove(Entity* entity, vec2s acc);
+void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel);

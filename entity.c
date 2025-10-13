@@ -118,9 +118,7 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
-			EntityMove(player, acc);
-
-			EntityApplyFriction(player, PLAYER_FRIC, PLAYER_MAX_VEL);
+			EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 			Rect hitbox = GetEntityHitbox(ctx, player);
 			bool move_x = true;
@@ -274,20 +272,17 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     return RectsIntersect(ha, hb);
 }
 
-bool EntityApplyFriction(Entity* entity, float fric, float max_vel) {
-    float vel_remainder_save = entity->vel_remainder.x;
-    if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
-    else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
-    entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
-    return entity->vel_remainder.x != vel_remainder_save;
-}
-
 ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
 	return GetSpriteOrigin(ctx, entity->anim.sprite);
 }
 
-void EntityMove(Entity* entity, vec2s acc) {
+void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel) {
 	entity->vel_remainder = glms_vec2_add(entity->vel_remainder, acc);
-	entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_floor(entity->vel_remainder)));
-	entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_floor(entity->vel_remainder));
+
+    if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
+    else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
+    entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
+
+    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_floor(entity->vel_remainder)));
+    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_floor(entity->vel_remainder));
 }
