@@ -121,9 +121,9 @@ void UpdatePlayer(Context* ctx) {
 			EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 			Rect hitbox = GetEntityHitbox(ctx, player);
-			bool move_x = true;
-			bool move_y = true;
-			while ((move_x && player->vel.x != 0) || (move_y && player->vel.y != 0)) {
+			bool move_x = player->vel.x != 0;
+			bool move_y = player->vel.y != 0;
+			while (move_x || move_y) {
 				if (move_x) {
 					hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
 					if (RectIntersectsLevel(level, hitbox)) {
@@ -283,6 +283,6 @@ void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel) {
     else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
     entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
 
-    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_floor(entity->vel_remainder)));
-    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_floor(entity->vel_remainder));
+    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_fract(entity->vel_remainder)));
+    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_fract(entity->vel_remainder));
 }
