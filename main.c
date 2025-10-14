@@ -244,7 +244,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = GetCurrentLevel(ctx);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 				Tile tile = tiles[tile_idx];
-				ivec2s pos = {(int32_t)tile_idx % level->size.y, (int32_t)tile_idx / level->size.y};
+				ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
 				DrawSpriteTile(ctx, spr_tiles, tile, pos);
 			}
 		}
@@ -482,5 +482,5 @@ void RecordReplayFrame(Context* ctx) {
 
 ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile) {
 	ivec2s dim = GetTilesetDimensions(ctx, tileset);
-	return (ivec2s){tile.src_idx % dim.y, tile.src_idx / dim.y};
+	return (ivec2s){tile.src_idx % dim.x, tile.src_idx / dim.x};
 }
