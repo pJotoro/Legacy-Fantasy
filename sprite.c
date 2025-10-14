@@ -310,6 +310,9 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (cell->type == SpriteCellType_Hitbox) {
 			*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
+			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
+			hitbox->min = glms_ivec2_add(hitbox->min, origin);
+			hitbox->max = glms_ivec2_add(hitbox->max, origin);
 			return true;
 		}
 	}
