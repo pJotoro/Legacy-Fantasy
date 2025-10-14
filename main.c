@@ -244,8 +244,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = GetCurrentLevel(ctx);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 				Tile tile = tiles[tile_idx];
-				ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
-				DrawSpriteTile(ctx, spr_tiles, tile, pos);
+				if (tile.type != TileType_Empty) {
+					ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
+					DrawSpriteTile(ctx, spr_tiles, tile, pos);
+				}
 			}
 		}
 

@@ -274,7 +274,6 @@ void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos) {
 
 	ivec2s src = GetTileSpritePos(ctx, tileset, tile);
 
-
 	SDL_FRect srcrect = {
 		(float)src.x,
 		(float)src.y,
