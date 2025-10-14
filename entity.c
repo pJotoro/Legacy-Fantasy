@@ -252,19 +252,8 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 		SDL_assert(res);
 	}
 
-	// AdjustEntityHitbox
-	{
-		ivec2s origin = GetEntityOrigin(ctx, entity);
-		SDL_assert(entity->dir == 1 || entity->dir == -1);
-		if (entity->dir == -1) {
-			int32_t prev_min_x = hitbox.min.x;
-			hitbox.min.x = origin.x - (hitbox.max.x - origin.x);
-			hitbox.max.x = hitbox.min.x + (hitbox.max.x - prev_min_x);
-		}
-		ivec2s offset = glms_ivec2_add(entity->pos, origin);
-		hitbox.min = glms_ivec2_add(hitbox.min, offset);
-		hitbox.max = glms_ivec2_add(hitbox.max, offset);
-	}
+	hitbox.min = glms_ivec2_add(hitbox.min, entity->pos);
+	hitbox.max = glms_ivec2_add(hitbox.max, entity->pos);
 
 	return hitbox;
 }
