@@ -231,7 +231,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
-	ivec2s origin = GetSpriteOrigin(ctx, sprite);
+	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 		if (cell->texture) {
@@ -316,14 +316,26 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 	return false;
 }
 
-ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite) {
+ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
+	ivec2s res = {0};
+
+	// Find origin
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SpriteFrame* frame = &sd->frames[0];
 	for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 		SpriteCell* cell = &frame->cells[cell_idx];
-		if (cell->type == SpriteCellType_Origin) return cell->offset;
+		if (cell->type == SpriteCellType_Origin) {
+			res = cell->offset;
+			break;
+		}
 	}
-	return (ivec2s){0, 0};
+
+	// Flip if necessary
+	if (dir == -1) {
+		res.x = sd->size.x - res.x;
+	}
+
+	return res;
 }
 
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {

@@ -144,8 +144,12 @@ typedef uint32_t EntityState;
 typedef struct Entity {
 	Anim anim;
 
+	// The position is the position of the origin.
+	// The origin is defined by the current sprite.
+	// Each sprite has its own origin relative to its canvas.
 	ivec2s start_pos;
 	ivec2s pos;
+
 	ivec2s vel;
 	vec2s vel_remainder;
 
@@ -212,7 +216,7 @@ void UpdateGame(Context* ctx);
 void RecordReplayFrame(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
-ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite);
+ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
 void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, ivec2s dst);

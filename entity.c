@@ -277,7 +277,7 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 }
 
 ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
-	return GetSpriteOrigin(ctx, entity->anim.sprite);
+	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
 void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel) {
