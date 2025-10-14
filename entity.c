@@ -153,8 +153,6 @@ void UpdatePlayer(Context* ctx) {
 					player->vel.y -= glm_sign(player->vel.y);
 				}
 			}
-
-			player->pos = glms_ivec2_sub(hitbox.min, GetEntityOrigin(ctx, player));
 		}
 
 		return;		

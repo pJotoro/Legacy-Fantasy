@@ -231,7 +231,6 @@ Entity* GetEnemies(Context* ctx, size_t* n_enemies);
 Tile* GetTiles(Context* ctx, size_t* n_tiles);
 Rect GetEntityHitbox(Context* ctx, Entity* entity);
 void GetEntityHitboxes(Context* ctx, Entity* entity, Rect* h, Rect* lh, Rect* rh, Rect* uh, Rect* dh);
-ivec2s GetEntityOrigin(Context* ctx, Entity* entity);
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b);
 void DrawEntity(Context* ctx, Entity* entity);
 
