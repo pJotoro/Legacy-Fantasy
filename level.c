@@ -73,7 +73,7 @@ Level LoadLevel(Context* ctx, JSON_Node* level_node) {
 				Tile tile = {
 					.src_idx = (uint16_t)((src.x + src.y*tileset_dimensions.x)/TILE_SIZE),
 				};
-				int32_t dst_idx = (dst.x + dst.y*res.size.y)/TILE_SIZE;
+				int32_t dst_idx = (dst.x + dst.y*res.size.x)/TILE_SIZE;
 				SDL_assert(dst_idx >= 0 && dst_idx < res.size.x*res.size.y);
 				res.tiles[dst_idx] = tile;
 			}
