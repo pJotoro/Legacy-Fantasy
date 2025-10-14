@@ -154,7 +154,7 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
-			player->pos = hitbox.min;
+			player->pos = glms_ivec2_sub(hitbox.min, GetEntityOrigin(ctx, player));
 		}
 
 		return;		
