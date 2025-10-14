@@ -242,23 +242,11 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				(float)(cell->size.y),
 			};
 			SDL_FRect dstrect = {
-				pos.x,
-				pos.y + (float)cell->offset.y,
-				(float)(cell->size.x),
+				pos.x + (float)(cell->offset.x*dir + origin.x),
+				pos.y + (float)(cell->offset.y + origin.y),
+				(float)(cell->size.x*dir),
 				(float)(cell->size.y),
 			};
-
-			if (dir == 1) {
-				dstrect.x += (float)cell->offset.x;
-			} 
-			else {
-				dstrect.x -= (float)cell->offset.x;
-				dstrect.x += (float)sd->size.x;
-				dstrect.w = -dstrect.w;
-			}
-
-			dstrect.x += (float)origin.x;
-			dstrect.y += (float)origin.y;
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
