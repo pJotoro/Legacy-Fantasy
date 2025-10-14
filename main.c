@@ -23,7 +23,6 @@
 #include "main.h"
 
 #include "util.c"
-#include "level.c"
 
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
@@ -44,6 +43,7 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
+#include "level.c"
 #include "sprite.c"
 #include "entity.c"
 
@@ -155,7 +155,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->levels = SDL_calloc(ctx->n_levels, sizeof(Level)); SDL_CHECK(ctx->levels);
 		size_t level_idx = 0;
 		JSON_ArrayForEach(level, levels) {
-			ctx->levels[level_idx++] = LoadLevel(level);
+			ctx->levels[level_idx++] = LoadLevel(ctx, level);
 		}
 
 		int32_t* tiles_collide = NULL; size_t n_tiles_collide = 0;
@@ -187,15 +187,15 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_idx = 0; tile_idx < level->n_tiles; ++tile_idx) {
-				Tile* tile = &level->tiles[tile_idx];
-				ivec2s src = tile->src;
+			size_t n_tiles;
+			Tile* tiles = GetLevelTiles(level, &n_tiles);
+			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
+				Tile* tile = &tiles[tile_idx];
+				uint16_t src_idx = (int32_t)tile->src_idx;
 				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
 					int32_t i = tiles_collide[tiles_collide_idx];
-					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
-					int32_t j = (src.x + src.y*tileset_dimensions.x)/TILE_SIZE;
-					if (i == j) {
-						tile->solid = true;
+					if (i == src_idx) {
+						tile->type = TileType_Level;
 						break;
 					}
 				}
@@ -243,7 +243,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			size_t n_tiles; Tile* tiles = GetTiles(ctx, &n_tiles);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 				Tile* tile = &tiles[tile_idx];
-				DrawSpriteTile(ctx, spr_tiles, tile->src, tile->dst);
+				DrawSpriteTile(ctx, spr_tiles, tile->src_idx, tile->dst);
 			}
 		}
 

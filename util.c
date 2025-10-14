@@ -129,7 +129,8 @@ Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
 
 Tile* GetTiles(Context* ctx, size_t* n_tiles) {
     SDL_assert(n_tiles);
-    *n_tiles = ctx->levels[ctx->level_idx].n_tiles;
+    ivec2s size = ctx->levels[ctx->level_idx].size;
+    *n_tiles = (size_t)(size.x * size.y);
     return ctx->levels[ctx->level_idx].tiles;
 }
 

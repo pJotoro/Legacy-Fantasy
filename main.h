@@ -58,10 +58,16 @@ typedef struct Rect {
 	ivec2s max;
 } Rect;
 
+enum {
+	TileType_Empty, // no tile
+	TileType_Decor, // cannot collide with
+	TileType_Level, // can collide with
+};
+typedef uint16_t TileType;
+
 typedef struct Tile {
-	ivec2s src;
-	ivec2s dst;
-	bool solid;
+	uint16_t src_idx;
+	TileType type;
 } Tile;
 
 typedef struct SpriteLayer {
@@ -163,7 +169,7 @@ typedef struct Level {
 	ivec2s size;
 	Entity player;
 	Entity* enemies; size_t n_enemies;
-	Tile* tiles; size_t n_tiles;
+	Tile* tiles; // n_tiles is inferred from the size
 } Level;
 
 bool IsSolid(Level* level, ivec2s grid_pos);
@@ -219,7 +225,7 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
-void DrawSpriteTile(Context* ctx, Sprite tileset, ivec2s src, ivec2s dst);
+void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile);
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset);
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
@@ -244,4 +250,10 @@ FORCEINLINE float NormInt16(int16_t i16);
 
 bool RectIntersectsLevel(Level* level, Rect rect);
 
-void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel);
+void EntityAccelerate(Entity* entity, vec2s acc, float fric, float max_vel);
+void EntityCollide(Context* ctx, Entity* entity);
+
+Tile* GetLevelTiles(Level* level, size_t* n_tiles);
+
+ivec2s GetTileSpritePos(Sprite tileset, Tile tile);
+ivec2s GetTileLevelPos(Level* level, Tile tile);

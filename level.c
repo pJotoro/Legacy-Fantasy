@@ -1,4 +1,4 @@
-Level LoadLevel(JSON_Node* level_node) {
+Level LoadLevel(Context* ctx, JSON_Node* level_node) {
 	Level res = {0};
 
 	JSON_Node* w = JSON_GetObjectItem(level_node, "pxWid", true);
@@ -6,6 +6,9 @@ Level LoadLevel(JSON_Node* level_node) {
 
 	JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
 	res.size.y = JSON_GetIntValue(h);
+
+	size_t n_tiles = (size_t)(res.size.x * res.size.y);
+	res.tiles = SDL_calloc(n_tiles, sizeof(Tile)); SDL_CHECK(res.tiles);
 
 	char* layer_player = "Player";
 	char* layer_enemies = "Enemies";
@@ -21,18 +24,11 @@ Level LoadLevel(JSON_Node* level_node) {
 			JSON_Node* entity_instance; JSON_ArrayForEach(entity_instance, entity_instances) {
 				++res.n_enemies;
 			}
-		} else if (SDL_strcmp(ident, layer_tiles) == 0) {
-			JSON_Node* grid_tiles = JSON_GetObjectItem(layer_instance, "gridTiles", true);
-			JSON_Node* grid_tile; JSON_ArrayForEach(grid_tile, grid_tiles) {
-				++res.n_tiles;
-			}
 		}
 	}
 
 	res.enemies = SDL_calloc(res.n_enemies, sizeof(Entity)); SDL_CHECK(res.enemies);
-	res.tiles = SDL_calloc(res.n_tiles, sizeof(Tile)); SDL_CHECK(res.tiles);
 	Entity* enemy = res.enemies;
-	Tile* tile = res.tiles;
 	JSON_ArrayForEach(layer_instance, layer_instances) {
 		JSON_Node* ident_node = JSON_GetObjectItem(layer_instance, "__identifier", true);
 		char* ident = JSON_GetStringValue(ident_node); SDL_assert(ident);
@@ -72,9 +68,14 @@ Level LoadLevel(JSON_Node* level_node) {
 					JSON_GetIntValue(dst_node->child->next),
 				};
 
-				tile->src = src;
-				tile->dst = dst;
-				++tile;
+				ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
+
+				Tile tile = {
+					.src_idx = (uint16_t)((src.x + src.y*tileset_dimensions.x)/TILE_SIZE),
+				};
+				int32_t dst_idx = (dst.x + dst.y*res.size.y)/TILE_SIZE;
+				SDL_assert(dst_idx >= 0 && dst_idx < res.size.x*res.size.y);
+				res.tiles[dst_idx] = tile;
 			}
 		}
 	}
@@ -82,18 +83,26 @@ Level LoadLevel(JSON_Node* level_node) {
 	return res;
 }
 
-bool RectIntersectsLevel(Level* level, Rect a) {
-	Tile* tiles = level->tiles; size_t n_tiles = level->n_tiles;
-    for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-        Tile* tile = &tiles[tile_idx];
-        if (tile->solid) {
-            Rect tile_rect;
-            tile_rect.min = tile->dst;
-            tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-            if (RectsIntersect(a, tile_rect)) {
-                return true;
-            }
-        }
-    }
-    return false;
+// bool RectIntersectsLevel(Level* level, Rect a) {
+// 	size_t n_tiles;
+// 	Tile* tiles = GetLevelTiles(level, &n_tiles);
+//     for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
+//         Tile* tile = &tiles[tile_idx];
+//         if (tile->solid) {
+//             Rect tile_rect;
+//             tile_rect.min = tile->dst;
+//             tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+//             if (RectsIntersect(a, tile_rect)) {
+//                 return true;
+//             }
+//         }
+//     }
+//     return false;
+// }
+
+Tile* GetLevelTiles(Level* level, size_t* n_tiles) {
+	SDL_assert(n_tiles);
+	ivec2s size = level->size;
+	*n_tiles = (size_t)(size.x * size.y);
+	return level->tiles;
 }

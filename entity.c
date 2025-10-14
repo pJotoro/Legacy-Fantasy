@@ -58,7 +58,7 @@ void UpdatePlayer(Context* ctx) {
     	SetSprite(player, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
-    	EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	/*
 		if (hit_ground) {
@@ -79,7 +79,7 @@ void UpdatePlayer(Context* ctx) {
 		}
 
     	acc.y += GRAVITY;
-    	EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 		/*
 		if (hit_ground) {
 			player->state = EntityState_Free;
@@ -122,37 +122,37 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
-			EntityMove(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+			EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+			EntityCollide(ctx, player);
+			// Rect hitbox = GetEntityHitbox(ctx, player);
+			// bool move_x = player->vel.x != 0;
+			// bool move_y = player->vel.y != 0;
+			// while (move_x || move_y) {
+			// 	if (move_x) {
+			// 		hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
+			// 		if (RectIntersectsLevel(level, hitbox)) {
+			// 			move_x = false;
+			// 		}
+			// 		hitbox.min.x -= glm_sign(player->vel.x); hitbox.max.x -= glm_sign(player->vel.x);
 
-			Rect hitbox = GetEntityHitbox(ctx, player);
-			bool move_x = player->vel.x != 0;
-			bool move_y = player->vel.y != 0;
-			while (move_x || move_y) {
-				if (move_x) {
-					hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
-					if (RectIntersectsLevel(level, hitbox)) {
-						move_x = false;
-					}
-					hitbox.min.x -= glm_sign(player->vel.x); hitbox.max.x -= glm_sign(player->vel.x);
+			// 	}
+			// 	if (move_y) {
+			// 		hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
+			// 		if (RectIntersectsLevel(level, hitbox)) {
+			// 			move_y = false;
+			// 		}
+			// 		hitbox.min.y -= glm_sign(player->vel.y); hitbox.max.y -= glm_sign(player->vel.y);
+			// 	}
 
-				}
-				if (move_y) {
-					hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
-					if (RectIntersectsLevel(level, hitbox)) {
-						move_y = false;
-					}
-					hitbox.min.y -= glm_sign(player->vel.y); hitbox.max.y -= glm_sign(player->vel.y);
-				}
-
-				if (move_x) {
-					hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
-					player->vel.x -= glm_sign(player->vel.x);
-				}
-				if (move_y) {
-					hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
-					player->vel.y -= glm_sign(player->vel.y);
-				}
-			}
+			// 	if (move_x) {
+			// 		hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
+			// 		player->vel.x -= glm_sign(player->vel.x);
+			// 	}
+			// 	if (move_y) {
+			// 		hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
+			// 		player->vel.y -= glm_sign(player->vel.y);
+			// 	}
+			// }
 		}
 
 		return;		
@@ -178,7 +178,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	Rect hitbox, lh, rh, uh, dh;
 	GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
 
-	EntityMoveY(boar, GRAVITY);
+	EntityAccelerateY(boar, GRAVITY);
 
 	Level* level = GetCurrentLevel(ctx);
 
@@ -267,13 +267,25 @@ ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
 	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
-void EntityMove(Entity* entity, vec2s acc, float fric, float max_vel) {
+// Why is this not come with glm?
+FORCEINLINE vec2s glms_vec2_round(vec2s v) {
+	v.x = SDL_roundf(v.x);
+	v.y = SDL_roundf(v.y);
+	return v;
+}
+
+void EntityAccelerate(Entity* entity, vec2s acc, float fric, float max_vel) {
 	entity->vel_remainder = glms_vec2_add(entity->vel_remainder, acc);
 
     if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
     else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
     entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
 
-    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_fract(entity->vel_remainder)));
-    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_fract(entity->vel_remainder));
+    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_round(entity->vel_remainder)));
+    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_round(entity->vel_remainder));
+}
+
+void EntityCollide(Context* ctx, Entity* entity) {
+	UNUSED(ctx);
+	UNUSED(entity);
 }
