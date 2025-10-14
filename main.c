@@ -241,9 +241,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 			DrawEntity(ctx, GetPlayer(ctx));
 			size_t n_tiles; Tile* tiles = GetTiles(ctx, &n_tiles);
+			Level* level = GetCurrentLevel(ctx);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-				Tile* tile = &tiles[tile_idx];
-				DrawSpriteTile(ctx, spr_tiles, tile->src_idx, tile->dst);
+				Tile tile = tiles[tile_idx];
+				ivec2s pos = {(int32_t)tile_idx % level->size.y, (int32_t)tile_idx / level->size.y};
+				DrawSpriteTile(ctx, spr_tiles, tile, pos);
 			}
 		}
 
@@ -476,4 +478,9 @@ void RecordReplayFrame(Context* ctx) {
 		ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 	}
 	ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
+}
+
+ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile) {
+	ivec2s dim = GetTilesetDimensions(ctx, tileset);
+	return (ivec2s){tile.src_idx % dim.y, tile.src_idx / dim.y};
 }

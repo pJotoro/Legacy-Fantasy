@@ -234,7 +234,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
-		if (cell->texture) {R
+		if (cell->texture) {
 			SDL_FRect srcrect = {
 				0.0f,
 				0.0f,
@@ -264,13 +264,16 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
 }
 
-void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile) {
+void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
 	SDL_assert(sd->frames[0].n_cells == 1);
 
 	SDL_Texture* texture = sd->frames[0].cells[0].texture;
+
+	ivec2s src = GetTileSpritePos(ctx, tileset, tile);
+
 
 	SDL_FRect srcrect = {
 		(float)src.x,
@@ -279,8 +282,8 @@ void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile) {
 		(float)sd->grid_size.y,
 	};
 	SDL_FRect dstrect = {
-		(float)dst.x,
-		(float)dst.y,
+		(float)pos.x,
+		(float)pos.y,
 		(float)(sd->grid_size.x),
 		(float)(sd->grid_size.y),
 	};
@@ -384,12 +387,4 @@ void ResetAnim(Anim* anim) {
     anim->dt_accumulator = 0.0;
     anim->ended = false;
     anim->timer = 0;
-}
-
-ivec2s GetTileSpritePos(Sprite tileset, Tile tile) {
-	
-}
-
-ivec2s GetTileLevelPos(Level* level, Tile tile) {
-
 }

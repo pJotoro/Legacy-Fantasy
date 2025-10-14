@@ -225,7 +225,7 @@ SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
-void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile);
+void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos);
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset);
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop);
@@ -255,5 +255,4 @@ void EntityCollide(Context* ctx, Entity* entity);
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles);
 
-ivec2s GetTileSpritePos(Sprite tileset, Tile tile);
-ivec2s GetTileLevelPos(Level* level, Tile tile);
+ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile);
