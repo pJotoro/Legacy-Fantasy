@@ -262,10 +262,6 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     return RectsIntersect(ha, hb);
 }
 
-ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
-	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
-}
-
 // Why does this not come with glm?
 FORCEINLINE vec2s glms_vec2_round(vec2s v) {
 	v.x = SDL_roundf(v.x);
