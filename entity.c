@@ -276,16 +276,11 @@ FORCEINLINE vec2s glms_vec2_round(vec2s v) {
 void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel) {
 	entity->vel = glms_vec2_add(entity->vel, acc);
 
-#if 1
-	UNUSED(fric);
-	UNUSED(max_vel);
-#else
 	if (acc.x != 0.0f) {
-		if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
-		else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
-		entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
+		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
+		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
-#endif
 
     entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
