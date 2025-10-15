@@ -191,7 +191,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			Tile* tiles = GetLevelTiles(level, &n_tiles);
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 				Tile* tile = &tiles[tile_idx];
-				uint16_t src_idx = (int32_t)tile->src_idx;
+				int32_t src_idx = (int32_t)tile->src_idx;
 				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
 					int32_t i = tiles_collide[tiles_collide_idx];
 					if (i == src_idx) {
@@ -246,6 +246,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				Tile tile = tiles[tile_idx];
 				if (tile.type != TileType_Empty) {
 					ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
+					pos = glms_ivec2_scale(pos, TILE_SIZE);
 					DrawSpriteTile(ctx, spr_tiles, tile, pos);
 				}
 			}
