@@ -116,7 +116,7 @@ void UpdatePlayer(Context* ctx) {
 			} else {
 				SetSprite(player, player_run);
 				if (player->vel.x != 0.0f) {
-					player->dir = glm_sign(player->vel.x);
+					player->dir = (int32_t)glm_signf(player->vel.x);
 				} else if (input_dir != 0) {
 					player->dir = input_dir;
 				}
@@ -266,7 +266,7 @@ ivec2s GetEntityOrigin(Context* ctx, Entity* entity) {
 	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
-// Why is this not come with glm?
+// Why does this not come with glm?
 FORCEINLINE vec2s glms_vec2_round(vec2s v) {
 	v.x = SDL_roundf(v.x);
 	v.y = SDL_roundf(v.y);
@@ -274,16 +274,20 @@ FORCEINLINE vec2s glms_vec2_round(vec2s v) {
 }
 
 void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel) {
-	entity->vel_remainder = glms_vec2_add(entity->vel_remainder, acc);
+	entity->vel = glms_vec2_add(entity->vel, acc);
 
+#if 1
+	UNUSED(fric);
+	UNUSED(max_vel);
+#else
 	if (acc.x != 0.0f) {
 		if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
 		else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
 		entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
 	}
+#endif
 
-    entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_round(entity->vel_remainder)));
-    entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_round(entity->vel_remainder));
-
-    entity->pos = glms_ivec2_add(entity->pos, entity->vel);
+    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
+    entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
+    entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }

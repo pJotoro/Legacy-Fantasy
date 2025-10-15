@@ -155,10 +155,10 @@ typedef struct Entity {
 	// Each sprite has its own origin relative to its canvas.
 	ivec2s start_pos;
 	ivec2s pos;
+	vec2s pos_remainder;
 
-	ivec2s vel;
-	vec2s vel_remainder;
-
+	vec2s vel;
+	
 	int32_t dir;
 
 	EntityType type;
