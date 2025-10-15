@@ -154,6 +154,7 @@ typedef struct Entity {
 	// The origin is defined by the current sprite.
 	// Each sprite has its own origin relative to its canvas.
 	ivec2s start_pos;
+	ivec2s prev_pos;
 	ivec2s pos;
 	vec2s pos_remainder;
 
@@ -248,7 +249,29 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 
 FORCEINLINE float NormInt16(int16_t i16);
 
-bool RectIntersectsLevel(Level* level, Rect rect);
+enum {
+	IntersectType_None,
+	IntersectType_Left,
+	IntersectType_Right,
+	IntersectType_Up,
+	IntersectType_Down,
+	IntersectType_LeftUp,
+	IntersectType_LeftDown,
+	IntersectType_RightUp,
+	IntersectType_RightDown,
+};
+typedef uint32_t IntersectType;
+
+typedef struct IntersectResult {
+	/*
+	0 1 2
+	3   4
+	5 6 7
+	*/
+	IntersectType collisions[8];
+} IntersectResult;
+
+IntersectResult RectIntersectsLevel(Level* level, Rect rect);
 
 void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel);
 

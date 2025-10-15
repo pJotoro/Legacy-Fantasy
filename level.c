@@ -83,22 +83,28 @@ Level LoadLevel(Context* ctx, JSON_Node* level_node) {
 	return res;
 }
 
-// bool RectIntersectsLevel(Level* level, Rect a) {
-// 	size_t n_tiles;
-// 	Tile* tiles = GetLevelTiles(level, &n_tiles);
-//     for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-//         Tile* tile = &tiles[tile_idx];
-//         if (tile->solid) {
-//             Rect tile_rect;
-//             tile_rect.min = tile->dst;
-//             tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-//             if (RectsIntersect(a, tile_rect)) {
-//                 return true;
-//             }
-//         }
-//     }
-//     return false;
-// }
+IntersectResult RectIntersectsLevel(Level* level, Rect rect) {
+	IntersectResult res = {0};
+
+	size_t n_tiles;
+	Tile* tiles = GetLevelTiles(level, &n_tiles);
+
+	
+
+    // for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
+    //     Tile* tile = &tiles[tile_idx];
+    //     if (tile->solid) {
+    //         Rect tile_rect;
+    //         tile_rect.min = tile->dst;
+    //         tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+    //         if (RectsIntersect(a, tile_rect)) {
+    //             return true;
+    //         }
+    //     }
+    // }
+
+    return res;
+}
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles) {
 	SDL_assert(n_tiles);

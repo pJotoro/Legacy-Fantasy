@@ -279,6 +279,7 @@ void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel) {
 	}
 
     entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
+	entity->prev_pos = entity->pos;
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
