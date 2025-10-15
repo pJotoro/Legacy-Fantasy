@@ -58,7 +58,7 @@ void UpdatePlayer(Context* ctx) {
     	SetSprite(player, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
-    	EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	MoveEntity(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	/*
 		if (hit_ground) {
@@ -79,7 +79,7 @@ void UpdatePlayer(Context* ctx) {
 		}
 
     	acc.y += GRAVITY;
-    	EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	MoveEntity(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 		/*
 		if (hit_ground) {
 			player->state = EntityState_Free;
@@ -122,8 +122,7 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
-			EntityAccelerate(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-			EntityCollide(ctx, player);
+			MoveEntity(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 			// Rect hitbox = GetEntityHitbox(ctx, player);
 			// bool move_x = player->vel.x != 0;
 			// bool move_y = player->vel.y != 0;
@@ -274,18 +273,17 @@ FORCEINLINE vec2s glms_vec2_round(vec2s v) {
 	return v;
 }
 
-void EntityAccelerate(Entity* entity, vec2s acc, float fric, float max_vel) {
+void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel) {
 	entity->vel_remainder = glms_vec2_add(entity->vel_remainder, acc);
 
-    if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
-    else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
-    entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
+	if (acc.x != 0.0f) {
+		if (entity->vel_remainder.x < 0.0f) entity->vel_remainder.x = SDL_min(0.0f, entity->vel_remainder.x + fric);
+		else if (entity->vel_remainder.x > 0.0f) entity->vel_remainder.x = SDL_max(0.0f, entity->vel_remainder.x - fric);
+		entity->vel_remainder.x = SDL_clamp(entity->vel_remainder.x, -max_vel, max_vel);
+	}
 
     entity->vel = glms_ivec2_add(entity->vel, ivec2_from_vec2(glms_vec2_round(entity->vel_remainder)));
     entity->vel_remainder = glms_vec2_sub(entity->vel_remainder, glms_vec2_round(entity->vel_remainder));
-}
 
-void EntityCollide(Context* ctx, Entity* entity) {
-	UNUSED(ctx);
-	UNUSED(entity);
+    entity->pos = glms_ivec2_add(entity->pos, entity->vel);
 }

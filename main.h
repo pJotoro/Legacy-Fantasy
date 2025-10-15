@@ -250,8 +250,7 @@ FORCEINLINE float NormInt16(int16_t i16);
 
 bool RectIntersectsLevel(Level* level, Rect rect);
 
-void EntityAccelerate(Entity* entity, vec2s acc, float fric, float max_vel);
-void EntityCollide(Context* ctx, Entity* entity);
+void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel);
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles);
 
