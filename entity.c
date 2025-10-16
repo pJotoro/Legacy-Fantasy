@@ -13,13 +13,9 @@ void UpdatePlayer(Context* ctx) {
 
 	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
-		return;
-	}
-
-	switch (player->state) {
+	} else switch (player->state) {
 	case EntityState_Inactive:
-    	return;
-
+		break;
     case EntityState_Die: {
 		SetSprite(player, player_die);
 		bool loop = false;
@@ -27,8 +23,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->anim.ended) {
 			ResetGame(ctx);
 		}
-		return;
-	}
+	} break;
 
     case EntityState_Attack: {
 		SetSprite(player, player_attack);
@@ -52,8 +47,7 @@ void UpdatePlayer(Context* ctx) {
 		if (player->anim.ended) {
 			player->state = EntityState_Free;
 		}
-		return;
-	}
+	} break;
     	
     case EntityState_Fall: {
     	SetSprite(player, player_jump_end);
@@ -69,9 +63,7 @@ void UpdatePlayer(Context* ctx) {
 
     	bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
-
-		return;
-	}
+	} break;
     	
 	case EntityState_Jump: {
 		vec2s acc = {0.0f};
@@ -91,10 +83,7 @@ void UpdatePlayer(Context* ctx) {
 
 		bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
-
-
-		return;
-	}
+	} break;
 
 	case EntityState_Free: {
 		if (ctx->button_attack) {
@@ -123,40 +112,17 @@ void UpdatePlayer(Context* ctx) {
 				}
 			}
 
+			Rect prev_hitbox = GetEntityHitbox(ctx, player);
 			MoveEntity(player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-			// Rect hitbox = GetEntityHitbox(ctx, player);
-			// bool move_x = player->vel.x != 0;
-			// bool move_y = player->vel.y != 0;
-			// while (move_x || move_y) {
-			// 	if (move_x) {
-			// 		hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
-			// 		if (RectIntersectsLevel(level, hitbox)) {
-			// 			move_x = false;
-			// 		}
-			// 		hitbox.min.x -= glm_sign(player->vel.x); hitbox.max.x -= glm_sign(player->vel.x);
+			size_t n_intersections;
+			Rect hitbox = GetEntityHitbox(ctx, player);
+			RectIntersectsLevel(level, hitbox, prev_hitbox, ENTITY_MAX_INTERSECTIONS, &n_intersections, player->intersections);
+			if (n_intersections > 0) {
+				SDL_Log("Blah");
+			}
 
-			// 	}
-			// 	if (move_y) {
-			// 		hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
-			// 		if (RectIntersectsLevel(level, hitbox)) {
-			// 			move_y = false;
-			// 		}
-			// 		hitbox.min.y -= glm_sign(player->vel.y); hitbox.max.y -= glm_sign(player->vel.y);
-			// 	}
-
-			// 	if (move_x) {
-			// 		hitbox.min.x += glm_sign(player->vel.x); hitbox.max.x += glm_sign(player->vel.x);
-			// 		player->vel.x -= glm_sign(player->vel.x);
-			// 	}
-			// 	if (move_y) {
-			// 		hitbox.min.y += glm_sign(player->vel.y); hitbox.max.y += glm_sign(player->vel.y);
-			// 		player->vel.y -= glm_sign(player->vel.y);
-			// 	}
-			// }
 		}
-
-		return;		
-	}
+	} break;
 
 	}
 }

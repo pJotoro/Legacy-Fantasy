@@ -174,6 +174,7 @@ void RectIntersectsLevel(Level* level, Rect rect, Rect prev_rect, size_t max_int
 			}
 		}
 	}
+	*n_intersections = intersect_idx;
 }
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles) {

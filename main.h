@@ -165,6 +165,8 @@ enum {
 };
 typedef uint32_t EntityState;
 
+#define ENTITY_MAX_INTERSECTIONS 8
+
 typedef struct Entity {
 	Anim anim;
 
@@ -179,7 +181,7 @@ typedef struct Entity {
 	
 	int32_t dir;
 
-	Intersection intersections[8];
+	Intersection intersections[ENTITY_MAX_INTERSECTIONS];
 
 	EntityType type;
 	EntityState state;
