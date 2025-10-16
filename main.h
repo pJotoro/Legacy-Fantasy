@@ -268,10 +268,8 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 
 FORCEINLINE float NormInt16(int16_t i16);
 
-void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel);
-
 Tile* GetLevelTiles(Level* level, size_t* n_tiles);
 
 ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile);
 
-void RectIntersectsLevel(Level* level, Rect rect, Rect prev_rect, size_t max_intersections, size_t* n_intersections, Intersection* intersections);
+void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel);
