@@ -83,27 +83,97 @@ Level LoadLevel(Context* ctx, JSON_Node* level_node) {
 	return res;
 }
 
-IntersectResult RectIntersectsLevel(Level* level, Rect rect) {
-	IntersectResult res = {0};
+FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
+	return (ssize_t)((pos.x + pos.y*level->size.x)/TILE_SIZE);
+}
 
-	size_t n_tiles;
-	Tile* tiles = GetLevelTiles(level, &n_tiles);
+void RectIntersectsLevel(Level* level, Rect rect, Rect prev_rect, size_t max_intersections, size_t* n_intersections, Intersection* intersections) {
+	SDL_assert(n_intersections);
+	SDL_assert(intersections);
 
-	
+	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 
-    // for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-    //     Tile* tile = &tiles[tile_idx];
-    //     if (tile->solid) {
-    //         Rect tile_rect;
-    //         tile_rect.min = tile->dst;
-    //         tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-    //         if (RectsIntersect(a, tile_rect)) {
-    //             return true;
-    //         }
-    //     }
-    // }
+	size_t intersect_idx = 0;
+	ivec2s grid_pos;
+	for (grid_pos.y = rect.min.y/TILE_SIZE; grid_pos.y <= rect.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.x = rect.min.x/TILE_SIZE; grid_pos.x <= rect.max.x/TILE_SIZE; ++grid_pos.x) {
+			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
+			SDL_assert(tile_idx < n_tiles);
+			Tile tile = tiles[tile_idx];
+			if (tile.type == TileType_Level) {
+				Rect tile_rect;
+				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
+				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+				if (RectsIntersect(rect, tile_rect)) {
+					IntersectType intersect_type = IntersectType_None;
+					{
+						Rect left = prev_rect;
+						left.min.x -= TILE_SIZE;
+						left.max.x -= TILE_SIZE;
 
-    return res;
+						Rect right = prev_rect;
+						right.min.x += TILE_SIZE;
+						right.max.x += TILE_SIZE;
+
+						Rect up = prev_rect;
+						left.min.y -= TILE_SIZE;
+						left.max.y -= TILE_SIZE;
+
+						Rect down = prev_rect;
+						left.min.y += TILE_SIZE;
+						left.max.y += TILE_SIZE;
+
+						Rect left_up = prev_rect;
+						left_up.min.x -= TILE_SIZE;
+						left_up.max.x -= TILE_SIZE;
+						left_up.min.y -= TILE_SIZE;
+						left_up.max.y -= TILE_SIZE;
+
+						Rect left_down = prev_rect;
+						left_down.min.x -= TILE_SIZE;
+						left_down.max.x -= TILE_SIZE;
+						left_down.min.y += TILE_SIZE;
+						left_down.max.y += TILE_SIZE;
+
+						Rect right_up = prev_rect;
+						right_up.min.x += TILE_SIZE;
+						right_up.max.x += TILE_SIZE;
+						right_up.min.y -= TILE_SIZE;
+						right_up.max.y -= TILE_SIZE;
+
+						Rect right_down = prev_rect;
+						right_down.min.x += TILE_SIZE;
+						right_down.max.x += TILE_SIZE;
+						right_down.min.y += TILE_SIZE;
+						right_down.max.y += TILE_SIZE;
+
+						if (RectsIntersect(left_up, tile_rect)) {
+							intersect_type = IntersectType_LeftUp;
+						} else if (RectsIntersect(left_down, tile_rect)) {
+							intersect_type = IntersectType_LeftDown;
+						} else if (RectsIntersect(right_up, tile_rect)) {
+							intersect_type = IntersectType_RightUp;
+						} else if (RectsIntersect(right_down, tile_rect)) {
+							intersect_type = IntersectType_RightDown;
+						} else if (RectsIntersect(left, tile_rect)) {
+							intersect_type = IntersectType_Left;
+						} else if (RectsIntersect(right, tile_rect)) {
+							intersect_type = IntersectType_Right;
+						} else if (RectsIntersect(up, tile_rect)) {
+							intersect_type = IntersectType_Up;
+						} else if (RectsIntersect(down, tile_rect)) {
+							intersect_type = IntersectType_Down;
+						}
+					}
+					Intersection intersection;
+					intersection.type = intersect_type;
+					intersection.tile_src_idx = (uint16_t)GetTileIdx(level, tile_rect.min);
+					SDL_assert(intersect_idx < max_intersections);
+					intersections[intersect_idx++] = intersection;
+				}
+			}
+		}
+	}
 }
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles) {

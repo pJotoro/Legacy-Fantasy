@@ -128,6 +128,24 @@ typedef struct Anim {
 void ResetAnim(Anim* anim);
 
 enum {
+	IntersectType_None,
+	IntersectType_Left,
+	IntersectType_Right,
+	IntersectType_Up,
+	IntersectType_Down,
+	IntersectType_LeftUp,
+	IntersectType_LeftDown,
+	IntersectType_RightUp,
+	IntersectType_RightDown,
+};
+typedef uint16_t IntersectType;
+
+typedef struct Intersection {
+	IntersectType type;
+	uint16_t tile_src_idx; // type is implied to be TileType_Level
+} Intersection;
+
+enum {
 	EntityType_Player,
 	EntityType_Boar,
 };
@@ -154,13 +172,14 @@ typedef struct Entity {
 	// The origin is defined by the current sprite.
 	// Each sprite has its own origin relative to its canvas.
 	ivec2s start_pos;
-	ivec2s prev_pos;
 	ivec2s pos;
 	vec2s pos_remainder;
 
 	vec2s vel;
 	
 	int32_t dir;
+
+	Intersection intersections[8];
 
 	EntityType type;
 	EntityState state;
@@ -170,10 +189,8 @@ typedef struct Level {
 	ivec2s size;
 	Entity player;
 	Entity* enemies; size_t n_enemies;
-	Tile* tiles; // n_tiles is inferred from the size
+	Tile* tiles; // n_tiles = size.x*size.y
 } Level;
-
-bool IsSolid(Level* level, ivec2s grid_pos);
 
 typedef struct ReplayFrame {
 	Entity player;
@@ -249,32 +266,10 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx);
 
 FORCEINLINE float NormInt16(int16_t i16);
 
-enum {
-	IntersectType_None,
-	IntersectType_Left,
-	IntersectType_Right,
-	IntersectType_Up,
-	IntersectType_Down,
-	IntersectType_LeftUp,
-	IntersectType_LeftDown,
-	IntersectType_RightUp,
-	IntersectType_RightDown,
-};
-typedef uint32_t IntersectType;
-
-typedef struct IntersectResult {
-	/*
-	0 1 2
-	3   4
-	5 6 7
-	*/
-	IntersectType collisions[8];
-} IntersectResult;
-
-IntersectResult RectIntersectsLevel(Level* level, Rect rect);
-
 void MoveEntity(Entity* entity, vec2s acc, float fric, float max_vel);
 
 Tile* GetLevelTiles(Level* level, size_t* n_tiles);
 
 ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile);
+
+void RectIntersectsLevel(Level* level, Rect rect, Rect prev_rect, size_t max_intersections, size_t* n_intersections, Intersection* intersections);
