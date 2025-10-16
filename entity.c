@@ -253,12 +253,10 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 
-	Intersection intersections[8];
-	size_t max_intersections = 8;
-	size_t intersect_idx = 0;
 	ivec2s grid_pos;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+	bool break_all = false;
+	for (grid_pos.y = hitbox.min.y/TILE_SIZE; !break_all && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; !break_all && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
 			SDL_assert(tile_idx < n_tiles);
 			Tile tile = tiles[tile_idx];
@@ -267,73 +265,39 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
 				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
 				if (RectsIntersect(hitbox, tile_rect)) {
-					IntersectType intersect_type = IntersectType_None;
+					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
+
 					{
-						Rect left = prev_hitbox;
-						left.min.x -= TILE_SIZE;
-						left.max.x -= TILE_SIZE;
+						Rect h = prev_hitbox;
+						h.min.x += (int32_t)SDL_roundf(entity->vel.x);
+						h.max.x += (int32_t)SDL_roundf(entity->vel.x);
+						if (RectsIntersect(h, tile_rect)) {
+							while (RectsIntersect(h, tile_rect)) {
+								h.min.x -= (int32_t)glm_signf(entity->vel.x);
+								h.max.x -= (int32_t)glm_signf(entity->vel.x);
+							}
+							entity->pos.x = h.min.x;
+						}
 
-						Rect right = prev_hitbox;
-						right.min.x += TILE_SIZE;
-						right.max.x += TILE_SIZE;
-
-						Rect up = prev_hitbox;
-						left.min.y -= TILE_SIZE;
-						left.max.y -= TILE_SIZE;
-
-						Rect down = prev_hitbox;
-						left.min.y += TILE_SIZE;
-						left.max.y += TILE_SIZE;
-
-						Rect left_up = prev_hitbox;
-						left_up.min.x -= TILE_SIZE;
-						left_up.max.x -= TILE_SIZE;
-						left_up.min.y -= TILE_SIZE;
-						left_up.max.y -= TILE_SIZE;
-
-						Rect left_down = prev_hitbox;
-						left_down.min.x -= TILE_SIZE;
-						left_down.max.x -= TILE_SIZE;
-						left_down.min.y += TILE_SIZE;
-						left_down.max.y += TILE_SIZE;
-
-						Rect right_up = prev_hitbox;
-						right_up.min.x += TILE_SIZE;
-						right_up.max.x += TILE_SIZE;
-						right_up.min.y -= TILE_SIZE;
-						right_up.max.y -= TILE_SIZE;
-
-						Rect right_down = prev_hitbox;
-						right_down.min.x += TILE_SIZE;
-						right_down.max.x += TILE_SIZE;
-						right_down.min.y += TILE_SIZE;
-						right_down.max.y += TILE_SIZE;
-
-						if (RectsIntersect(left_up, tile_rect)) {
-							intersect_type = IntersectType_LeftUp;
-						} else if (RectsIntersect(left_down, tile_rect)) {
-							intersect_type = IntersectType_LeftDown;
-						} else if (RectsIntersect(right_up, tile_rect)) {
-							intersect_type = IntersectType_RightUp;
-						} else if (RectsIntersect(right_down, tile_rect)) {
-							intersect_type = IntersectType_RightDown;
-						} else if (RectsIntersect(left, tile_rect)) {
-							intersect_type = IntersectType_Left;
-						} else if (RectsIntersect(right, tile_rect)) {
-							intersect_type = IntersectType_Right;
-						} else if (RectsIntersect(up, tile_rect)) {
-							intersect_type = IntersectType_Up;
-						} else if (RectsIntersect(down, tile_rect)) {
-							intersect_type = IntersectType_Down;
+					}
+					{
+						Rect h = prev_hitbox;
+						h.min.y += (int32_t)SDL_roundf(entity->vel.y);
+						h.max.y += (int32_t)SDL_roundf(entity->vel.y);
+						if (RectsIntersect(h, tile_rect)) {
+							while (RectsIntersect(h, tile_rect)) {
+								h.min.y -= (int32_t)glm_signf(entity->vel.y);
+								h.max.y -= (int32_t)glm_signf(entity->vel.y);
+							}
+							entity->pos.y = h.min.y;
 						}
 					}
-					Intersection intersection;
-					intersection.type = intersect_type;
-					intersection.tile_src_idx = (uint16_t)GetTileIdx(level, tile_rect.min);
-					SDL_assert(intersect_idx < max_intersections);
-					intersections[intersect_idx++] = intersection;
+
+					break_all = true;
 				}
 			}
 		}
 	}
+
+
 }
