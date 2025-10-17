@@ -123,7 +123,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
 	}
 
-	// Calls EnumerateSpriteDirectory.
+	// LoadSprites
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
 	// SortSprites
@@ -206,13 +206,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		JSON_Delete(head);
 	}
 
-	ResetGame(ctx);
-
 	// InitReplayFrames
 	{
 		ctx->c_replay_frames = 1024;
 		ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 	}
+
+	ResetGame(ctx);
 
 	ctx->running = true;
 	while (ctx->running) {
@@ -468,7 +468,6 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 void RecordReplayFrame(Context* ctx) {
 	ReplayFrame replay_frame = {0};
 	
-	// RecordReplayFrame
 	Level* level = GetCurrentLevel(ctx);
 	replay_frame.player = level->player;
 	replay_frame.enemies = SDL_malloc(level->n_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
