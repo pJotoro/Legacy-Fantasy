@@ -236,6 +236,7 @@ FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	Level* level = GetCurrentLevel(ctx);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+	//ivec2s origin = GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 
 	entity->vel = glms_vec2_add(entity->vel, acc);
 
@@ -276,7 +277,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 								h.min.x -= (int32_t)glm_signf(entity->vel.x);
 								h.max.x -= (int32_t)glm_signf(entity->vel.x);
 							}
-							entity->pos.x = h.min.x;
+							entity->pos.x = h.min.x;// + origin.x/2;
+							entity->vel.x = 0.0f;
 						}
 
 					}
@@ -289,7 +291,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 								h.min.y -= (int32_t)glm_signf(entity->vel.y);
 								h.max.y -= (int32_t)glm_signf(entity->vel.y);
 							}
-							entity->pos.y = h.min.y;
+							entity->pos.y = h.min.y;// + origin.y;
+							entity->vel.y = 0.0f;
 						}
 					}
 
