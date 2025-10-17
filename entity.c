@@ -55,12 +55,6 @@ void UpdatePlayer(Context* ctx) {
     	vec2s acc = {0.0f, GRAVITY};
     	EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
-    	/*
-		if (hit_ground) {
-    		player->state = EntityState_Free;
-		}
-    	*/
-
     	bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
 	} break;
@@ -73,13 +67,6 @@ void UpdatePlayer(Context* ctx) {
 
     	acc.y += GRAVITY;
     	EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-		/*
-		if (hit_ground) {
-			player->state = EntityState_Free;
-		} else if (hit_ceiling || player->vel.y >= 0.0f) {
-			player->state = EntityState_Fall;
-		}
-		*/
 
 		bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
@@ -256,6 +243,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 	ivec2s grid_pos;
 	bool touching_ground = false;
+	bool touching_ceiling = false;
 	bool horizontal_collision_happened = false;
 	bool vertical_collision_happened = false;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
@@ -299,11 +287,12 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 							}
 							if (entity->vel.y < 0.0f) {
 								entity->pos.y = SDL_max(entity->pos.y, h.min.y + origin.y);
+								touching_ceiling = true;
 							} else if (entity->vel.y > 0.0f) {
 								entity->pos.y = SDL_min(entity->pos.y, h.min.y + origin.y);
+								touching_ground = true;
 							}
 							vertical_collision_happened = true;
-							touching_ground = true;
 						}
 					}
 				}
@@ -316,6 +305,10 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 			entity->state = EntityState_Fall;
 		} else if (touching_ground && (entity->state == EntityState_Jump || entity->state == EntityState_Fall)) {
 			entity->state = EntityState_Free;
+		}
+
+		if ((touching_ceiling || entity->vel.y > 0.0f) && entity->state == EntityState_Jump) {
+			entity->state = EntityState_Fall;
 		}
 	}
 
