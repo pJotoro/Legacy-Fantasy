@@ -235,7 +235,6 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 
 	ivec2s grid_pos;
-	bool touching_ground = false;
 	bool touching_ceiling = false;
 	bool horizontal_collision_happened = false;
 	bool vertical_collision_happened = false;
@@ -273,16 +272,21 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.min.y = hitbox.min.y;
 						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.y);
-							while (RectsIntersect(h, tile_rect)) {
-								h.min.y -= incr;
-								h.max.y -= incr;
-								amount += incr;
+							if (entity->touching_floor && entity->vel.y > 0.0f) {
+								entity->pos.y -= (hitbox.min.y - prev_hitbox.min.y);
+							} else {
+								int32_t amount = 0;
+								int32_t incr = (int32_t)glm_signf(entity->vel.y);
+								while (RectsIntersect(h, tile_rect)) {
+									h.min.y -= incr;
+									h.max.y -= incr;
+									amount += incr;
+								}
+								entity->pos.y -= amount;
 							}
-							entity->pos.y -= amount;
+							
 							if (entity->vel.y < 0.0f) touching_ceiling = true;
-							else if (entity->vel.y > 0.0f) touching_ground = true;
+							else if (entity->vel.y > 0.0f) entity->touching_floor = true;
 							vertical_collision_happened = true;
 						}
 					}
@@ -293,8 +297,9 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 	if (horizontal_collision_happened) entity->vel.x = 0.0f;
 	if (vertical_collision_happened) entity->vel.y = 0.0f;
+	else entity->touching_floor = false;
 
-	if (touching_ground) {
+	if (entity->touching_floor) {
 		if (entity->state == EntityState_Jump || entity->state == EntityState_Fall) {
 			entity->state = EntityState_Free;
 		}
