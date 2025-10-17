@@ -239,7 +239,7 @@ void RecordReplayFrame(Context* ctx);
 
 SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite);
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir);
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox);
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox, SpriteCell* sprite_cell);
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame_idx, vec2s pos, int32_t dir);
 void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos);
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset);
