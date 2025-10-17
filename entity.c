@@ -226,6 +226,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
+    int32_t save_pos_y = entity->pos.y;
+	float save_pos_remainder_y = entity->pos_remainder.y;
     entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
@@ -273,7 +275,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
 							if (entity->touching_floor && entity->vel.y > 0.0f) {
-								entity->pos.y -= (hitbox.min.y - prev_hitbox.min.y);
+								entity->pos.y = save_pos_y;
+								entity->pos_remainder.y = save_pos_remainder_y;
 							} else {
 								int32_t amount = 0;
 								int32_t incr = (int32_t)glm_signf(entity->vel.y);
