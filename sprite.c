@@ -244,8 +244,8 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 			SDL_FRect dstrect = {
 				// TODO: Where exactly *are* we supposed to draw the player with respect to the origin?
 				// Are we supposed to add or subtract it?
-				pos.x + (float)(cell->offset.x*dir + origin.x),
-				pos.y + (float)(cell->offset.y + origin.y),
+				pos.x + (float)(cell->offset.x*dir - origin.x),
+				pos.y + (float)(cell->offset.y - origin.y),
 				(float)(cell->size.x*dir),
 				(float)(cell->size.y),
 			};
@@ -303,8 +303,8 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 		if (cell->type == SpriteCellType_Hitbox) {
 			*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
 			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
-			hitbox->min = glms_ivec2_add(hitbox->min, origin);
-			hitbox->max = glms_ivec2_add(hitbox->max, origin);
+			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
+			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
 			return true;
 		}
 	}
