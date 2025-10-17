@@ -253,8 +253,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 					if (!horizontal_collision_happened) {
 						Rect h = prev_hitbox;
-						h.min.x += (int32_t)SDL_roundf(entity->vel.x);
-						h.max.x += (int32_t)SDL_roundf(entity->vel.x);
+						h.min.x = hitbox.min.x;
+						h.max.x = hitbox.max.x;
 						if (RectsIntersect(h, tile_rect)) {
 							int32_t amount = 0;
 							while (RectsIntersect(h, tile_rect)) {
@@ -269,8 +269,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 					}
 					if (!vertical_collision_happened) {
 						Rect h = prev_hitbox;
-						h.min.y += (int32_t)SDL_roundf(entity->vel.y);
-						h.max.y += (int32_t)SDL_roundf(entity->vel.y);
+						h.min.y = hitbox.min.y;
+						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
 							int32_t amount = 0;
 							while (RectsIntersect(h, tile_rect)) {
