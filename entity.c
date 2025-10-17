@@ -73,35 +73,29 @@ void UpdatePlayer(Context* ctx) {
 	} break;
 
 	case EntityState_Free: {
-		if (ctx->button_attack) {
-			player->state = EntityState_Attack;
-		} else if (ctx->button_jump) {
-			player->state = EntityState_Jump;
+		vec2s acc = {0.0f, 0.0f};
+
+		acc.y += GRAVITY;
+
+		if (!ctx->gamepad) {
+			acc.x = (float)input_dir * PLAYER_ACC;
 		} else {
-			vec2s acc = {0.0f, 0.0f};
-
-			acc.y += GRAVITY;
-
-			if (!ctx->gamepad) {
-				acc.x = (float)input_dir * PLAYER_ACC;
-			} else {
-				acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
-			}
-
-			if (input_dir == 0 && player->vel.x == 0.0f) {
-				SetSprite(player, player_idle);
-			} else {
-				SetSprite(player, player_run);
-				if (player->vel.x != 0.0f) {
-					player->dir = (int32_t)glm_signf(player->vel.x);
-				} else if (input_dir != 0) {
-					player->dir = input_dir;
-				}
-			}
-
-			EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-
+			acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
 		}
+
+		if (input_dir == 0 && player->vel.x == 0.0f) {
+			SetSprite(player, player_idle);
+		} else {
+			SetSprite(player, player_run);
+			if (player->vel.x != 0.0f) {
+				player->dir = (int32_t)glm_signf(player->vel.x);
+			} else if (input_dir != 0) {
+				player->dir = input_dir;
+			}
+		}
+
+		EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+
 	} break;
 
 	}
@@ -298,19 +292,24 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 				}
 			}
 		}
-		if (horizontal_collision_happened) entity->vel.x = 0.0f;
-		if (vertical_collision_happened) entity->vel.y = 0.0f;
+	}
 
-		if (!touching_ground && entity->state == EntityState_Free) {
-			entity->state = EntityState_Fall;
-		} else if (touching_ground && (entity->state == EntityState_Jump || entity->state == EntityState_Fall)) {
+	if (horizontal_collision_happened) entity->vel.x = 0.0f;
+	if (vertical_collision_happened) entity->vel.y = 0.0f;
+
+	if (touching_ground) {
+		if (entity->state == EntityState_Jump || entity->state == EntityState_Fall) {
 			entity->state = EntityState_Free;
 		}
 
-		if ((touching_ceiling || entity->vel.y > 0.0f) && entity->state == EntityState_Jump) {
+		if (entity->state == EntityState_Free && entity->type == EntityType_Player) {
+			if (ctx->button_attack) entity->state = EntityState_Attack;
+			else if (ctx->button_jump) entity->state = EntityState_Jump;
+		}
+	} else {
+		if (entity->state == EntityState_Free || ((touching_ceiling || entity->vel.y > 0.0f) && entity->state == EntityState_Jump)) {
 			entity->state = EntityState_Fall;
 		}
+
 	}
-
-
 }
