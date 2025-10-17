@@ -256,9 +256,10 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 	ivec2s grid_pos;
 	bool touching_ground = false;
-	bool break_all = false;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; !break_all && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; !break_all && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+	bool horizontal_collision_happened = false;
+	bool vertical_collision_happened = false;
+	for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
 			SDL_assert(tile_idx < n_tiles);
 			Tile tile = tiles[tile_idx];
@@ -278,8 +279,12 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 								h.min.x -= (int32_t)glm_signf(entity->vel.x);
 								h.max.x -= (int32_t)glm_signf(entity->vel.x);
 							}
-							entity->pos.x = h.min.x + origin.x;
-							entity->vel.x = 0.0f;
+							if (entity->vel.x < 0.0f) {
+								entity->pos.x = SDL_max(entity->pos.x, h.min.x + origin.x);
+							} else if (entity->vel.x > 0.0f) {
+								entity->pos.x = SDL_min(entity->pos.x, h.min.x + origin.x);
+							}
+							horizontal_collision_happened = true;
 						}
 
 					}
@@ -292,16 +297,21 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 								h.min.y -= (int32_t)glm_signf(entity->vel.y);
 								h.max.y -= (int32_t)glm_signf(entity->vel.y);
 							}
-							entity->pos.y = h.min.y + origin.y;
-							entity->vel.y = 0.0f;
+							if (entity->vel.y < 0.0f) {
+								entity->pos.y = SDL_max(entity->pos.y, h.min.y + origin.y);
+							} else if (entity->vel.y > 0.0f) {
+								entity->pos.y = SDL_min(entity->pos.y, h.min.y + origin.y);
+							}
+							vertical_collision_happened = true;
 							touching_ground = true;
 						}
 					}
-
-					break_all = true;
 				}
 			}
 		}
+		if (horizontal_collision_happened) entity->vel.x = 0.0f;
+		if (vertical_collision_happened) entity->vel.y = 0.0f;
+
 		if (!touching_ground && entity->state == EntityState_Free) {
 			entity->state = EntityState_Fall;
 		} else if (touching_ground && (entity->state == EntityState_Jump || entity->state == EntityState_Fall)) {
