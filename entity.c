@@ -217,7 +217,6 @@ FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	Level* level = GetCurrentLevel(ctx);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
-	ivec2s origin = GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 
 	entity->vel = glms_vec2_add(entity->vel, acc);
 
@@ -240,8 +239,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 	bool touching_ceiling = false;
 	bool horizontal_collision_happened = false;
 	bool vertical_collision_happened = false;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
 			SDL_assert(tile_idx < n_tiles);
 			Tile tile = tiles[tile_idx];
@@ -252,40 +251,36 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 				if (RectsIntersect(hitbox, tile_rect)) {
 					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
 
-					{
+					if (!horizontal_collision_happened) {
 						Rect h = prev_hitbox;
 						h.min.x += (int32_t)SDL_roundf(entity->vel.x);
 						h.max.x += (int32_t)SDL_roundf(entity->vel.x);
 						if (RectsIntersect(h, tile_rect)) {
+							int32_t amount = 0;
 							while (RectsIntersect(h, tile_rect)) {
 								h.min.x -= (int32_t)glm_signf(entity->vel.x);
 								h.max.x -= (int32_t)glm_signf(entity->vel.x);
+								amount += (int32_t)glm_signf(entity->vel.x);
 							}
-							if (entity->vel.x < 0.0f) {
-								entity->pos.x = SDL_max(entity->pos.x, h.min.x + origin.x);
-							} else if (entity->vel.x > 0.0f) {
-								entity->pos.x = SDL_min(entity->pos.x, h.min.x + origin.x);
-							}
+							entity->pos.x -= amount;
 							horizontal_collision_happened = true;
 						}
 
 					}
-					{
+					if (!vertical_collision_happened) {
 						Rect h = prev_hitbox;
 						h.min.y += (int32_t)SDL_roundf(entity->vel.y);
 						h.max.y += (int32_t)SDL_roundf(entity->vel.y);
 						if (RectsIntersect(h, tile_rect)) {
+							int32_t amount = 0;
 							while (RectsIntersect(h, tile_rect)) {
 								h.min.y -= (int32_t)glm_signf(entity->vel.y);
 								h.max.y -= (int32_t)glm_signf(entity->vel.y);
+								amount += (int32_t)glm_signf(entity->vel.y);
 							}
-							if (entity->vel.y < 0.0f) {
-								entity->pos.y = SDL_max(entity->pos.y, h.min.y + origin.y);
-								touching_ceiling = true;
-							} else if (entity->vel.y > 0.0f) {
-								entity->pos.y = SDL_min(entity->pos.y, h.min.y + origin.y);
-								touching_ground = true;
-							}
+							entity->pos.y -= amount;
+							if (entity->vel.y < 0.0f) touching_ceiling = true;
+							else if (entity->vel.y > 0.0f) touching_ground = true;
 							vertical_collision_happened = true;
 						}
 					}
