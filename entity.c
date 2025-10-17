@@ -255,6 +255,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 
 	ivec2s grid_pos;
+	bool touching_ground = false;
 	bool break_all = false;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; !break_all && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; !break_all && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
@@ -293,12 +294,18 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 							}
 							entity->pos.y = h.min.y;// + origin.y;
 							entity->vel.y = 0.0f;
+							touching_ground = true;
 						}
 					}
 
 					break_all = true;
 				}
 			}
+		}
+		if (!touching_ground && entity->state == EntityState_Free) {
+			entity->state = EntityState_Fall;
+		} else if (touching_ground && (entity->state == EntityState_Jump || entity->state == EntityState_Fall)) {
+			entity->state = EntityState_Free;
 		}
 	}
 
