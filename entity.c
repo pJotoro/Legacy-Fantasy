@@ -257,10 +257,11 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.max.x = hitbox.max.x;
 						if (RectsIntersect(h, tile_rect)) {
 							int32_t amount = 0;
+							int32_t incr = (int32_t)glm_signf(entity->vel.x);
 							while (RectsIntersect(h, tile_rect)) {
-								h.min.x -= (int32_t)glm_signf(entity->vel.x);
-								h.max.x -= (int32_t)glm_signf(entity->vel.x);
-								amount += (int32_t)glm_signf(entity->vel.x);
+								h.min.x -= incr;
+								h.max.x -= incr;
+								amount += incr;
 							}
 							entity->pos.x -= amount;
 							horizontal_collision_happened = true;
@@ -273,10 +274,11 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
 							int32_t amount = 0;
+							int32_t incr = (int32_t)glm_signf(entity->vel.y);
 							while (RectsIntersect(h, tile_rect)) {
-								h.min.y -= (int32_t)glm_signf(entity->vel.y);
-								h.max.y -= (int32_t)glm_signf(entity->vel.y);
-								amount += (int32_t)glm_signf(entity->vel.y);
+								h.min.y -= incr;
+								h.max.y -= incr;
+								amount += incr;
 							}
 							entity->pos.y -= amount;
 							if (entity->vel.y < 0.0f) touching_ceiling = true;
