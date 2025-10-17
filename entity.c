@@ -180,11 +180,11 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	{
 		bool res; ssize_t frame_idx;
 		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox, NULL); 
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
 		if (!res && entity->anim.frame_idx == 0) {
 			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->n_frames; ++frame_idx) {
-				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox, NULL);
+				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
 		}
 		SDL_assert(res);
@@ -194,13 +194,6 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	hitbox.max = glms_ivec2_add(hitbox.max, entity->pos);
 
 	return hitbox;
-}
-
-ivec2s GetHitboxPos(Context* ctx, Entity* entity) {
-	Rect hitbox;
-	SpriteCell sprite_cell;
-	bool ok = GetSpriteHitbox(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir, &hitbox, &sprite_cell); SDL_assert(ok);
-	return (ivec2s){0}; // THIS IS NOT DONE YET!!!
 }
 
 bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
@@ -273,7 +266,6 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 							} else if (entity->vel.x > 0.0f) {
 								entity->pos.x = SDL_min(entity->pos.x, h.min.x + origin.x);
 							}
-
 							horizontal_collision_happened = true;
 						}
 

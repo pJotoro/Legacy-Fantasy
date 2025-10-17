@@ -292,7 +292,7 @@ void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos) {
 	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
 }
 
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox, SpriteCell* sprite_cell) {
+bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SDL_assert(hitbox);
 	SDL_assert(dir == 1 || dir == -1);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -305,7 +305,6 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
 			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
-			if (sprite_cell) *sprite_cell = *cell;
 			return true;
 		}
 	}
