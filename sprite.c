@@ -242,13 +242,15 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				(float)(cell->size.y),
 			};
 			SDL_FRect dstrect = {
-				// TODO: Where exactly *are* we supposed to draw the player with respect to the origin?
-				// Are we supposed to add or subtract it?
 				pos.x + (float)(cell->offset.x*dir - origin.x),
 				pos.y + (float)(cell->offset.y - origin.y),
 				(float)(cell->size.x*dir),
 				(float)(cell->size.y),
 			};
+
+			if (dir == -1) {
+				dstrect.x += (float)sd->size.x;
+			}
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
