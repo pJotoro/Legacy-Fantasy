@@ -307,6 +307,8 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
 			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
+			if (dir == -1) {
+			}
 			return true;
 		}
 	}

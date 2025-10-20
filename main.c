@@ -121,6 +121,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
+		SDL_CHECK(SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND));
 	}
 
 	// LoadSprites
@@ -250,6 +251,15 @@ int32_t main(int32_t argc, char* argv[]) {
 					DrawSpriteTile(ctx, spr_tiles, tile, pos);
 				}
 			}
+		}
+
+		// RenderHitbox
+		{
+			Entity* player = GetPlayer(ctx);
+			Rect hitbox = GetEntityHitbox(ctx, player);
+			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
+			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x), (float)(hitbox.max.y-hitbox.min.y)};
+			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		}
 
 		// RenderEnd
