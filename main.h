@@ -181,8 +181,6 @@ typedef struct Entity {
 
 	EntityType type;
 	EntityState state;
-
-	bool touching_floor;
 } Entity;
 
 typedef struct Level {

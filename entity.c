@@ -214,8 +214,15 @@ FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 	return (ssize_t)((pos.x + pos.y*level->size.x)/TILE_SIZE);
 }
 
+/*
+Do this in two passes. The second pass should be what is already below, more or less. In the first pass, check to see if there is a tile exactly one pixel away from the player, before applying velocity. If there is, don't apply velocity (or accelerate?) in that direction, and don't check for a collision in that direction. Simple enough, right?
+
+We wouldn't have been able to do it that way before, so it was good that we changed the way tiles worked. The problem with the way it worked before was that tiles weren't placed in the tiles array based on where they were in the level. As a result, there was no way to access them efficiently. You had to loop through every single tile for every single entity. Now that we've changed how tiles work, we can easily loop through the small amount of tiles necessary twice, no problem. It makes things much simpler.
+*/
+
 void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	Level* level = GetCurrentLevel(ctx);
+	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
 
 	entity->vel = glms_vec2_add(entity->vel, acc);
@@ -226,18 +233,71 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
+	vec2s vel = entity->vel;
+	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
+		ivec2s grid_pos;
+		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
+			SDL_assert(tile_idx < n_tiles);
+			Tile tile = tiles[tile_idx];
+			if (tile.type == TileType_Level) {
+				vel.x = 0.0f;
+				break;
+			}
+		}
+	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) {
+		ivec2s grid_pos;
+		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
+			SDL_assert(tile_idx < n_tiles);
+			Tile tile = tiles[tile_idx];
+			if (tile.type == TileType_Level) {
+				vel.x = 0.0f;
+				break;
+			}
+		}
+	}
+	bool touching_floor = false;
+	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
+		ivec2s grid_pos;
+		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
+			SDL_assert(tile_idx < n_tiles);
+			Tile tile = tiles[tile_idx];
+			if (tile.type == TileType_Level) {
+				vel.y = 0.0f;
+				break;
+			}
+		}
+	} else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) {
+		ivec2s grid_pos;
+		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
+			SDL_assert(tile_idx < n_tiles);
+			Tile tile = tiles[tile_idx];
+			if (tile.type == TileType_Level) {
+				vel.y = 0.0f;
+				entity->vel.y = 0.0f;
+				entity->state = EntityState_Free;
+				touching_floor = true;
+				break;
+			}
+		}
+	}
+
     int32_t save_pos_y = entity->pos.y;
 	float save_pos_remainder_y = entity->pos_remainder.y;
-    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, entity->vel);
+    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, vel);
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 
     Rect hitbox = GetEntityHitbox(ctx, entity);
 
-	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
-
 	ivec2s grid_pos;
-	bool touching_ceiling = false;
 	bool horizontal_collision_happened = false;
 	bool vertical_collision_happened = false;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
@@ -274,7 +334,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.min.y = hitbox.min.y;
 						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
-							if (entity->touching_floor && entity->vel.y > 0.0f) {
+							if (touching_floor && entity->vel.y > 0.0f) {
 								entity->pos.y = save_pos_y;
 								entity->pos_remainder.y = save_pos_remainder_y;
 							} else {
@@ -288,8 +348,6 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 								entity->pos.y -= amount;
 							}
 							
-							if (entity->vel.y < 0.0f) touching_ceiling = true;
-							else if (entity->vel.y > 0.0f) entity->touching_floor = true;
 							vertical_collision_happened = true;
 						}
 					}
@@ -298,23 +356,9 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 		}
 	}
 
-	if (horizontal_collision_happened) entity->vel.x = 0.0f;
-	if (vertical_collision_happened) entity->vel.y = 0.0f;
-	else entity->touching_floor = false;
-
-	if (entity->touching_floor) {
-		if (entity->state == EntityState_Jump || entity->state == EntityState_Fall) {
-			entity->state = EntityState_Free;
-		}
-
-		if (entity->state == EntityState_Free && entity->type == EntityType_Player) {
-			if (ctx->button_attack) entity->state = EntityState_Attack;
-			else if (ctx->button_jump) entity->state = EntityState_Jump;
-		}
-	} else {
-		if (entity->state == EntityState_Free || ((touching_ceiling || entity->vel.y > 0.0f) && entity->state == EntityState_Jump)) {
-			entity->state = EntityState_Fall;
-		}
-
+	if (!touching_floor && entity->vel.y > 0.0f) {
+		entity->state = EntityState_Fall;
+	} else if (entity->state == EntityState_Free && ctx->button_jump) {
+		entity->state = EntityState_Jump;
 	}
 }
