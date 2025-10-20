@@ -227,11 +227,9 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 
 	entity->vel = glms_vec2_add(entity->vel, acc);
 
-	if (acc.x != 0.0f) {
-		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
-		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
-		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
-	}
+	if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
+	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+	entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 
 	vec2s vel = entity->vel;
 	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
