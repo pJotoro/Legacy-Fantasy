@@ -268,4 +268,7 @@ Tile* GetLevelTiles(Level* level, size_t* n_tiles);
 
 ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile);
 
-void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel);
+// This returns a new EntityState instead of setting the 
+// entity state directlybecause depending on the entity,
+// certain states might not make sense.
+EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel);

@@ -11,6 +11,14 @@ void UpdatePlayer(Context* ctx) {
 		input_dir = ctx->button_right - ctx->button_left;
 	}
 
+	if (player->state == EntityState_Free) {
+		if (ctx->button_attack) {
+			player->state = EntityState_Attack;
+		} else if (ctx->button_jump) {
+			player->state = EntityState_Jump;
+		}
+	}
+
 	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
 	} else switch (player->state) {
@@ -53,7 +61,7 @@ void UpdatePlayer(Context* ctx) {
     	SetSprite(player, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
-    	EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
@@ -66,7 +74,7 @@ void UpdatePlayer(Context* ctx) {
 		}
 
     	acc.y += GRAVITY;
-    	EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 		bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
@@ -94,7 +102,7 @@ void UpdatePlayer(Context* ctx) {
 			}
 		}
 
-		EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+		player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
 
 		bool loop = true;
 		UpdateAnim(ctx, &player->anim, loop);
@@ -222,7 +230,7 @@ Do this in two passes. The second pass should be what is already below, more or 
 We wouldn't have been able to do it that way before, so it was good that we changed the way tiles worked. The problem with the way it worked before was that tiles weren't placed in the tiles array based on where they were in the level. As a result, there was no way to access them efficiently. You had to loop through every single tile for every single entity. Now that we've changed how tiles work, we can easily loop through the small amount of tiles necessary twice, no problem. It makes things much simpler.
 */
 
-void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	Level* level = GetCurrentLevel(ctx);
 	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
@@ -356,8 +364,8 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 	}
 
 	if (!touching_floor && entity->vel.y > 0.0f) {
-		entity->state = EntityState_Fall;
-	} else if (entity->state == EntityState_Free && ctx->button_jump) {
-		entity->state = EntityState_Jump;
+		return EntityState_Fall;
+	} else {
+		return entity->state;
 	}
 }
