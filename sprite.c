@@ -227,6 +227,8 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
+#define FLIP_SPRITES 0
+
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
@@ -241,16 +243,21 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				(float)(cell->size.x),
 				(float)(cell->size.y),
 			};
+#if FLIP_SPRITES
 			SDL_FRect dstrect = {
 				pos.x + (float)(cell->offset.x*dir - origin.x),
 				pos.y + (float)(cell->offset.y - origin.y),
 				(float)(cell->size.x*dir),
 				(float)(cell->size.y),
 			};
-
-			if (dir == -1) {
-				dstrect.x += (float)sd->size.x;
-			}
+#else
+			SDL_FRect dstrect = {
+				pos.x + (float)(cell->offset.x - origin.x),
+				pos.y + (float)(cell->offset.y - origin.y),
+				(float)(cell->size.x),
+				(float)(cell->size.y),
+			};
+#endif
 
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
@@ -307,8 +314,6 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
 			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
-			if (dir == -1) {
-			}
 			return true;
 		}
 	}
@@ -330,9 +335,13 @@ ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	}
 
 	// Flip if necessary
+#if FLIP_SPRITES
 	if (dir == -1) {
 		res.x = sd->size.x - res.x;
 	}
+#else
+	UNUSED(dir);
+#endif
 
 	return res;
 }
