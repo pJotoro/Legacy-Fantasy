@@ -366,7 +366,6 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	double dur = sd->frames[anim->frame_idx].dur;
 	size_t n_frames = sd->n_frames;
 
-	--anim->timer;
     if (loop || !anim->ended) {
         anim->dt_accumulator += dt;
         if (anim->dt_accumulator >= dur) {
@@ -385,7 +384,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 
 bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
-    if (entity->anim.sprite.idx != sprite.idx && entity->anim.timer <= 0) {
+    if (entity->anim.sprite.idx != sprite.idx) {
         sprite_changed = true;
         ResetAnim(&entity->anim);
 
@@ -404,5 +403,4 @@ void ResetAnim(Anim* anim) {
     anim->frame_idx = 0;
     anim->dt_accumulator = 0.0;
     anim->ended = false;
-    anim->timer = 0;
 }

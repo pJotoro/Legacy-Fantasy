@@ -121,7 +121,6 @@ typedef struct Anim {
 	Sprite sprite;
 	double dt_accumulator;
 	uint32_t frame_idx;
-	int32_t timer; // As long as this timer is > 0, don't change the animation.
 	bool ended;
 } Anim;
 
