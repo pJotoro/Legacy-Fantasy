@@ -17,6 +17,11 @@ void UpdatePlayer(Context* ctx) {
 		} else if (ctx->button_jump) {
 			player->state = EntityState_Jump;
 		}
+	} else if (player->state == EntityState_Jump) {
+		if (ctx->button_jump_released) {
+			player->vel.y /= 2.0f;
+			player->state = EntityState_Fall;
+		}
 	}
 
 	if (player->pos.y > (float)level->size.y) {

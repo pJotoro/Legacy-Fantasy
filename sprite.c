@@ -227,7 +227,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
-#define FLIP_SPRITES 1
+#define FLIP_SPRITES 0
 
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
