@@ -231,6 +231,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
 	entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 
+	bool horizontal_collision_happened = false;
 	vec2s vel = entity->vel;
 	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
 		ivec2s grid_pos;
@@ -241,6 +242,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 			Tile tile = tiles[tile_idx];
 			if (tile.type == TileType_Level) {
 				vel.x = 0.0f;
+				horizontal_collision_happened = true;
 				break;
 			}
 		}
@@ -253,11 +255,13 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 			Tile tile = tiles[tile_idx];
 			if (tile.type == TileType_Level) {
 				vel.x = 0.0f;
+				horizontal_collision_happened = true;
 				break;
 			}
 		}
 	}
 	bool touching_floor = false;
+	bool vertical_collision_happened = false;
 	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
@@ -267,6 +271,7 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 			Tile tile = tiles[tile_idx];
 			if (tile.type == TileType_Level) {
 				vel.y = 0.0f;
+				vertical_collision_happened = true;
 				break;
 			}
 		}
@@ -282,13 +287,12 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
 				touching_floor = true;
+				vertical_collision_happened = true;
 				break;
 			}
 		}
 	}
 
-    int32_t save_pos_y = entity->pos.y;
-	float save_pos_remainder_y = entity->pos_remainder.y;
     entity->pos_remainder = glms_vec2_add(entity->pos_remainder, vel);
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
@@ -296,8 +300,6 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
     Rect hitbox = GetEntityHitbox(ctx, entity);
 
 	ivec2s grid_pos;
-	bool horizontal_collision_happened = false;
-	bool vertical_collision_happened = false;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
@@ -332,19 +334,14 @@ void EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, f
 						h.min.y = hitbox.min.y;
 						h.max.y = hitbox.max.y;
 						if (RectsIntersect(h, tile_rect)) {
-							if (touching_floor && entity->vel.y > 0.0f) {
-								entity->pos.y = save_pos_y;
-								entity->pos_remainder.y = save_pos_remainder_y;
-							} else {
-								int32_t amount = 0;
-								int32_t incr = (int32_t)glm_signf(entity->vel.y);
-								while (RectsIntersect(h, tile_rect)) {
-									h.min.y -= incr;
-									h.max.y -= incr;
-									amount += incr;
-								}
-								entity->pos.y -= amount;
+							int32_t amount = 0;
+							int32_t incr = (int32_t)glm_signf(entity->vel.y);
+							while (RectsIntersect(h, tile_rect)) {
+								h.min.y -= incr;
+								h.max.y -= incr;
+								amount += incr;
 							}
+							entity->pos.y -= amount;
 							
 							vertical_collision_happened = true;
 						}
