@@ -227,7 +227,7 @@ void LoadSprite(SDL_Renderer* renderer, SDL_IOStream* fs, SpriteDesc* sd) {
 	}
 }
 
-#define FLIP_SPRITES 0
+#define FLIP_SPRITES 1
 
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -250,6 +250,10 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 				(float)(cell->size.x*dir),
 				(float)(cell->size.y),
 			};
+
+			if (dir == -1) {
+				dstrect.x += (float)sd->size.x;
+			}
 #else
 			SDL_FRect dstrect = {
 				pos.x + (float)(cell->offset.x - origin.x),
