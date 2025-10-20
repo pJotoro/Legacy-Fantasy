@@ -96,6 +96,8 @@ void UpdatePlayer(Context* ctx) {
 
 		EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
+		bool loop = true;
+		UpdateAnim(ctx, &player->anim, loop);
 	} break;
 
 	}
