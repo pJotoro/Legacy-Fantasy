@@ -128,24 +128,6 @@ typedef struct Anim {
 void ResetAnim(Anim* anim);
 
 enum {
-	IntersectType_None,
-	IntersectType_Left,
-	IntersectType_Right,
-	IntersectType_Up,
-	IntersectType_Down,
-	IntersectType_LeftUp,
-	IntersectType_LeftDown,
-	IntersectType_RightUp,
-	IntersectType_RightDown,
-};
-typedef uint16_t IntersectType;
-
-typedef struct Intersection {
-	IntersectType type;
-	uint16_t tile_src_idx; // type is implied to be TileType_Level
-} Intersection;
-
-enum {
 	EntityType_Player,
 	EntityType_Boar,
 };
