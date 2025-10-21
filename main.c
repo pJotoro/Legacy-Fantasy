@@ -726,8 +726,6 @@
 	static Sprite spr_tiles;
 
 // sprite.c
-	#define FLIP_SPRITES 1
-
 	void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 		SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 		SDL_assert(sd->frames && "invalid sprite");
@@ -742,7 +740,7 @@
 					(float)(cell->size.x),
 					(float)(cell->size.y),
 				};
-	#if FLIP_SPRITES
+				
 				SDL_FRect dstrect = {
 					pos.x + (float)(cell->offset.x*dir - origin.x),
 					pos.y + (float)(cell->offset.y - origin.y),
@@ -753,14 +751,6 @@
 				if (dir == -1) {
 					dstrect.x += (float)sd->size.x;
 				}
-	#else
-				SDL_FRect dstrect = {
-					pos.x + (float)(cell->offset.x - origin.x),
-					pos.y + (float)(cell->offset.y - origin.y),
-					(float)(cell->size.x),
-					(float)(cell->size.y),
-				};
-	#endif
 
 				SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 			}
@@ -813,14 +803,28 @@
 		for (size_t cell_idx = 0; cell_idx < frame->n_cells; ++cell_idx) {
 			SpriteCell* cell = &frame->cells[cell_idx];
 			if (cell->type == SpriteCellType_Hitbox) {
-				*hitbox = (Rect){cell->offset, glms_ivec2_add(cell->offset, cell->size)};
-				ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
-				hitbox->min = glms_ivec2_sub(hitbox->min, origin);
-				hitbox->max = glms_ivec2_sub(hitbox->max, origin);
+				if (dir == 1) {
+					hitbox->min.x = cell->offset.x;
+					hitbox->max.x = cell->offset.x + cell->size.x;
+					hitbox->min.y = cell->offset.y;
+					hitbox->max.y = cell->offset.y + cell->size.y;
+				} else {
+					hitbox->min.x = -cell->offset.x - cell->size.x;
+					hitbox->max.x = -cell->offset.x;
+					hitbox->min.y = cell->offset.y;
+					hitbox->max.y = cell->offset.y + cell->size.y;
+					
+					hitbox->min.x += sd->size.x;
+					hitbox->max.x += sd->size.x;
+				}
 
 				// HACK
 				--hitbox->max.x;
 				--hitbox->max.y;
+
+				ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
+				hitbox->min = glms_ivec2_sub(hitbox->min, origin);
+				hitbox->max = glms_ivec2_sub(hitbox->max, origin);
 
 				return true;
 			}
@@ -843,13 +847,9 @@
 		}
 
 		// Flip if necessary
-	#if FLIP_SPRITES
 		if (dir == -1) {
 			res.x = sd->size.x - res.x;
 		}
-	#else
-		UNUSED(dir);
-	#endif
 
 		return res;
 	}
