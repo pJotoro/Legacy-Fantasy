@@ -253,3 +253,6 @@ ivec2s GetTileSpritePos(Context* ctx, Sprite tileset, Tile tile);
 // entity state directlybecause depending on the entity,
 // certain states might not make sense.
 EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel);
+
+Level LoadLevel(Context* ctx, JSON_Node* level_node);
+void LoadLevels(Context* ctx);
