@@ -726,7 +726,7 @@
 	static Sprite spr_tiles;
 
 // sprite.c
-	#define FLIP_SPRITES 0
+	#define FLIP_SPRITES 1
 
 	void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 		SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -821,7 +821,7 @@
 				// HACK
 				--hitbox->max.x;
 				--hitbox->max.y;
-				
+
 				return true;
 			}
 		}
@@ -1704,7 +1704,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 						Tile tile = {
 							.src = src,
-							//.type = TileType_Decor,
+							.type = TileType_Decor,
 						};
 						int32_t dst_idx = (dst.x + dst.y*level.size.x)/TILE_SIZE;
 						SDL_assert(dst_idx >= 0 && dst_idx < level.size.x*level.size.y);
@@ -1963,7 +1963,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			Entity* player = GetPlayer(ctx);
 			Rect hitbox = GetEntityHitbox(ctx, player);
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
-			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x), (float)(hitbox.max.y-hitbox.min.y)};
+			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x+1), (float)(hitbox.max.y-hitbox.min.y+1)};
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		}
 
