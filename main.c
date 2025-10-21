@@ -1206,17 +1206,23 @@
 			input_dir = ctx->button_right - ctx->button_left;
 		}
 
-		if (player->state == EntityState_Free) {
+		switch (player->state) {
+		case EntityState_Free: {
 			if (ctx->button_attack) {
 				player->state = EntityState_Attack;
 			} else if (ctx->button_jump) {
 				player->state = EntityState_Jump;
 			}
-		} else if (player->state == EntityState_Jump) {
+		} break;
+		case EntityState_Jump: {
 			if (ctx->button_jump_released) {
 				player->vel.y /= 2.0f;
 				player->state = EntityState_Fall;
 			}
+		} break;
+		default: {
+			// TODO?
+		} break;
 		}
 
 		if (player->pos.y > (float)level->size.y) {
@@ -1242,7 +1248,7 @@
 				if (EntitiesIntersect(ctx, player, enemy)) {
 					switch (enemy->type) {
 					case EntityType_Boar:
-						SetSprite(enemy, boar_hit);
+						enemy->state = EntityState_Hurt;
 						break;
 					default:
 						break;
@@ -1308,73 +1314,39 @@
 			UpdateAnim(ctx, &player->anim, loop);
 		} break;
 
+		default: {
+			// TODO?
+		} break;
 		}
 	}
 
 	void UpdateBoar(Context* ctx, Entity* boar) {
-		if (boar->state == EntityState_Inactive) {
+		switch (boar->state) {
+		case EntityState_Inactive:
 			return;
-		}
+		case EntityState_Hurt: {
+			SetSprite(boar, boar_hit);
 
-	#if 0
-		if (SpritesEqual(boar->anim.sprite, boar_hit)) {
-			UpdateAnim(ctx, &boar->anim, false);
+			// We do this before updating the animation, so that way other entities can interact
+			// with this entity one last time before it dies.
 			if (boar->anim.ended) {
 				boar->state = EntityState_Inactive;
+				return;
 			}
-			return;
+
+			bool loop = false;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
+
+		case EntityState_Free:
+			SetSprite(boar, boar_idle);
+
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		default: {
+			// TODO: 
+		} break;
 		}
-
-		Rect hitbox, lh, rh, uh, dh;
-		GetEntityHitboxes(ctx, boar, &hitbox, &lh, &rh, &uh, &dh);
-
-		EntityAccelerateY(boar, GRAVITY);
-
-		Level* level = GetCurrentLevel(ctx);
-
-		boar->flags &= ~EntityFlags_TouchingFloor;
-		if (boar->vel.y < 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, uh, &tile)) {
-				boar->pos.y += tile.max.y - hitbox.min.y;
-				boar->vel.y = -boar->vel.y / 2.0f;
-			}
-		} else if (boar->vel.y > 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, dh, &tile)) {
-				boar->pos.y += tile.min.y - hitbox.max.y;
-				boar->vel.y = 0.0f;
-				boar->flags |= EntityFlags_TouchingFloor;
-			}
-		}
-
-		// BoarChasePlayer
-		if (HAS_FLAG(boar->flags, EntityFlags_TouchingFloor)) {
-			if (!EntityApplyFriction(boar, BOAR_FRIC, BOAR_MAX_VEL) && !SpritesEqual(boar->anim.sprite, boar_attack)) {
-				SetSprite(boar, boar_idle);
-			}
-		}
-
-		if (boar->vel.x < 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, lh, &tile)) {
-				boar->pos.x += tile.max.x - hitbox.min.x;
-				boar->vel.x = 0.0f;
-			}
-		} else if (boar->vel.x > 0.0f) {
-			Rect tile;
-			if (RectIntersectsLevel(level, rh, &tile)) {
-				boar->pos.x += tile.min.x - hitbox.max.x;
-				boar->vel.x = 0.0f;
-			}
-		}
-
-	#endif
-		bool loop = true;
-		if (SpritesEqual(boar->anim.sprite, boar_hit)) {
-			loop = false;
-		}
-		UpdateAnim(ctx, &boar->anim, loop);
 	}
 
 	Rect GetEntityHitbox(Context* ctx, Entity* entity) {
