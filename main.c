@@ -797,8 +797,8 @@
 		SDL_FRect dstrect = {
 			(float)pos.x,
 			(float)pos.y,
-			(float)(sd->grid_size.x),
-			(float)(sd->grid_size.y),
+			(float)sd->grid_size.x,
+			(float)sd->grid_size.y,
 		};
 
 		SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
@@ -1415,7 +1415,7 @@
 			grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
 			for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 				size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-				SDL_assert(tile_idx < n_tiles);
+				if (tile_idx >= n_tiles) continue;
 				Tile tile = tiles[tile_idx];
 				if (tile.type == TileType_Level) {
 					vel.x = 0.0f;
@@ -1428,7 +1428,7 @@
 			grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
 			for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 				size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-				SDL_assert(tile_idx < n_tiles);
+				if (tile_idx >= n_tiles) continue;
 				Tile tile = tiles[tile_idx];
 				if (tile.type == TileType_Level) {
 					vel.x = 0.0f;
@@ -1444,7 +1444,7 @@
 			grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
 			for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 				size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-				SDL_assert(tile_idx < n_tiles);
+				if (tile_idx >= n_tiles) continue;
 				Tile tile = tiles[tile_idx];
 				if (tile.type == TileType_Level) {
 					vel.y = 0.0f;
@@ -1457,7 +1457,7 @@
 			grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
 			for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 				size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-				SDL_assert(tile_idx < n_tiles);
+				if (tile_idx >= n_tiles) continue;
 				Tile tile = tiles[tile_idx];
 				if (tile.type == TileType_Level) {
 					vel.y = 0.0f;
@@ -1480,7 +1480,7 @@
 		for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 			for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
 				size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-				SDL_assert(tile_idx < n_tiles);
+				if (tile_idx >= n_tiles) continue;
 				Tile tile = tiles[tile_idx];
 				if (tile.type == TileType_Level) {
 					Rect tile_rect;
@@ -1744,7 +1744,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 				Tile* tile = &tiles[tile_idx];
 				ivec2s dim = GetTilesetDimensions(ctx, spr_tiles);
-				int32_t src_idx = tile->src.x + tile->src.y*dim.x;
+				int32_t src_idx = (tile->src.x + tile->src.y*dim.x)/TILE_SIZE;
 				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
 					int32_t i = tiles_collide[tiles_collide_idx];
 					if (i == src_idx) {
