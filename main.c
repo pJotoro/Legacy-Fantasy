@@ -1324,27 +1324,40 @@
 		switch (boar->state) {
 		case EntityState_Inactive:
 			return;
+
 		case EntityState_Hurt: {
 			SetSprite(boar, boar_hit);
 
-			// We do this before updating the animation, so that way other entities can interact
-			// with this entity one last time before it dies.
-			if (boar->anim.ended) {
-				boar->state = EntityState_Inactive;
-				return;
-			}
-
 			bool loop = false;
 			UpdateAnim(ctx, &boar->anim, loop);
+
+			if (boar->anim.ended) {
+				boar->state = EntityState_Inactive;
+			}
 		} break;
 
-		case EntityState_Free:
-			SetSprite(boar, boar_idle);
+		case EntityState_Fall: {
+			SetSprite(boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
+
+			vec2s acc = {0.0f, GRAVITY};
+			boar->state = EntityMoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 			bool loop = true;
 			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
+
+		case EntityState_Free: {
+			SetSprite(boar, boar_idle);
+
+			vec2s acc = {0.0f, GRAVITY};
+			boar->state = EntityMoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
+
 		default: {
-			// TODO: 
+			// TODO?
 		} break;
 		}
 	}
@@ -1388,12 +1401,6 @@
 	FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 		return (ssize_t)((pos.x + pos.y*level->size.x)/TILE_SIZE);
 	}
-
-	/*
-	Do this in two passes. The second pass should be what is already below, more or less. In the first pass, check to see if there is a tile exactly one pixel away from the player, before applying velocity. If there is, don't apply velocity (or accelerate?) in that direction, and don't check for a collision in that direction. Simple enough, right?
-
-	We wouldn't have been able to do it that way before, so it was good that we changed the way tiles worked. The problem with the way it worked before was that tiles weren't placed in the tiles array based on where they were in the level. As a result, there was no way to access them efficiently. You had to loop through every single tile for every single entity. Now that we've changed how tiles work, we can easily loop through the small amount of tiles necessary twice, no problem. It makes things much simpler.
-	*/
 
 	EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 		Level* level = GetCurrentLevel(ctx);
