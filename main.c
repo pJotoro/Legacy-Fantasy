@@ -459,6 +459,7 @@
 	typedef uint32_t TileType;
 
 	typedef struct Tile {
+		struct Tile* next;
 		ivec2s src;
 		TileType type;
 	} Tile;
@@ -740,7 +741,7 @@
 					(float)(cell->size.x),
 					(float)(cell->size.y),
 				};
-				
+
 				SDL_FRect dstrect = {
 					pos.x + (float)(cell->offset.x*dir - origin.x),
 					pos.y + (float)(cell->offset.y - origin.y),
@@ -1708,7 +1709,14 @@ int32_t main(int32_t argc, char* argv[]) {
 						};
 						int32_t dst_idx = (dst.x + dst.y*level.size.x)/TILE_SIZE;
 						SDL_assert(dst_idx >= 0 && dst_idx < level.size.x*level.size.y);
-						level.tiles[dst_idx] = tile;
+						if (level.tiles[dst_idx].type != TileType_Empty) {
+							// HACK/TODO: Have multiple layers instead of this.
+							level.tiles[dst_idx].next = SDL_calloc(1, sizeof(Tile)); SDL_CHECK(level.tiles[dst_idx].next);
+							*level.tiles[dst_idx].next = tile;
+
+						} else {
+							level.tiles[dst_idx] = tile;
+						}
 					}
 				}
 			}
@@ -1954,6 +1962,11 @@ int32_t main(int32_t argc, char* argv[]) {
 					ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
 					pos = glms_ivec2_scale(pos, TILE_SIZE);
 					DrawSpriteTile(ctx, spr_tiles, tile, pos);
+					
+					// HACK/TODO: Have multiple layers instead of this.
+					if (tile.next) {
+						DrawSpriteTile(ctx, spr_tiles, *tile.next, pos);
+					}
 				}
 			}
 		}
