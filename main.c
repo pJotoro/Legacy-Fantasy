@@ -817,6 +817,11 @@
 				ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 				hitbox->min = glms_ivec2_sub(hitbox->min, origin);
 				hitbox->max = glms_ivec2_sub(hitbox->max, origin);
+
+				// HACK
+				--hitbox->max.x;
+				--hitbox->max.y;
+				
 				return true;
 			}
 		}
@@ -1699,7 +1704,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 						Tile tile = {
 							.src = src,
-							.type = TileType_Decor,
+							//.type = TileType_Decor,
 						};
 						int32_t dst_idx = (dst.x + dst.y*level.size.x)/TILE_SIZE;
 						SDL_assert(dst_idx >= 0 && dst_idx < level.size.x*level.size.y);
