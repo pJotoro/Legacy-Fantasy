@@ -54,15 +54,6 @@ FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
     return ctx->levels[ctx->level_idx].enemies;
 }
 
-#if 0
-FORCEINLINE Tile* GetTiles(Context* ctx, size_t* n_tiles) {
-    SDL_assert(n_tiles);
-    ivec2s size = ctx->levels[ctx->level_idx].size;
-    *n_tiles = (size_t)(size.x * size.y);
-    return ctx->levels[ctx->level_idx].tiles;
-}
-#endif
-
 FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
     return &ctx->levels[ctx->level_idx];
 }
@@ -84,4 +75,8 @@ FORCEINLINE void ResetAnim(Anim* anim) {
 
 FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 	return (ssize_t)((pos.x + pos.y*level->size.x)/TILE_SIZE);
+}
+
+FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
+	return &level->tile_layers[tile_layer_idx];
 }

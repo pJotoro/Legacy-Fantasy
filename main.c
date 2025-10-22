@@ -99,8 +99,6 @@ typedef struct SpriteFrame {
 typedef struct SpriteDesc {
 	char* path;
 	ivec2s size;
-	ivec2s grid_offset;
-	ivec2s grid_size;
 	SpriteLayer* layers; size_t n_layers;
 	SpriteFrame* frames; size_t n_frames;
 } SpriteDesc;
@@ -155,12 +153,12 @@ typedef struct Entity {
 } Entity;
 
 typedef struct Tile {
-	ivec2s sprite_pos;
+	ivec2s src;
+	ivec2s dst;
 } Tile;
 
 typedef struct TileLayer {
-	Sprite sprite;
-	Tile* tiles; // n_tiles = level.size.x*level.size.y
+	Tile* tiles; size_t n_tiles;
 } TileLayer;
 
 typedef struct Level {
@@ -168,6 +166,10 @@ typedef struct Level {
 	Entity player;
 	Entity* enemies; size_t n_enemies;
 	TileLayer* tile_layers; size_t n_tile_layers;
+
+	// Each bit is one tile.
+	// 1 means we can collide with it. 0 means we can't.
+	uint64_t* raw_tiles; // n_raw_tiles = size.x*size.y/64
 } Level;
 
 typedef struct Rect {
@@ -233,14 +235,19 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
+bool GetTile(Level* level, ivec2s pos) {
+	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
+	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
+	uint64_t bit = (uint64_t)((pos.x + pos.y*level->size.x)%64);
+	return level->raw_tiles[idx] & bit;
+}
+
 bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
-    if (entity->anim.sprite.idx != sprite.idx) {
+    if (!SpritesEqual(entity->anim.sprite, sprite)) {
         sprite_changed = true;
-        ResetAnim(&entity->anim);
-
         entity->anim.sprite = sprite;
-
+        ResetAnim(&entity->anim);
     }
     return sprite_changed;
 }
@@ -341,39 +348,6 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
 }
 
-void DrawSpriteTile(Context* ctx, Sprite tileset, Tile tile, ivec2s pos) {
-	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
-	SDL_assert(sd->n_layers == 1);
-	SDL_assert(sd->n_frames == 1);
-	SDL_assert(sd->frames[0].n_cells == 1);
-
-	SDL_Texture* texture = sd->frames[0].cells[0].texture;
-
-	ivec2s sprite_pos = tile.sprite_pos;
-
-	SDL_FRect srcrect = {
-		(float)sprite_pos.x,
-		(float)sprite_pos.y,
-		(float)sd->grid_size.x,
-		(float)sd->grid_size.y,
-	};
-	SDL_FRect dstrect = {
-		(float)pos.x,
-		(float)pos.y,
-		(float)sd->grid_size.x,
-		(float)sd->grid_size.y,
-	};
-
-	SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
-	#if 0
-	if (tile.type == TileType_Level) {
-		SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
-		SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &dstrect));
-		SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
-	}
-	#endif
-}
-
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SDL_assert(hitbox);
 	SDL_assert(dir == 1 || dir == -1);
@@ -410,17 +384,6 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 		}
 	}
 	return false;
-}
-
-int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
-    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
-    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
-    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
-        return -1;
-    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
-        return 1;
-    }
-    return 0;
 }
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
@@ -492,10 +455,10 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 				
 				sd->size.x = (int32_t)header.w;
 				sd->size.y = (int32_t)header.h;
-				sd->grid_offset.x = (int32_t)header.grid_x;
-				sd->grid_offset.y = (int32_t)header.grid_y;
-				sd->grid_size.x = (int32_t)header.grid_w; if (sd->grid_size.x == 0) sd->grid_size.x = 16;
-				sd->grid_size.y = (int32_t)header.grid_h; if (sd->grid_size.y == 0) sd->grid_size.y = 16;
+				SDL_assert(header.grid_x == 0);
+				SDL_assert(header.grid_y == 0);
+				SDL_assert(header.grid_w == 0 || header.grid_w == 16);
+				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 				sd->n_frames = (size_t)header.n_frames;
 				sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
 
@@ -765,10 +728,7 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 // entity state directly because depending on the entity,
 // certain states might not make sense.
 EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
-#if 0
 	Level* level = GetCurrentLevel(ctx);
-	size_t n_tiles; Tile* tiles = GetLevelTiles(level, &n_tiles);
-#endif
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
 
 	entity->vel = glms_vec2_add(entity->vel, acc);
@@ -785,31 +745,21 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		#if 0
-			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-			if (tile_idx >= n_tiles) continue;
-			Tile tile = tiles[tile_idx];
-			if (tile.type == TileType_Level) {
+			if (GetTile(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
 			}
-		#endif
 		}
 	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		#if 0
-			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-			if (tile_idx >= n_tiles) continue;
-			Tile tile = tiles[tile_idx];
-			if (tile.type == TileType_Level) {
+			if (GetTile(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
 			}
-		#endif
 		}
 	}
 	bool touching_floor = false;
@@ -818,26 +768,17 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-		#if 0
-			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-			if (tile_idx >= n_tiles) continue;
-			Tile tile = tiles[tile_idx];
-			if (tile.type == TileType_Level) {
+			if (GetTile(level, grid_pos)) {
 				vel.y = 0.0f;
 				vertical_collision_happened = true;
 				break;
 			}
-		#endif
 		}
 	} else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-		#if 0
-			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-			if (tile_idx >= n_tiles) continue;
-			Tile tile = tiles[tile_idx];
-			if (tile.type == TileType_Level) {
+			if (GetTile(level, grid_pos)) {
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
@@ -845,7 +786,6 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 				vertical_collision_happened = true;
 				break;
 			}
-		#endif
 		}
 	}
 
@@ -1094,6 +1034,17 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	level->n_enemies = replay_frame->n_enemies;
 }
 
+int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
+    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
+    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
+        return -1;
+    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
+        return 1;
+    }
+    return 0;
+}
+
 int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
@@ -1195,10 +1146,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei", true);
 			level.size.y = JSON_GetIntValue(h);
 
-		#if 0
-			size_t n_tiles = (size_t)(level.size.x * level.size.y);
-			level.tiles = SDL_calloc(n_tiles, sizeof(Tile)); SDL_CHECK(level.tiles);
-		#endif
+			size_t n_tiles = (size_t)(level.size.x*level.size.y/64);
+			level.raw_tiles = SDL_calloc(n_tiles, sizeof(uint64_t)); SDL_CHECK(level.raw_tiles);
 
 			char* layer_player = "Player";
 			char* layer_enemies = "Enemies";
@@ -1307,25 +1256,30 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		break_all = false;
 
-		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
-		#if 0
-			Level* level = &ctx->levels[level_idx];
-			size_t n_tiles;
-			Tile* tiles = GetLevelTiles(level, &n_tiles);
-			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-				Tile* tile = &tiles[tile_idx];
-				ivec2s dim = GetTilesetDimensions(ctx, spr_tiles);
-				int32_t src_idx = (tile->src.x + tile->src.y*dim.x)/TILE_SIZE;
-				for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
-					int32_t i = tiles_collide[tiles_collide_idx];
-					if (i == src_idx) {
-						tile->type = TileType_Level;
-						break;
-					}
-				}
+		// GetCollidableTiles
+		{
+			vec2s dim = GetTilesetDimensions(ctx, spr_tiles);
+			Level* level = &ctx->levels[0]; // TODO
+			for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
+				int32_t tile_id = tiles_collide[tiles_collide_idx];
+				
 			}
-		#endif
 		}
+		//for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
+			//Level* level = &ctx->levels[level_idx];
+			// size_t n_raw_tiles = level->size.x*level->size.y/64;
+			// for (size_t raw_tile_idx = 0; raw_tile_idx < n_raw_tiles; ++raw_tile_idx) {
+			// 	Tile* tile = &level->
+			// 	int32_t src_idx = (tile->src.x + tile->src.y*dim.x)/TILE_SIZE;
+			// 	for (size_t tiles_collide_idx = 0; tiles_collide_idx < n_tiles_collide; ++tiles_collide_idx) {
+			// 		int32_t i = tiles_collide[tiles_collide_idx];
+			// 		if (i == src_idx) {
+			// 			tile->type = TileType_Level;
+			// 			break;
+			// 		}
+			// 	}
+			// }
+		//}
 
 		SDL_free(tiles_collide);
 		JSON_Delete(head);
@@ -1513,23 +1467,36 @@ int32_t main(int32_t argc, char* argv[]) {
 				DrawEntity(ctx, enemy);
 			}
 			DrawEntity(ctx, GetPlayer(ctx));
-		#if 0
-			size_t n_tiles; Tile* tiles = GetTiles(ctx, &n_tiles);
+
 			Level* level = GetCurrentLevel(ctx);
-			for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-				Tile tile = tiles[tile_idx];
-				if (tile.type != TileType_Empty) {
-					ivec2s pos = {(int32_t)tile_idx % level->size.x, (int32_t)tile_idx / level->size.x};
-					pos = glms_ivec2_scale(pos, TILE_SIZE);
-					DrawSpriteTile(ctx, spr_tiles, tile, pos);
-					
-					// HACK/TODO: Have multiple layers instead of this.
-					if (tile.next) {
-						DrawSpriteTile(ctx, spr_tiles, *tile.next, pos);
-					}
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
+				TileLayer* tile_layer = GetTileLayer(level, tile_layer_idx);
+				size_t n_tiles = level->size.x*level->size.y; Tile* tiles = tile_layer->tiles;
+				for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
+					Tile tile = tiles[tile_idx];					
+					SpriteDesc* sd = GetSpriteDesc(ctx, spr_tiles);
+					SDL_assert(sd->n_layers == 1);
+					SDL_assert(sd->n_frames == 1);
+					SDL_assert(sd->frames[0].n_cells == 1);
+
+					SDL_Texture* texture = sd->frames[0].cells[0].texture;
+
+					SDL_FRect srcrect = {
+						(float)(tile.src.x*TILE_SIZE),
+						(float)(tile.src.y*TILE_SIZE),
+						(float)TILE_SIZE,
+						(float)TILE_SIZE,
+					};
+					SDL_FRect dstrect = {
+						(float)(tile.dst.x*TILE_SIZE),
+						(float)(tile.dst.y*TILE_SIZE),
+						(float)TILE_SIZE,
+						(float)TILE_SIZE,
+					};
+
+					SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
 				}
 			}
-		#endif
 		}
 
 		// RenderHitbox
