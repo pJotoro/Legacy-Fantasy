@@ -20,15 +20,7 @@ typedef int64_t ssize_t;
 
 #define FORCEINLINE SDL_FORCE_INLINE
 
-#define KILOBYTE(X) ((X)*1024LL)
-#define MEGABYTE(X) (KILOBYTE(X)*1024LL)
-#define GIGABYTE(X) (MEGABYTE(X)*1024LL)
-#define TERABYTE(X) (GIGABYTE(X)*1024LL)
-
 #define STMT(X) do {X} while (false)
-
-#define STRINGIFY(X) #X
-#define CONCAT(A,B) A##B
 
 #define UNUSED(X) (void)X
 
