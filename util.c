@@ -35,12 +35,14 @@ FORCEINLINE float NormInt16(int16_t i16) {
     return res;
 }
 
+#if 0
 FORCEINLINE Tile* GetLevelTiles(Level* level, size_t* n_tiles) {
     SDL_assert(n_tiles);
     ivec2s size = level->size;
     *n_tiles = (size_t)(size.x * size.y);
     return level->tiles;
 }
+#endif
 
 FORCEINLINE Entity* GetPlayer(Context* ctx) {
     return &ctx->levels[ctx->level_idx].player;
@@ -52,12 +54,14 @@ FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
     return ctx->levels[ctx->level_idx].enemies;
 }
 
+#if 0
 FORCEINLINE Tile* GetTiles(Context* ctx, size_t* n_tiles) {
     SDL_assert(n_tiles);
     ivec2s size = ctx->levels[ctx->level_idx].size;
     *n_tiles = (size_t)(size.x * size.y);
     return ctx->levels[ctx->level_idx].tiles;
 }
+#endif
 
 FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
     return &ctx->levels[ctx->level_idx];
