@@ -106,30 +106,6 @@ JSON_PUBLIC(const char*) JSON_Version(void)
     return version;
 }
 
-/* Case insensitive string comparison, doesn't consider two NULL pointers equal though */
-static int32_t JSON_case_insensitive_strcmp(const uint8_t *string1, const uint8_t *string2)
-{
-    if ((string1 == NULL) || (string2 == NULL))
-    {
-        return 1;
-    }
-
-    if (string1 == string2)
-    {
-        return 0;
-    }
-
-    for(; SDL_tolower(*string1) == SDL_tolower(*string2); (void)string1++, string2++)
-    {
-        if (*string1 == '\0')
-        {
-            return 0;
-        }
-    }
-
-    return SDL_tolower(*string1) - SDL_tolower(*string2);
-}
-
 /* strlen of character literals resolved at compile time */
 #define JSON_static_strlen(string_literal) (sizeof(string_literal) - sizeof(""))
 
@@ -1754,7 +1730,7 @@ JSON_PUBLIC(JSON_Node*) JSON_GetArrayItem(const JSON_Node *array, ssize_t index)
     return current_child;
 }
 
-static JSON_Node *JSON_GetObjectItem(const JSON_Node * const object, const char * const name, const bool case_sensitive)
+static JSON_Node *JSON_GetObjectItem(const JSON_Node * const object, const char * const name)
 {
     JSON_Node *current_element = NULL;
 
@@ -1764,19 +1740,9 @@ static JSON_Node *JSON_GetObjectItem(const JSON_Node * const object, const char 
     }
 
     current_element = object->child;
-    if (case_sensitive)
+    while ((current_element != NULL) && (current_element->string != NULL) && (SDL_strcmp(name, current_element->string) != 0))
     {
-        while ((current_element != NULL) && (current_element->string != NULL) && (SDL_strcmp(name, current_element->string) != 0))
-        {
-            current_element = current_element->next;
-        }
-    }
-    else
-    {
-        while ((current_element != NULL) && (JSON_case_insensitive_strcmp((const uint8_t*)name, (const uint8_t*)(current_element->string)) != 0))
-        {
-            current_element = current_element->next;
-        }
+        current_element = current_element->next;
     }
 
     if ((current_element == NULL) || (current_element->string == NULL)) {
@@ -1788,7 +1754,7 @@ static JSON_Node *JSON_GetObjectItem(const JSON_Node * const object, const char 
 
 JSON_PUBLIC(bool) JSON_HasObjectItem(const JSON_Node *object, const char *string)
 {
-    return JSON_GetObjectItem(object, string, false) ? 1 : 0;
+    return JSON_GetObjectItem(object, string) ? 1 : 0;
 }
 
 /* Utility for array list handling. */
@@ -2087,14 +2053,7 @@ JSON_PUBLIC(void) JSON_DeleteItemFromArray(JSON_Node *array, int32_t which)
 
 JSON_PUBLIC(JSON_Node *) JSON_DetachItemFromObject(JSON_Node *object, const char *string)
 {
-    JSON_Node *to_detach = JSON_GetObjectItem(object, string, false);
-
-    return JSON_DetachItemViaPointer(object, to_detach);
-}
-
-JSON_PUBLIC(JSON_Node *) JSON_DetachItemFromObjectCaseSensitive(JSON_Node *object, const char *string)
-{
-    JSON_Node *to_detach = JSON_GetObjectItem(object, string, true);
+    JSON_Node *to_detach = JSON_GetObjectItem(object, string);
 
     return JSON_DetachItemViaPointer(object, to_detach);
 }
@@ -2102,11 +2061,6 @@ JSON_PUBLIC(JSON_Node *) JSON_DetachItemFromObjectCaseSensitive(JSON_Node *objec
 JSON_PUBLIC(void) JSON_DeleteItemFromObject(JSON_Node *object, const char *string)
 {
     JSON_Delete(JSON_DetachItemFromObject(object, string));
-}
-
-JSON_PUBLIC(void) JSON_DeleteItemFromObjectCaseSensitive(JSON_Node *object, const char *string)
-{
-    JSON_Delete(JSON_DetachItemFromObjectCaseSensitive(object, string));
 }
 
 /* Replace array/object items with new ones. */
@@ -2203,7 +2157,7 @@ JSON_PUBLIC(bool) JSON_ReplaceItemInArray(JSON_Node *array, int32_t which, JSON_
     return JSON_ReplaceItemViaPointer(array, JSON_GetArrayItem(array, (size_t)which), newitem);
 }
 
-JSON_PUBLIC(bool) JSON_ReplaceItemInObject(JSON_Node *object, const char *string, JSON_Node *replacement, bool case_sensitive)
+JSON_PUBLIC(bool) JSON_ReplaceItemInObject(JSON_Node *object, const char *string, JSON_Node *replacement)
 {
     if ((replacement == NULL) || (string == NULL))
     {
@@ -2223,7 +2177,7 @@ JSON_PUBLIC(bool) JSON_ReplaceItemInObject(JSON_Node *object, const char *string
 
     replacement->type &= ~JSON_StringIsConst;
 
-    return JSON_ReplaceItemViaPointer(object, JSON_GetObjectItem(object, string, case_sensitive), replacement);
+    return JSON_ReplaceItemViaPointer(object, JSON_GetObjectItem(object, string), replacement);
 }
 
 /* Create basic types: */
@@ -2838,7 +2792,7 @@ JSON_PUBLIC(bool) JSON_IsRaw(const JSON_Node * const item)
     return (item->type & 0xFF) == JSON_Raw;
 }
 
-JSON_PUBLIC(bool) JSON_Compare(const JSON_Node * const a, const JSON_Node * const b, const bool case_sensitive)
+JSON_PUBLIC(bool) JSON_Compare(const JSON_Node * const a, const JSON_Node * const b)
 {
     if ((a == NULL) || (b == NULL) || ((a->type & 0xFF) != (b->type & 0xFF)))
     {
@@ -2903,7 +2857,7 @@ JSON_PUBLIC(bool) JSON_Compare(const JSON_Node * const a, const JSON_Node * cons
 
             for (; (a_element != NULL) && (b_element != NULL);)
             {
-                if (!JSON_Compare(a_element, b_element, case_sensitive))
+                if (!JSON_Compare(a_element, b_element))
                 {
                     return false;
                 }
@@ -2927,13 +2881,13 @@ JSON_PUBLIC(bool) JSON_Compare(const JSON_Node * const a, const JSON_Node * cons
             JSON_ArrayForEach(a_element, a)
             {
                 /* TODO This has O(n^2) runtime, which is horrible! */
-                b_element = JSON_GetObjectItem(b, a_element->string, case_sensitive);
+                b_element = JSON_GetObjectItem(b, a_element->string);
                 if (b_element == NULL)
                 {
                     return false;
                 }
 
-                if (!JSON_Compare(a_element, b_element, case_sensitive))
+                if (!JSON_Compare(a_element, b_element))
                 {
                     return false;
                 }
@@ -2943,13 +2897,13 @@ JSON_PUBLIC(bool) JSON_Compare(const JSON_Node * const a, const JSON_Node * cons
              * TODO: Do this the proper way, this is just a fix for now */
             JSON_ArrayForEach(b_element, b)
             {
-                a_element = JSON_GetObjectItem(a, b_element->string, case_sensitive);
+                a_element = JSON_GetObjectItem(a, b_element->string);
                 if (a_element == NULL)
                 {
                     return false;
                 }
 
-                if (!JSON_Compare(b_element, a_element, case_sensitive))
+                if (!JSON_Compare(b_element, a_element))
                 {
                     return false;
                 }
