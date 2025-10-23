@@ -235,23 +235,25 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
-bool GetTile(Level* level, ivec2s pos) {
+// FYI: neither of these functions work right now!
+
+bool IsSolid(Level* level, ivec2s pos) {
 	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
 	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
 	uint64_t mask = (uint64_t)((pos.x + pos.y*level->size.x)%64);
 	return level->raw_tiles[idx] & mask;
 }
 
-void SetTile(Level* level, ivec2s pos, bool value) {
-	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
-	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
-	uint64_t mask = (uint64_t)((pos.x + pos.y*level->size.x)%64);
-	if (value) {
-		level->raw_tiles[idx] |= mask;
-	} else {
-		level->raw_tiles[idx] &= ~mask;
-	}
-}
+// void SetTile(Level* level, ivec2s pos, bool value) {
+// 	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
+// 	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
+// 	uint64_t mask = (uint64_t)((pos.x + pos.y*level->size.x)%64);
+// 	if (value) {
+// 		level->raw_tiles[idx] |= mask;
+// 	} else {
+// 		level->raw_tiles[idx] &= ~mask;
+// 	}
+// }
 
 bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
@@ -756,7 +758,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-			if (GetTile(level, grid_pos)) {
+			if (IsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
@@ -766,7 +768,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-			if (GetTile(level, grid_pos)) {
+			if (IsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
@@ -779,7 +781,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-			if (GetTile(level, grid_pos)) {
+			if (IsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				vertical_collision_happened = true;
 				break;
@@ -789,7 +791,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-			if (GetTile(level, grid_pos)) {
+			if (IsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
@@ -1284,7 +1286,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					size_t src_idx = JSON_GetIntValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
-					SetTile(&ctx->levels[0], dst, true); // TODO
+					UNUSED(dst);
+					//SetTile(&ctx->levels[0], dst, true);
 				}
 				break_all = true;
 				break;
