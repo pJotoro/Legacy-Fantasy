@@ -166,10 +166,7 @@ typedef struct Level {
 	Entity player;
 	Entity* enemies; size_t n_enemies;
 	TileLayer* tile_layers; size_t n_tile_layers;
-
-	// Each bit is one tile.
-	// 1 means we can collide with it. 0 means we can't.
-	uint64_t* raw_tiles; // n_raw_tiles = size.x*size.y/64
+	bool* tiles; // n_tiles = size.x*size.y/TILE_SIZE
 } Level;
 
 typedef struct Rect {
@@ -182,7 +179,16 @@ typedef struct ReplayFrame {
 	Entity* enemies; size_t n_enemies;
 } ReplayFrame;
 
+typedef struct Arena {
+	uint8_t* first;
+	uint8_t* last;
+	uint8_t* cur;
+} Arena;
+
 typedef struct Context {
+	Arena perm;
+	Arena temp;
+
 	SDL_Window* window;
 
 	SDL_Renderer* renderer;
@@ -235,25 +241,13 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
-// FYI: neither of these functions work right now!
+// TODO: Switch away from using bool to using a bit mask.
 
 bool IsSolid(Level* level, ivec2s pos) {
 	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
-	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
-	uint64_t mask = (uint64_t)((pos.x + pos.y*level->size.x)%64);
-	return level->raw_tiles[idx] & mask;
+	uint64_t idx = (uint64_t)(pos.x + pos.y*level->size.x);
+	return level->tiles[idx];
 }
-
-// void SetTile(Level* level, ivec2s pos, bool value) {
-// 	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
-// 	uint64_t idx = (uint64_t)((pos.x + pos.y*level->size.x)/64);
-// 	uint64_t mask = (uint64_t)((pos.x + pos.y*level->size.x)%64);
-// 	if (value) {
-// 		level->raw_tiles[idx] |= mask;
-// 	} else {
-// 		level->raw_tiles[idx] &= ~mask;
-// 	}
-// }
 
 bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
@@ -444,7 +438,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
-				sd->path = SDL_malloc(buf_len); SDL_CHECK(sd->path);
+				sd->path = ArenaAlloc(&ctx->perm, (uint64_t)buf_len, char);
 				SDL_strlcpy(sd->path, sprite_path, buf_len);
 			}
 			
@@ -473,7 +467,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 				SDL_assert(header.grid_w == 0 || header.grid_w == 16);
 				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 				sd->n_frames = (size_t)header.n_frames;
-				sd->frames = SDL_calloc(sd->n_frames, sizeof(SpriteFrame)); SDL_CHECK(sd->frames);
+				sd->frames = ArenaAlloc(&ctx->perm, sd->n_frames, SpriteFrame);
 
 				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
@@ -490,7 +484,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						void* raw_chunk = SDL_malloc(chunk_header.size - sizeof(ASE_ChunkHeader)); SDL_CHECK(raw_chunk);
+						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_header.size - sizeof(ASE_ChunkHeader));
 						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
 						switch (chunk_header.type) {
@@ -501,15 +495,13 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 							++sd->frames[frame_idx].n_cells;
 						} break;
 						}
-
-						SDL_free(raw_chunk);
 					}
 				}
 
-				sd->layers = SDL_calloc(sd->n_layers, sizeof(SpriteLayer)); SDL_CHECK(sd->layers);
+				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer);
 				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 					if (sd->frames[frame_idx].n_cells > 0) {
-						sd->frames[frame_idx].cells = SDL_malloc(sizeof(SpriteCell) * sd->frames[frame_idx].n_cells); SDL_CHECK(sd->frames[frame_idx].cells);
+						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->perm, sd->frames[frame_idx].n_cells, SpriteCell);
 					}
 				}
 
@@ -530,7 +522,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						void* raw_chunk = SDL_malloc(chunk_header.size - sizeof(ASE_ChunkHeader)); SDL_CHECK(raw_chunk);
+						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_header.size - sizeof(ASE_ChunkHeader));
 						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
 
 						switch (chunk_header.type) {
@@ -539,14 +531,12 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 							ASE_LayerChunk* chunk = raw_chunk;
 							SpriteLayer sprite_layer = {0};
 							if (chunk->layer_name.len > 0) {
-								sprite_layer.name = SDL_calloc(1, chunk->layer_name.len + 1);
+								sprite_layer.name = ArenaAlloc(&ctx->perm, chunk->layer_name.len + 1, char);
 								SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 							}
 							sd->layers[layer_idx++] = sprite_layer;
 						} break;
 						}
-
-						SDL_free(raw_chunk);
 					}
 				}
 
@@ -569,7 +559,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 						size_t chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-						void* raw_chunk = SDL_malloc(chunk_size); SDL_CHECK(raw_chunk);
+						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_size);
 						SDL_ReadIOChecked(fs, raw_chunk, chunk_size);
 
 						switch (chunk_header.type) {
@@ -606,14 +596,13 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 										size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
-										void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
+										void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_size);
 
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
 
 										SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
 										cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
 										SDL_DestroySurface(surf);
-										SDL_free(dst_buf);
 									}
 								} break;
 								case ASE_CellType_CompressedTilemap: {
@@ -675,8 +664,6 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 							SDL_Log("ASE_CHUNK_TYPE_TILESET");
 						} break;
 						}
-
-						SDL_free(raw_chunk);
 					}
 				}
 			}
@@ -811,11 +798,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-		#if 0
-			size_t tile_idx = (size_t)(grid_pos.x + grid_pos.y*level->size.x);
-			if (tile_idx >= n_tiles) continue;
-			Tile tile = tiles[tile_idx];
-			if (tile.type == TileType_Level) {
+			if (IsSolid(level, grid_pos)) {
 				Rect tile_rect;
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
 				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
@@ -858,7 +841,6 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 					}
 				}
 			}
-		#endif
 		}
 	}
 
@@ -1087,7 +1069,24 @@ int32_t main(int32_t argc, char* argv[]) {
 	Context* ctx;
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
-		ctx = SDL_calloc(1, sizeof(Context)); SDL_CHECK(ctx);
+
+		// TODO: Decrease this. The only reason it's so large is because we needlessly allocate a lot of temporary memory.
+		uint64_t memory_size = 1024ULL * 1024ULL * 128ULL;
+
+		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
+		Arena perm;
+		perm.first = memory;
+		perm.last = memory + memory_size/2;
+		perm.cur = perm.first;
+		Arena temp;
+		temp.first = memory + memory_size/2 + 1;
+		temp.last = memory + memory_size;
+		temp.cur = temp.first;
+
+		ctx = ArenaAlloc(&perm, 1, Context);
+		ctx->perm = perm;
+		ctx->temp = temp;
+
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
 	}
 
@@ -1146,7 +1145,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		JSON_Node* level_node; JSON_ArrayForEach(level_node, level_nodes) {
 			++ctx->n_levels;
 		}
-		ctx->levels = SDL_calloc(ctx->n_levels, sizeof(Level)); SDL_CHECK(ctx->levels);
+		ctx->levels = ArenaAlloc(&ctx->perm, ctx->n_levels, Level);
 		size_t level_idx = 0;
 
 		// LoadLevel
@@ -1159,13 +1158,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			JSON_Node* h = JSON_GetObjectItem(level_node, "pxHei");
 			level.size.y = JSON_GetIntValue(h);
 
-			size_t n_tiles = (size_t)(level.size.x*level.size.y/64);
-			level.raw_tiles = SDL_calloc(n_tiles, sizeof(uint64_t)); SDL_CHECK(level.raw_tiles);
+			size_t n_tiles = (size_t)(level.size.x*level.size.y/TILE_SIZE);
+			level.tiles = ArenaAlloc(&ctx->perm, n_tiles, bool);
 
 			// TODO
 			level.n_tile_layers = 3;
-			level.tile_layers = SDL_calloc(level.n_tile_layers, sizeof(TileLayer)); SDL_CHECK(level.tile_layers);
-			
+			level.tile_layers = ArenaAlloc(&ctx->perm, level.n_tile_layers, TileLayer);
+
 			const char* layer_player = "Player";
 			const char* layer_enemies = "Enemies";
 			const char* layer_tiles = "Tiles";
@@ -1200,10 +1199,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
-			level.enemies = SDL_calloc(level.n_enemies, sizeof(Entity)); SDL_CHECK(level.enemies);
+			level.enemies = ArenaAlloc(&ctx->perm, level.n_enemies, Entity);
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level.n_tile_layers; ++tile_layer_idx) {
 				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
-				tile_layer->tiles = SDL_calloc(tile_layer->n_tiles, sizeof(Tile)); SDL_CHECK(tile_layer->tiles);
+				tile_layer->tiles = ArenaAlloc(&ctx->perm, tile_layer->n_tiles, Tile);
 			}
 			Entity* enemy = level.enemies;
 			JSON_ArrayForEach(layer_instance, layer_instances) {
@@ -1287,7 +1286,9 @@ int32_t main(int32_t argc, char* argv[]) {
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
 					UNUSED(dst);
-					//SetTile(&ctx->levels[0], dst, true);
+					Level* level = GetCurrentLevel(ctx); // TODO
+					size_t tile_idx = dst.x + dst.y*level->size.x;
+					level->tiles[tile_idx] = true;
 				}
 				break_all = true;
 				break;
@@ -1464,6 +1465,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
+			ArenaReset(&ctx->temp);
+
 	 		ctx->dt_accumulator -= dt;
 		}
 
@@ -1493,7 +1496,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
 				TileLayer* tile_layer = GetTileLayer(level, tile_layer_idx);
-				size_t n_tiles = level->size.x*level->size.y; Tile* tiles = tile_layer->tiles;
+				size_t n_tiles = level->size.x*level->size.y/TILE_SIZE; Tile* tiles = tile_layer->tiles;
 				for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 					Tile tile = tiles[tile_idx];					
 					

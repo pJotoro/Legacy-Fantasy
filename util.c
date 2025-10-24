@@ -80,3 +80,18 @@ FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
 	return &level->tile_layers[tile_layer_idx];
 }
+
+FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
+    void* res = (void*)arena->cur;
+    size = (size - size%1024ULL) + 1024ULL;
+    arena->cur += size;
+    SDL_assert((uint64_t)arena->cur < (uint64_t)arena->last);
+    SDL_memset(res, (int32_t)size, 0); // TODO
+    return res;
+}
+
+#define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw(ARENA, COUNT*sizeof(TYPE))
+
+FORCEINLINE void ArenaReset(Arena* arena) {
+    arena->cur = arena->first;
+}
