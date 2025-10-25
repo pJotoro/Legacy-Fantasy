@@ -1470,13 +1470,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	 		ctx->dt_accumulator -= dt;
 		}
 
-		// RenderBegin
+		// DrawBegin
 		{
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
 		}
 
-		// RenderLevel
+		// DrawEntities
 		{
 			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
@@ -1484,7 +1484,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				DrawEntity(ctx, enemy);
 			}
 			DrawEntity(ctx, GetPlayer(ctx));
+		}
 
+		// DrawLevel
+		{
 			Level* level = GetCurrentLevel(ctx);
 
 			SpriteDesc* sd = GetSpriteDesc(ctx, spr_tiles);
@@ -1518,7 +1521,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 
-		// RenderHitbox
+		// DrawHitbox
 		{
 			Entity* player = GetPlayer(ctx);
 			Rect hitbox = GetEntityHitbox(ctx, player);
@@ -1527,7 +1530,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 		}
 
-		// RenderEnd
+		// DrawEnd
 		{
 			SDL_RenderPresent(ctx->renderer);
 		}
