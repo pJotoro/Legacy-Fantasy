@@ -72,10 +72,6 @@ FORCEINLINE void ResetAnim(Anim* anim) {
     anim->ended = false;
 }
 
-FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
-	return (ssize_t)((pos.x + pos.y*level->size.x)/TILE_SIZE);
-}
-
 FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
 	return &level->tile_layers[tile_layer_idx];
 }
