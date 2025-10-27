@@ -1282,6 +1282,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					size_t src_idx = JSON_GetIntValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
+					if (dst.x == -1 || dst.y == -1) continue;
 					Level* level = GetCurrentLevel(ctx); // TODO
 					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
 					level->tiles[tile_idx] = true;
