@@ -1286,7 +1286,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
 					UNUSED(dst);
 					Level* level = GetCurrentLevel(ctx); // TODO
-					size_t tile_idx = dst.x + dst.y*level->size.x;
+					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
 					level->tiles[tile_idx] = true;
 				}
 				break_all = true;
