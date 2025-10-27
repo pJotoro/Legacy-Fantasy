@@ -36,14 +36,12 @@ FORCEINLINE float NormInt16(int16_t i16) {
     return res;
 }
 
-#if 0
-FORCEINLINE Tile* GetLevelTiles(Level* level, size_t* n_tiles) {
+FORCEINLINE bool* GetTiles(Level* level, size_t* n_tiles) {
     SDL_assert(n_tiles);
     ivec2s size = level->size;
-    *n_tiles = (size_t)(size.x * size.y);
+    *n_tiles = (size_t)(size.x*size.y/TILE_SIZE);
     return level->tiles;
 }
-#endif
 
 FORCEINLINE Entity* GetPlayer(Context* ctx) {
     return &ctx->levels[ctx->level_idx].player;
@@ -80,6 +78,12 @@ FORCEINLINE ssize_t GetTileIdx(Level* level, ivec2s pos) {
 
 FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
 	return &level->tile_layers[tile_layer_idx];
+}
+
+FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* n_tiles) {
+    SDL_assert(n_tiles);
+    *n_tiles = level->size.x*level->size.y/TILE_SIZE;
+    return level->tile_layers[tile_layer_idx].tiles;
 }
 
 FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {

@@ -1495,9 +1495,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Texture* texture = sd->frames[0].cells[0].texture;
 
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
-				TileLayer* tile_layer = GetTileLayer(level, tile_layer_idx);
-				size_t n_tiles = level->size.x*level->size.y/TILE_SIZE; 
-				Tile* tiles = tile_layer->tiles;
+				size_t n_tiles;
+				Tile* tiles = GetLayerTiles(level, tile_layer_idx, &n_tiles);
 				for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
 					Tile tile = tiles[tile_idx];
 
