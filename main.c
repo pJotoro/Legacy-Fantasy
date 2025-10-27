@@ -412,6 +412,12 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 	int32_t n_files;
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
 	if (n_files > 0) {
+		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
+		void* raw_chunk = ArenaAllocRaw(&ctx->temp, raw_chunk_alloc_size);
+
+		size_t dst_buf_alloc_size = 4096ULL * 2048ULL;
+		void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_alloc_size);
+
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; ++file_idx) {
 			char* file = files[file_idx];
 
@@ -471,8 +477,9 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_header.size - sizeof(ASE_ChunkHeader));
-						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+						SDL_assert(raw_chunk_alloc_size >= raw_chunk_size);
+						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
 
 						switch (chunk_header.type) {
 						case ASE_ChunkType_Layer: {
@@ -509,8 +516,8 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_header.size - sizeof(ASE_ChunkHeader));
-						SDL_ReadIOChecked(fs, raw_chunk, chunk_header.size - sizeof(ASE_ChunkHeader));
+						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
 
 						switch (chunk_header.type) {
 						case ASE_ChunkType_Layer: {
@@ -545,9 +552,8 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-						size_t chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-						void* raw_chunk = ArenaAllocRaw(&ctx->temp, chunk_size);
-						SDL_ReadIOChecked(fs, raw_chunk, chunk_size);
+						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
 
 						switch (chunk_header.type) {
 						case ASE_ChunkType_OldPalette: {
@@ -579,12 +585,11 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 										cell.type = SpriteCellType_Origin;
 									} else {
 										// It's the zero-sized array at the end of ASE_CellChunk.
-										size_t src_buf_size = chunk_size - sizeof(ASE_CellChunk) - 2; 
+										size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
 										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 										size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
-										void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_size);
-
+										SDL_assert(dst_buf_alloc_size >= dst_buf_size);
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
 
 										SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
@@ -657,6 +662,10 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 
 			SDL_CloseIO(fs);
 		}
+
+		// Normally this should only be reset at the end of every frame, but in this case I know it should work.
+		ArenaReset(&ctx->temp);
+
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
@@ -1057,8 +1066,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-		// TODO: Decrease this. The only reason it's so large is because we needlessly allocate a lot of temporary memory.
-		uint64_t memory_size = 1024ULL * 1024ULL * 128ULL;
+		uint64_t memory_size = 1024ULL * 1024ULL * 32ULL;
 
 		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
 		Arena perm;
