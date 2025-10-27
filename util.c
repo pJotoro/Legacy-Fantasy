@@ -30,8 +30,9 @@ FORCEINLINE size_t HashString(char* key, size_t len) {
 // Why not just divide by 32768.0f? It's because there is one more negative value than positive value.
 FORCEINLINE float NormInt16(int16_t i16) {
     int32_t i32 = (int32_t)i16;
-    i32 += 32768;
-    float res = ((float)i32 / 32768.0f) - 1.0f;
+    i32 += 32768;                               // 0 <= i32 <= 65535
+    i32 *= 2;                                   // 0 <= i32 <= 131070
+    float res = ((float)i32 / 65535.0f) - 1.0f; // -1.0f <= res <= 1.0f
     return res;
 }
 
@@ -83,7 +84,8 @@ FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
 
 FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
     void* res = (void*)arena->cur;
-    size = (size - size%1024ULL) + 1024ULL;
+    SDL_assert(size > 0);
+    size = (size - (size%1024ULL)) + 1024ULL;
     arena->cur += size;
     SDL_assert((uint64_t)arena->cur < (uint64_t)arena->last);
     SDL_memset(res, (int32_t)size, 0); // TODO
@@ -94,4 +96,12 @@ FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
 
 FORCEINLINE void ArenaReset(Arena* arena) {
     arena->cur = arena->first;
+}
+
+// TODO: Switch away from using bool to using a bit mask.
+
+bool IsSolid(Level* level, ivec2s pos) {
+    SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
+    size_t idx = (size_t)(pos.x + pos.y*level->size.x);
+    return level->tiles[idx];
 }

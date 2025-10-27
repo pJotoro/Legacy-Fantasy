@@ -241,14 +241,6 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
-// TODO: Switch away from using bool to using a bit mask.
-
-bool IsSolid(Level* level, ivec2s pos) {
-	SDL_assert(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y);
-	uint64_t idx = (uint64_t)(pos.x + pos.y*level->size.x);
-	return level->tiles[idx];
-}
-
 bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
     if (!SpritesEqual(entity->anim.sprite, sprite)) {
@@ -1203,6 +1195,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level.n_tile_layers; ++tile_layer_idx) {
 				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
 				tile_layer->tiles = ArenaAlloc(&ctx->perm, tile_layer->n_tiles, Tile);
+				for (size_t i = 0; i < tile_layer->n_tiles; ++i) {
+					tile_layer->tiles[i].src.x = -1;
+					tile_layer->tiles[i].src.x = -1;
+					tile_layer->tiles[i].dst.x = -1;
+					tile_layer->tiles[i].dst.y = -1;
+				}
 			}
 			Entity* enemy = level.enemies;
 			JSON_ArrayForEach(layer_instance, layer_instances) {
@@ -1284,7 +1282,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					size_t src_idx = JSON_GetIntValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
-					UNUSED(dst);
 					Level* level = GetCurrentLevel(ctx); // TODO
 					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
 					level->tiles[tile_idx] = true;
@@ -1498,9 +1495,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
 				TileLayer* tile_layer = GetTileLayer(level, tile_layer_idx);
-				size_t n_tiles = level->size.x*level->size.y/TILE_SIZE; Tile* tiles = tile_layer->tiles;
+				size_t n_tiles = level->size.x*level->size.y/TILE_SIZE; 
+				Tile* tiles = tile_layer->tiles;
 				for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-					Tile tile = tiles[tile_idx];					
+					Tile tile = tiles[tile_idx];
+
+					if (tile.src.x == -1) continue;					
 					
 					SDL_FRect srcrect = {
 						(float)(tile.src.x),
@@ -1527,6 +1527,29 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
 			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x+1), (float)(hitbox.max.y-hitbox.min.y+1)};
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
+		}
+
+		// DrawCollisions
+		{
+			Level* level = &ctx->levels[0]; // TODO
+			ivec2s dst = {0, 0};
+			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; ++i) {
+				if (level->tiles[i]) {
+					SDL_FRect rect = {
+						(float)dst.x,
+						(float)dst.y, 
+						(float)TILE_SIZE, 
+						(float)TILE_SIZE,
+					};
+					SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
+				}
+				dst.x += TILE_SIZE;
+				if (dst.x >= level->size.x) {
+					dst.x = 0;
+					dst.y += TILE_SIZE;
+				}
+			}
+
 		}
 
 		// DrawEnd
