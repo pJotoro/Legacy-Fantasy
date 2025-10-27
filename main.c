@@ -665,14 +665,14 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 	return SDL_ENUM_CONTINUE;
 }
 
-void DrawEntity(Context* ctx, Entity* entity) {
-    if (entity->state != EntityState_Inactive) {
-        DrawSprite(ctx, entity->anim.sprite, entity->anim.frame_idx, vec2_from_ivec2(entity->pos), entity->dir);
-    }
-}
-
 void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
     DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
+}
+
+void DrawEntity(Context* ctx, Entity* entity) {
+    if (entity->state != EntityState_Inactive) {
+        DrawAnim(ctx, &entity->anim, vec2_from_ivec2(entity->pos), entity->dir);
+    }
 }
 
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
