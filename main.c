@@ -1259,9 +1259,8 @@ int32_t main(int32_t argc, char* argv[]) {
 							JSON_GetIntValue(dst_node->child->next),
 						};
 
-						JSON_Node* src_idx_node = JSON_GetObjectItem(grid_tile, "t");
-						size_t src_idx = (size_t)JSON_GetIntValue(src_idx_node);
-
+						JSON_Node* node_src_idx = JSON_GetObjectItem(grid_tile, "t");
+						size_t src_idx = (size_t)JSON_GetIntValue(node_src_idx);
 						tile_layer->tiles[src_idx] = (Tile){src, dst};
 					}
 				}
@@ -1504,14 +1503,14 @@ int32_t main(int32_t argc, char* argv[]) {
 					Tile tile = tiles[tile_idx];					
 					
 					SDL_FRect srcrect = {
-						(float)(tile.src.x*TILE_SIZE),
-						(float)(tile.src.y*TILE_SIZE),
+						(float)(tile.src.x),
+						(float)(tile.src.y),
 						(float)TILE_SIZE,
 						(float)TILE_SIZE,
 					};
 					SDL_FRect dstrect = {
-						(float)(tile.dst.x*TILE_SIZE),
-						(float)(tile.dst.y*TILE_SIZE),
+						(float)(tile.dst.x),
+						(float)(tile.dst.y),
 						(float)TILE_SIZE,
 						(float)TILE_SIZE,
 					};
