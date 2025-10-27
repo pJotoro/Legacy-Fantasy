@@ -1506,14 +1506,14 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (tile.src.x == -1) continue;					
 					
 					SDL_FRect srcrect = {
-						(float)(tile.src.x),
-						(float)(tile.src.y),
+						(float)tile.src.x,
+						(float)tile.src.y,
 						(float)TILE_SIZE,
 						(float)TILE_SIZE,
 					};
 					SDL_FRect dstrect = {
-						(float)(tile.dst.x),
-						(float)(tile.dst.y),
+						(float)tile.dst.x,
+						(float)tile.dst.y,
 						(float)TILE_SIZE,
 						(float)TILE_SIZE,
 					};
