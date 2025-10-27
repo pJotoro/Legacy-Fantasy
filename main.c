@@ -251,11 +251,6 @@ bool SetSprite(Entity* entity, Sprite sprite) {
     return sprite_changed;
 }
 
-bool SetSpriteFromPath(Entity* entity, const char* path) {
-    Sprite sprite = GetSprite((char*)path);
-    return SetSprite(entity, sprite);
-}
-
 void ResetGame(Context* ctx) {
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
@@ -267,7 +262,7 @@ void ResetGame(Context* ctx) {
 			player->vel = (vec2s){0.0f};
 			player->dir = 1;
 			ResetAnim(&player->anim);
-			SetSpriteFromPath(player, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+			SetSprite(player, player_idle);
 		}
 		for (size_t enemy_idx = 0; enemy_idx < level->n_enemies; ++enemy_idx) {
 			Entity* enemy = &level->enemies[enemy_idx];
@@ -277,7 +272,7 @@ void ResetGame(Context* ctx) {
 			enemy->dir = 1;
 			ResetAnim(&enemy->anim);
 			if (enemy->type == EntityType_Boar) {
-				SetSpriteFromPath(enemy, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+				SetSprite(enemy, boar_idle);
 			}
 		}
 	}
