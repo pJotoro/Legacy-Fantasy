@@ -88,9 +88,7 @@ FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
     size = (size - (size%1024ULL)) + 1024ULL;
     arena->cur += size;
     SDL_assert((uint64_t)arena->cur < (uint64_t)arena->last);
-#ifdef _DEBUG
-    SDL_memset(res, 0xcd, size); // TODO
-#endif
+    SDL_memset(res, 0, size);
     return res;
 }
 
