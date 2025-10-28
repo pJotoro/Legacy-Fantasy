@@ -22,6 +22,8 @@ typedef int64_t ssize_t;
 
 #define STMT(X) do {X} while (false)
 
+#define SET_ZERO(MEMORY, COUNT) STMT( SDL_memset(MEMORY, 0, sizeof(*MEMORY) * COUNT); )
+
 #define UNUSED(X) (void)X
 
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.
@@ -461,6 +463,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 				sd->n_frames = (size_t)header.n_frames;
 				sd->frames = ArenaAlloc(&ctx->perm, sd->n_frames, SpriteFrame);
+				SET_ZERO(sd->frames, sd->n_frames);
 
 				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
@@ -491,8 +494,8 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						}
 					}
 				}
-
-				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer);
+				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer); // We don't have to zero this out.
+				
 				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 					if (sd->frames[frame_idx].n_cells > 0) {
 						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->perm, sd->frames[frame_idx].n_cells, SpriteCell);
