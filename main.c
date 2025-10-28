@@ -426,7 +426,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 			SDL_CHECK(SDL_GetPathInfo(sprite_path, NULL));
 
 			Sprite sprite = GetSprite(sprite_path);
-			SpriteDesc* sd = &ctx->sprites[sprite.idx];
+			SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 			SDL_assert(!sd->path && "Collision");
 
 			{
@@ -663,7 +663,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 			SDL_CloseIO(fs);
 		}
 
-		// Normally this should only be reset at the end of every frame, but in this case I know it should work.
+		// Normally this should only be reset at the end of every frame, but in this case I know it will work.
 		ArenaReset(&ctx->temp);
 
 	} else if (n_files == 0) {
@@ -830,8 +830,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 								h.max.y -= incr;
 								amount += incr;
 							}
-							entity->pos.y -= amount;
-							
+							entity->pos.y -= amount;					
 							vertical_collision_happened = true;
 						}
 					}
@@ -1314,7 +1313,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			// GetInput
 			{
 				if (!ctx->gamepad) {
-					int joystick_count = 0;
+					int32_t joystick_count = 0;
 					SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
 					if (joystick_count != 0) {
 						ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
