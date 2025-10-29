@@ -11,7 +11,7 @@ typedef int64_t ssize_t;
 
 #include "infl.h"
 
-#include <cJson.h>
+#include <cJson/cJson.h>
 
 #include <raddbg_markup.h>
 

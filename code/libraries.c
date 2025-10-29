@@ -10,6 +10,6 @@
 #define INFL_IMPLEMENTATION
 #include "infl.h"
 
-#include <cJson.c>
+#include <cJson/cJson.c>
 
 #pragma warning(pop)
