@@ -6,7 +6,9 @@ typedef struct ASE_Fixed {
 
 typedef struct ASE_String {
 	uint16_t len;
-	// uint8_t buf[];
+#if 0
+	uint8_t buf[];
+#endif
 } ASE_String;
 
 typedef ivec2s ASE_Point;
@@ -164,7 +166,9 @@ typedef struct ASE_CellChunk {
 	struct {
 		uint16_t w;
 		uint16_t h;
-		// ASE_Pixel pixels[];
+	#if 0
+		ASE_Pixel pixels[];
+	#endif
 	} compressed_image;
 } ASE_CellChunk;
 
@@ -200,7 +204,9 @@ typedef struct ASE_ColorProfileChunk {
 	ASE_Fixed fixed_gamma;
 	uint8_t reserved0[8];
 	uint32_t icc_profile_data_len;
-	// uint8_t icc_profile_data[];
+#if 0
+	uint8_t icc_profile_data[];
+#endif
 } ASE_ColorProfileChunk;
 
 enum {
@@ -224,7 +230,9 @@ typedef struct ASE_ExternalFilesEntry {
 typedef struct ASE_ExternalFilesChunk {
 	uint32_t n_entries;
 	uint8_t reserved0[8];
-	// ASE_ExternalFilesEntry entries[];
+#if 0
+	ASE_ExternalFilesEntry entries[];
+#endif
 } ASE_ExternalFilesChunk;
 
 enum {
@@ -248,7 +256,9 @@ typedef struct ASE_Tag {
 
 typedef struct ASE_TagsChunk {
 	uint16_t n_tags;
-	// ASE_Tag tags[];
+#if 0
+	ASE_Tag tags[];
+#endif
 } ASE_TagsChunk;
 
 enum {
@@ -262,7 +272,9 @@ typedef struct ASE_PaletteEntry {
 	uint8_t g;
 	uint8_t b;
 	uint8_t a;
-	// ASE_String color_name;
+#if 0
+	ASE_String color_name;
+#endif
 } ASE_PaletteEntry;
 
 typedef struct ASE_PaletteChunk {
@@ -270,7 +282,9 @@ typedef struct ASE_PaletteChunk {
 	uint32_t first_color_idx_to_change;
 	uint32_t last_color_idx_to_change;
 	uint8_t reserved0[8];
-	// ASE_PaletteEntry entries[];
+#if 0
+	ASE_PaletteEntry entries[];
+#endif
 } ASE_PaletteChunk;
 
 #pragma pack(pop)
