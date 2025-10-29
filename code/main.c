@@ -428,7 +428,8 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 
 			Sprite sprite = GetSprite(sprite_path);
 			SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-			SDL_assert(!sd->path && "Collision");
+			SDL_assert(!sd && "Collision");
+			sd = &ctx->sprites[sprite.idx];
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
@@ -1116,8 +1117,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	// SortSprites
 	{
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
-			SpriteDesc* sd = &ctx->sprites[sprite_idx];
-			if (sd->path) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
+			if (sd) {
 				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
 					SDL_qsort(sf->cells, sf->n_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);

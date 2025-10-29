@@ -59,7 +59,9 @@ FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
 
 FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
     SDL_assert(sprite.idx >= 0 && sprite.idx < MAX_SPRITES);
-    return &ctx->sprites[sprite.idx];
+    SpriteDesc* sd = &ctx->sprites[sprite.idx];
+    if (!sd->path) return NULL;
+    return sd;
 }
 
 FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) {
