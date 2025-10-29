@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.0.0)
 set(CMAKE_C_STANDARD 17)
-include_directories(vendor vendor/SDL3/include vendor/SDL3/include/SDL3)
+include_directories(vendor vendor/SDL3/include vendor/SDL3/include/SDL3 cJson)
 link_directories(vendor/SDL3/lib)
 
 project(LegacyFantasy)

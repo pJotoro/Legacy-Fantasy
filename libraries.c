@@ -12,6 +12,6 @@
 
 typedef int64_t ssize_t;
 #define DBL_EPSILON 2.2204460492503131e-016
-#include "json.c"
+#include <cJson.c>
 
 #pragma warning(pop)

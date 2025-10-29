@@ -12,7 +12,7 @@ typedef int64_t ssize_t;
 #include "infl.h"
 
 #define DBL_EPSILON 2.2204460492503131e-016
-#include "json.h"
+#include <cJson.h>
 
 #include <raddbg_markup.h>
 
@@ -29,6 +29,8 @@ typedef int64_t ssize_t;
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.
 #define FLAG(X) (1u << X##u)
 
+#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
+
 #define SDL_CHECK(E) STMT( \
 	if (!(E)) { \
 		SDL_LogMessage(SDL_LOG_CATEGORY_ASSERT, SDL_LOG_PRIORITY_CRITICAL, "%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
@@ -40,8 +42,6 @@ typedef int64_t ssize_t;
 
 #define SDL_ReadIOChecked(S, P, SZ) SDL_CHECK(SDL_ReadIO(S, P, SZ) == SZ)
 #define SDL_ReadStructChecked(S, STRUCT) SDL_CHECK(SDL_ReadStruct(S, STRUCT) == sizeof(*(STRUCT)))
-
-#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
 #define FULLSCREEN 1
 

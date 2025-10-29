@@ -48,7 +48,7 @@
 #pragma GCC visibility pop
 #endif
 
-#include "json.h"
+#include <cJson.h>
 
 #define NAN SDL_sqrt(-1.0)
 
