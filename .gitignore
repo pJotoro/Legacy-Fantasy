@@ -2,7 +2,8 @@ vendor/*
 build/*
 assets/*
 *.sublime-workspace
-*.txt
 pJotoro
 LegacyFantasy
 level
+TODO.txt
+TODO_old.txt
