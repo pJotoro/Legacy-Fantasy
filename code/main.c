@@ -108,7 +108,7 @@ typedef int64_t ssize_t;
 
 // 1/60/8
 // So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
-#define dt 0.00208333333333333333
+#define dt 0.00208333333333333333333333333333333333333333333333
 
 typedef struct SpriteLayer {
 	char* name;
