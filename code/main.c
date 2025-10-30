@@ -1,3 +1,4 @@
+#pragma warning(push, 0)
 #include <SDL.h>
 #include <SDL_main.h>
 
@@ -10,10 +11,10 @@ typedef int64_t ssize_t;
 #include <xxhash.h>
 
 #include <infl.h>
-
 #include <cJson/cJson.h>
-
 #include <raddbg_markup.h>
+#include <spall/spall.h>
+#pragma warning(pop)
 
 #include "aseprite.h"
 
