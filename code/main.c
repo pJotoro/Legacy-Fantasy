@@ -104,9 +104,11 @@ typedef int64_t ssize_t;
 
 #define MAX_SPRITES 256
 
-// 1/60/6
-// So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
-#define dt 0.00277777777777777777777777777777777777777777777778
+#define MIN_FPS 15
+
+// 1/60/8
+// So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
+#define dt 0.00208333333333333333
 
 typedef struct SpriteLayer {
 	char* name;
@@ -1424,7 +1426,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	ctx->running = true;
 	while (ctx->running) {
 		size_t times_updated = 0;
-		while (ctx->dt_accumulator > dt) {	
+		while (ctx->dt_accumulator > dt && times_updated < 8) {	// TODO
 			++times_updated;		
 			// GetInput
 			{
@@ -1727,7 +1729,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 
-			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, ctx->refresh_rate);
+			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS)); // TODO
 			
 			ctx->time = current_time;
 
