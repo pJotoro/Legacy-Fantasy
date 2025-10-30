@@ -1633,6 +1633,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SDL_Texture* texture = sd->frames[0].cells[0].texture;
 
+			size_t draw_calls = 0;
+
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
 				size_t n_tiles;
 				Tile* tiles = GetLayerTiles(level, tile_layer_idx, &n_tiles);
@@ -1655,8 +1657,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					};
 
 					SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
+
+					++draw_calls;
 				}
 			}
+
+			SDL_Log("Draw calls: %llu", draw_calls);
 
 			SPALL_BUFFER_END();
 		}
