@@ -1424,7 +1424,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-		while (ctx->dt_accumulator > dt) {
+
+		// HACK: 8 shouldn't be hardcoded here. 8 only makes sense if the refresh rate of the monitor is 60.
+		// The maximum amount of times to update should depend on the refresh rate.
+		size_t times_updated = 0;
+		while (ctx->dt_accumulator > dt && times_updated < 8) {
+			++times_updated;
+			
 			// GetInput
 			{
 				SPALL_BUFFER_BEGIN_NAME("GetInput");
@@ -1595,6 +1601,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	 		ctx->dt_accumulator -= dt;
 		}
+		SDL_Log("Times updated: %llu", times_updated);
 
 		// DrawBegin
 		{
@@ -1662,7 +1669,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
-			SDL_Log("Draw calls: %llu", draw_calls);
+			//SDL_Log("Draw calls: %llu", draw_calls);
 
 			SPALL_BUFFER_END();
 		}
@@ -1724,7 +1731,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_Time dt_int = current_time - ctx->time;
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+
+			// HACK: There should be a better way to prevent a spiral of death than this.
 			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS));
+			
 			ctx->time = current_time;
 
 			SPALL_BUFFER_END();
