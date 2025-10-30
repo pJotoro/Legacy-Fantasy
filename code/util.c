@@ -80,7 +80,7 @@ FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
 
 FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* n_tiles) {
     SDL_assert(n_tiles);
-    *n_tiles = level->size.x*level->size.y/TILE_SIZE;
+    *n_tiles = level->tile_layers[tile_layer_idx].n_tiles;
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
