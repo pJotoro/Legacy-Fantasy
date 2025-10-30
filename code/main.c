@@ -9,7 +9,7 @@ typedef int64_t ssize_t;
 #define XXH_IMPLEMENTATION      /* access definitions */
 #include <xxhash.h>
 
-#include "infl.h"
+#include <infl.h>
 
 #include <cJson/cJson.h>
 
