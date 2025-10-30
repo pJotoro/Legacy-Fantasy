@@ -1,3 +1,7 @@
+#define ENABLE_PROFILING 1
+
+#define STMT(X) do {X} while (false)
+
 #pragma warning(push, 0)
 #include <SDL.h>
 #include <SDL_main.h>
@@ -12,15 +16,50 @@ typedef int64_t ssize_t;
 
 #include <infl.h>
 #include <cJson/cJson.h>
+
+#ifdef _DEBUG
 #include <raddbg_markup.h>
+#endif
+
+#if ENABLE_PROFILING
 #include <spall/spall.h>
+#define SPALL_BUFFER_BEGIN_NAME(NAME) STMT( \
+	SDL_Time time; \
+	SDL_GetCurrentTime(&time); \
+	spall_buffer_begin( \
+		&ctx->spall_ctx, \
+		&ctx->spall_buffer, \
+		NAME, \
+		sizeof(NAME) - 1, \
+		time); \
+)
+#define SPALL_BUFFER_BEGIN() STMT( \
+	SDL_Time time; \
+	SDL_GetCurrentTime(&time); \
+	spall_buffer_begin( \
+		&ctx->spall_ctx, \
+		&ctx->spall_buffer, \
+		__FUNCTION__, \
+		sizeof(__FUNCTION__) - 1, \
+		time); \
+)
+#define SPALL_BUFFER_END() STMT( \
+	SDL_Time time; \
+	SDL_GetCurrentTime(&time); \
+	spall_buffer_end( \
+		&ctx->spall_ctx, \
+		&ctx->spall_buffer, \
+		time); \
+)
+#else
+#define SPALL_BUFFER_BEGIN()
+#endif
+
 #pragma warning(pop)
 
 #include "aseprite.h"
 
 #define FORCEINLINE SDL_FORCE_INLINE
-
-#define STMT(X) do {X} while (false)
 
 #define SET_ZERO(MEMORY, COUNT) STMT( SDL_memset(MEMORY, 0, sizeof(*MEMORY) * COUNT); )
 
@@ -188,6 +227,11 @@ typedef struct Arena {
 } Arena;
 
 typedef struct Context {
+#if ENABLE_PROFILING
+	SpallProfile spall_ctx;
+	SpallBuffer spall_buffer;
+#endif
+
 	Arena perm;
 	Arena temp;
 
@@ -254,6 +298,8 @@ bool SetSprite(Entity* entity, Sprite sprite) {
 }
 
 void ResetGame(Context* ctx) {
+	SPALL_BUFFER_BEGIN();
+
 	ctx->level_idx = 0;
 	for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
 		Level* level = &ctx->levels[level_idx];
@@ -278,9 +324,12 @@ void ResetGame(Context* ctx) {
 			}
 		}
 	}
+
+	SPALL_BUFFER_END();
 }
 
 ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
+	SPALL_BUFFER_BEGIN();
 	ivec2s res = {0};
 
 	// Find origin
@@ -299,10 +348,13 @@ ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 		res.x = sd->size.x - res.x;
 	}
 
+	SPALL_BUFFER_END();
 	return res;
 }
 
 void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
+	SPALL_BUFFER_BEGIN();
+
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
@@ -331,6 +383,8 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
 		}
 	}
+
+	SPALL_BUFFER_END();
 }
 
 ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
@@ -345,6 +399,9 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 }
 
 bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
 	SDL_assert(hitbox);
 	SDL_assert(dir == 1 || dir == -1);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -376,13 +433,18 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
 			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
 
-			return true;
+			res = true;
+			break;
 		}
 	}
-	return false;
+
+	SPALL_BUFFER_END();
+	return res;
 }
 
 void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+	SPALL_BUFFER_BEGIN();
+
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
 	double dur = sd->frames[anim->frame_idx].dur;
 	size_t n_frames = sd->n_frames;
@@ -401,10 +463,13 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
             }
         }
     }
+
+    SPALL_BUFFER_END();
 }
 
 SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
+	SPALL_BUFFER_BEGIN();
 
 	// dirname\fname\file
 
@@ -442,6 +507,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 			
 			// LoadSprite
 			{
+				SPALL_BUFFER_BEGIN_NAME("LoadSprite");
 				/* 
 				This loops through the frames in three passes. These are:
 				1. Get layer count and for each frame, get cell count.
@@ -594,7 +660,10 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 
 										size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
 										SDL_assert(dst_buf_alloc_size >= dst_buf_size);
-										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size); SDL_assert(res > 0);
+										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
+										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
+										SPALL_BUFFER_END();
+										SDL_assert(res > 0);
 
 										SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
 										cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
@@ -662,6 +731,8 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 						}
 					}
 				}
+
+				SPALL_BUFFER_END();
 			}
 
 			SDL_CloseIO(fs);
@@ -675,6 +746,7 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 	}
 	
 	SDL_free(files);
+	SPALL_BUFFER_END();
 	return SDL_ENUM_CONTINUE;
 }
 
@@ -689,6 +761,7 @@ void DrawEntity(Context* ctx, Entity* entity) {
 }
 
 Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
@@ -714,6 +787,7 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	hitbox.min = glms_ivec2_add(hitbox.min, entity->pos);
 	hitbox.max = glms_ivec2_add(hitbox.max, entity->pos);
 
+	SPALL_BUFFER_END();
 	return hitbox;
 }
 
@@ -728,6 +802,7 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 // entity state directly because depending on the entity,
 // certain states might not make sense.
 EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+	SPALL_BUFFER_BEGIN();
 	Level* level = GetCurrentLevel(ctx);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
 
@@ -843,14 +918,19 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 		}
 	}
 
+	EntityState res;
 	if (!touching_floor && entity->vel.y > 0.0f) {
-		return EntityState_Fall;
+		res = EntityState_Fall;
 	} else {
-		return entity->state;
+		res = entity->state;
 	}
+
+	SPALL_BUFFER_END();
+	return res;
 }
 
 void UpdatePlayer(Context* ctx) {
+	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
 
@@ -975,13 +1055,14 @@ void UpdatePlayer(Context* ctx) {
 		// TODO?
 	} break;
 	}
+
+	SPALL_BUFFER_END();
 }
 
 void UpdateBoar(Context* ctx, Entity* boar) {
-	switch (boar->state) {
-	case EntityState_Inactive:
-		return;
+	SPALL_BUFFER_BEGIN();
 
+	switch (boar->state) {
 	case EntityState_Hurt: {
 		SetSprite(boar, boar_hit);
 
@@ -1017,15 +1098,21 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 		// TODO?
 	} break;
 	}
+
+	SPALL_BUFFER_END();
 }
 
 void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
+	SPALL_BUFFER_BEGIN();
+
 	ctx->replay_frame_idx = replay_frame_idx;
 	Level* level = GetCurrentLevel(ctx);
 	ReplayFrame* replay_frame = &ctx->replay_frames[ctx->replay_frame_idx];
 	level->player = replay_frame->player;
 	SDL_memcpy(level->enemies, replay_frame->enemies, replay_frame->n_enemies * sizeof(Entity));
 	level->n_enemies = replay_frame->n_enemies;
+
+	SPALL_BUFFER_END();
 }
 
 int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
@@ -1088,6 +1175,22 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
 	}
 
+#if ENABLE_PROFILING
+	{
+		bool ok;
+
+		ok = spall_init_file("profile/profile.spall", 1, &ctx->spall_ctx); SDL_assert(ok);
+
+		int32_t buffer_size = 1 * 1024 * 1024;
+		uint8_t* buffer = SDL_malloc(buffer_size); SDL_CHECK(buffer);
+		ctx->spall_buffer = (SpallBuffer){
+			.length = buffer_size,
+			.data = buffer,
+		};
+		ok = spall_buffer_init(&ctx->spall_ctx, &ctx->spall_buffer); SDL_assert(ok);
+	}
+#endif
+
 	// CreateWindowAndRenderer
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
@@ -1117,6 +1220,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// SortSprites
 	{
+		SPALL_BUFFER_BEGIN_NAME("SortSprites");
+
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
 			if (sd) {
@@ -1126,10 +1231,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// LoadLevels
 	{
+		SPALL_BUFFER_BEGIN_NAME("LoadLevels");
+
 		cJSON* head;
 		{
 			size_t file_len;
@@ -1301,6 +1410,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		break_all = false;
 
 		cJSON_Delete(head);
+
+		SPALL_BUFFER_END();
 	}
 
 	// InitReplayFrames
@@ -1316,6 +1427,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		while (ctx->dt_accumulator > dt) {
 			// GetInput
 			{
+				SPALL_BUFFER_BEGIN_NAME("GetInput");
+
 				if (!ctx->gamepad) {
 					int32_t joystick_count = 0;
 					SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
@@ -1435,10 +1548,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) {
 					ctx->gamepad_left_stick.x = 0.0f;
 				}
+
+				SPALL_BUFFER_END();
 			}
 			if (!ctx->paused) {
 				// UpdateGame
 				{
+					SPALL_BUFFER_BEGIN_NAME("UpdateGame");
+
 					UpdatePlayer(ctx);
 					size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 					for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
@@ -1447,10 +1564,14 @@ int32_t main(int32_t argc, char* argv[]) {
 							UpdateBoar(ctx, enemy);
 						}
 					}
+
+					SPALL_BUFFER_END();
 				}
 				
 				// RecordReplayFrame
 				{
+					SPALL_BUFFER_BEGIN_NAME("RecordReplayFrame");
+
 					ReplayFrame replay_frame = {0};
 					
 					Level* level = GetCurrentLevel(ctx);
@@ -1465,6 +1586,8 @@ int32_t main(int32_t argc, char* argv[]) {
 						ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 					}
 					ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
+
+					SPALL_BUFFER_END();
 				}
 			}
 
@@ -1475,22 +1598,32 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// DrawBegin
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawBegin");
+
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
 			SDL_CHECK(SDL_RenderClear(ctx->renderer));
+
+			SPALL_BUFFER_END();
 		}
 
 		// DrawEntities
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
+
 			size_t n_enemies; Entity* enemies = GetEnemies(ctx, &n_enemies);
 			for (size_t enemy_idx = 0; enemy_idx < n_enemies; ++enemy_idx) {
 				Entity* enemy = &enemies[enemy_idx];
 				DrawEntity(ctx, enemy);
 			}
 			DrawEntity(ctx, GetPlayer(ctx));
+
+			SPALL_BUFFER_END();
 		}
 
 		// DrawLevel
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawLevel");
+
 			Level* level = GetCurrentLevel(ctx);
 
 			SpriteDesc* sd = GetSpriteDesc(ctx, spr_tiles);
@@ -1524,19 +1657,27 @@ int32_t main(int32_t argc, char* argv[]) {
 					SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
 				}
 			}
+
+			SPALL_BUFFER_END();
 		}
 
 		// DrawHitbox
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawHitbox");
+
 			Entity* player = GetPlayer(ctx);
 			Rect hitbox = GetEntityHitbox(ctx, player);
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
 			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x+1), (float)(hitbox.max.y-hitbox.min.y+1)};
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
+
+			SPALL_BUFFER_END();
 		}
 
 		// DrawCollisions
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawCollisions");
+
 			Level* level = &ctx->levels[0]; // TODO
 			ivec2s dst = {0, 0};
 			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; ++i) {
@@ -1556,15 +1697,22 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
+			SPALL_BUFFER_END();
 		}
 
 		// DrawEnd
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawEnd");
+
 			SDL_RenderPresent(ctx->renderer);
+
+			SPALL_BUFFER_END();
 		}
 
 		// UpdateTime
 		{			
+			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
+
 			SDL_Time current_time;
 			SDL_CHECK(SDL_GetCurrentTime(&current_time));
 			SDL_Time dt_int = current_time - ctx->time;
@@ -1572,9 +1720,20 @@ int32_t main(int32_t argc, char* argv[]) {
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS));
 			ctx->time = current_time;
+
+			SPALL_BUFFER_END();
 		}	
 	}
 	
+	// NOTE: If we don't do this, we might not get the last few events.
+#if ENABLE_PROFILING
+	spall_buffer_quit(&ctx->spall_ctx, &ctx->spall_buffer);
+	spall_quit(&ctx->spall_ctx);
+#endif
+
+	// NOTE: If we don't do this, SDL might not reverse certain operations,
+	// like changing the resolution of the monitor.
 	SDL_Quit();
+
 	return 0;
 }
