@@ -1,4 +1,5 @@
 #define ENABLE_PROFILING 1
+#define FULLSCREEN 1
 
 #define STMT(X) do {X} while (false)
 
@@ -60,6 +61,7 @@ typedef int64_t ssize_t;
 #include "aseprite.h"
 
 #define FORCEINLINE SDL_FORCE_INLINE
+#define function static
 
 #define UNUSED(X) (void)X
 
@@ -283,7 +285,7 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
-bool SetSprite(Entity* entity, Sprite sprite) {
+function bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
     if (!SpritesEqual(entity->anim.sprite, sprite)) {
         sprite_changed = true;
@@ -293,7 +295,7 @@ bool SetSprite(Entity* entity, Sprite sprite) {
     return sprite_changed;
 }
 
-void ResetGame(Context* ctx) {
+function void ResetGame(Context* ctx) {
 	SPALL_BUFFER_BEGIN();
 
 	ctx->level_idx = 0;
@@ -324,7 +326,7 @@ void ResetGame(Context* ctx) {
 	SPALL_BUFFER_END();
 }
 
-ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
+function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	SPALL_BUFFER_BEGIN();
 	ivec2s res = {0};
 
@@ -348,7 +350,7 @@ ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	return res;
 }
 
-void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
+function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SPALL_BUFFER_BEGIN();
 
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -383,7 +385,7 @@ void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t di
 	SPALL_BUFFER_END();
 }
 
-ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
+function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
@@ -394,7 +396,7 @@ ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
 }
 
-bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
+function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SPALL_BUFFER_BEGIN();
 	bool res = false;
 
@@ -438,7 +440,7 @@ bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir,
 	return res;
 }
 
-void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
@@ -463,7 +465,7 @@ void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SPALL_BUFFER_END();
 }
 
-SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
+function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
 
@@ -745,17 +747,17 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 	return SDL_ENUM_CONTINUE;
 }
 
-void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
+function void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
     DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
 
-void DrawEntity(Context* ctx, Entity* entity) {
+function void DrawEntity(Context* ctx, Entity* entity) {
     if (entity->state != EntityState_Inactive) {
         DrawAnim(ctx, &entity->anim, vec2_from_ivec2(entity->pos), entity->dir);
     }
 }
 
-Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
@@ -786,7 +788,7 @@ Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     if (a->state == EntityState_Inactive || b->state == EntityState_Inactive) return false;
     Rect ha = GetEntityHitbox(ctx, a);
     Rect hb = GetEntityHitbox(ctx, b);
@@ -796,7 +798,7 @@ bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 // This returns a new EntityState instead of setting the 
 // entity state directly because depending on the entity,
 // certain states might not make sense.
-EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	SPALL_BUFFER_BEGIN();
 	Level* level = GetCurrentLevel(ctx);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
@@ -924,7 +926,7 @@ EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float 
 	return res;
 }
 
-void UpdatePlayer(Context* ctx) {
+function void UpdatePlayer(Context* ctx) {
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
@@ -1054,7 +1056,7 @@ void UpdatePlayer(Context* ctx) {
 	SPALL_BUFFER_END();
 }
 
-void UpdateBoar(Context* ctx, Entity* boar) {
+function void UpdateBoar(Context* ctx, Entity* boar) {
 	SPALL_BUFFER_BEGIN();
 
 	switch (boar->state) {
@@ -1097,7 +1099,7 @@ void UpdateBoar(Context* ctx, Entity* boar) {
 	SPALL_BUFFER_END();
 }
 
-void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
+function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	SPALL_BUFFER_BEGIN();
 
 	ctx->replay_frame_idx = replay_frame_idx;
@@ -1110,7 +1112,7 @@ void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	SPALL_BUFFER_END();
 }
 
-int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+function int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
     ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
     ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
     if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
