@@ -61,8 +61,6 @@ typedef int64_t ssize_t;
 
 #define FORCEINLINE SDL_FORCE_INLINE
 
-#define SET_ZERO(MEMORY, COUNT) STMT( SDL_memset(MEMORY, 0, sizeof(*MEMORY) * COUNT); )
-
 #define UNUSED(X) (void)X
 
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.
@@ -89,10 +87,10 @@ typedef int64_t ssize_t;
 
 #define GAMEPAD_THRESHOLD 0.5f
 
-#define PLAYER_ACC 0.015f
-#define PLAYER_FRIC 0.005f
-#define PLAYER_MAX_VEL 0.25f
-#define PLAYER_JUMP 1.0f
+#define PLAYER_ACC 0.02f
+#define PLAYER_FRIC 0.006f
+#define PLAYER_MAX_VEL 0.3f
+#define PLAYER_JUMP 1.3f
 #define PLAYER_JUMP_REMAINDER 0.2f
 
 #define BOAR_ACC 0.01f
@@ -100,15 +98,13 @@ typedef int64_t ssize_t;
 #define BOAR_MAX_VEL 0.15f
 
 #define TILE_SIZE 16
-#define GRAVITY 0.005f
+#define GRAVITY 0.009f
 
 #define MAX_SPRITES 256
 
-#define MIN_FPS 15
-
-// 1/60/8
-// So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
-#define dt 0.00208333333333333333
+// 1/60/6
+// So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
+#define dt 0.00277777777777777777777777777777777777777777777778
 
 typedef struct SpriteLayer {
 	char* name;
@@ -254,7 +250,7 @@ typedef struct Context {
 
 	SDL_Time time;
 	double dt_accumulator;
-	float refresh_rate;
+	double refresh_rate;
 	
 	Level* levels; size_t n_levels;
 	size_t level_idx;
@@ -530,7 +526,6 @@ SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirna
 				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 				sd->n_frames = (size_t)header.n_frames;
 				sd->frames = ArenaAlloc(&ctx->perm, sd->n_frames, SpriteFrame);
-				SET_ZERO(sd->frames, sd->n_frames);
 
 				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
@@ -1171,8 +1166,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx = ArenaAlloc(&perm, 1, Context);
 		ctx->perm = perm;
 		ctx->temp = temp;
-
-		SDL_CHECK(SDL_GetCurrentTime(&ctx->time));
 	}
 
 #if ENABLE_PROFILING
@@ -1206,7 +1199,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
 		}
 
-		ctx->refresh_rate = display_mode->refresh_rate;
+		if (display_mode->refresh_rate_numerator == 0) {
+			ctx->refresh_rate = 0.01666666666666666666666666666666666666666666666667;
+		} else {
+			ctx->refresh_rate = (double)display_mode->refresh_rate_numerator / (double)display_mode->refresh_rate_denominator;
+		}
 
 		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
 		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
@@ -1424,13 +1421,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-
-		// HACK: 8 shouldn't be hardcoded here. 8 only makes sense if the refresh rate of the monitor is 60.
-		// The maximum amount of times to update should depend on the refresh rate.
 		size_t times_updated = 0;
-		while (ctx->dt_accumulator > dt && times_updated < 8) {
-			++times_updated;
-			
+		while (ctx->dt_accumulator > dt) {	
+			++times_updated;		
 			// GetInput
 			{
 				SPALL_BUFFER_BEGIN_NAME("GetInput");
@@ -1732,8 +1725,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			const double NANOSECONDS_IN_SECOND = 1000000000.0;
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 
-			// HACK: There should be a better way to prevent a spiral of death than this.
-			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS));
+			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, ctx->refresh_rate);
 			
 			ctx->time = current_time;
 
