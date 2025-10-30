@@ -1,4 +1,3 @@
-vendor/*
 build/*
 assets/*
 *.sublime-workspace
