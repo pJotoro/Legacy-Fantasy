@@ -199,7 +199,7 @@ typedef struct Tile {
 } Tile;
 
 typedef struct TileLayer {
-	Tile* tiles; size_t n_tiles;
+	Tile* tiles; // n_tiles = size.x*size.y/TILE_SIZE
 } TileLayer;
 
 typedef struct Level {
@@ -1272,6 +1272,17 @@ int32_t main(int32_t argc, char* argv[]) {
 			// TODO
 			level.n_tile_layers = 3;
 			level.tile_layers = ArenaAlloc(&ctx->perm, level.n_tile_layers, TileLayer);
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level.n_tile_layers; ++tile_layer_idx) {
+				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
+				size_t n_tiles = (size_t)level.size.x*level.size.y/TILE_SIZE;
+				tile_layer->tiles = ArenaAlloc(&ctx->perm, n_tiles, Tile);
+				for (size_t i = 0; i < n_tiles; ++i) {
+					tile_layer->tiles[i].src.x = -1;
+					tile_layer->tiles[i].src.x = -1;
+					tile_layer->tiles[i].dst.x = -1;
+					tile_layer->tiles[i].dst.y = -1;
+				}
+			}
 
 			const char* layer_player = "Player";
 			const char* layer_enemies = "Enemies";
@@ -1281,25 +1292,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
 			cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) {
-				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
 				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
 				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
 
-				if (SDL_strcmp(type, "Tiles") == 0) {
-					TileLayer* tile_layer = NULL;
-					// TODO
-	 				if (SDL_strcmp(ident, layer_tiles) == 0) {
-						tile_layer = &level.tile_layers[0];
-					} else if (SDL_strcmp(ident, layer_props) == 0) {
-						tile_layer = &level.tile_layers[1];
-					} else if (SDL_strcmp(ident, layer_grass) == 0) {
-						tile_layer = &level.tile_layers[2];
-					} else {
-						SDL_assert(!"Invalid layer!");
-					}
-					++tile_layer->n_tiles;
-				} else if (SDL_strcmp(ident, layer_enemies) == 0) {
+				if (SDL_strcmp(ident, layer_enemies) == 0) {
 					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
 						++level.n_enemies;
@@ -1308,16 +1304,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 
 			level.enemies = ArenaAlloc(&ctx->perm, level.n_enemies, Entity);
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level.n_tile_layers; ++tile_layer_idx) {
-				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
-				tile_layer->tiles = ArenaAlloc(&ctx->perm, tile_layer->n_tiles, Tile);
-				for (size_t i = 0; i < tile_layer->n_tiles; ++i) {
-					tile_layer->tiles[i].src.x = -1;
-					tile_layer->tiles[i].src.x = -1;
-					tile_layer->tiles[i].dst.x = -1;
-					tile_layer->tiles[i].dst.y = -1;
-				}
-			}
 			Entity* enemy = level.enemies;
 			cJSON_ArrayForEach(layer_instance, layer_instances) {
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
@@ -1374,7 +1360,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						};
 
 						cJSON* node_src_idx = cJSON_GetObjectItem(grid_tile, "t");
-						size_t src_idx = (size_t)(int32_t)cJSON_GetNumberValue(node_src_idx);
+						size_t src_idx = (size_t)cJSON_GetNumberValue(node_src_idx);
 						tile_layer->tiles[src_idx] = (Tile){src, dst};
 					}
 				}
