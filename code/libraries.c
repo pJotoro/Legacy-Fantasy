@@ -12,4 +12,6 @@
 
 #include <cJson/cJson.c>
 
+#include <Volk/volk.c>
+
 #pragma warning(pop)

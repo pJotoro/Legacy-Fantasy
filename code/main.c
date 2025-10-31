@@ -1,13 +1,10 @@
 #define ENABLE_PROFILING 1
 #define FULLSCREEN 1
 
-#define STMT(X) do {X} while (false)
-
 #pragma warning(push, 0)
 #include <SDL.h>
 #include <SDL_main.h>
-
-typedef int64_t ssize_t;
+#include <SDL_vulkan.h>
 
 #include <cglm/struct.h>
 
@@ -16,7 +13,10 @@ typedef int64_t ssize_t;
 #include <xxhash.h>
 
 #include <infl.h>
+
 #include <cJson/cJson.h>
+
+#include <Volk/volk.h>
 
 #ifdef _DEBUG
 #include <raddbg_markup.h>
@@ -55,10 +55,13 @@ typedef int64_t ssize_t;
 #else
 #define SPALL_BUFFER_BEGIN()
 #endif
-
 #pragma warning(pop)
 
+typedef int64_t ssize_t;
+
 #include "aseprite.h"
+
+#define STMT(X) do {X} while (false)
 
 #define FORCEINLINE SDL_FORCE_INLINE
 #define function static
@@ -70,6 +73,7 @@ typedef int64_t ssize_t;
 
 #define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
+#ifdef _DEBUG
 #define SDL_CHECK(E) STMT( \
 	if (!(E)) { \
 		SDL_LogMessage(SDL_LOG_CATEGORY_ASSERT, SDL_LOG_PRIORITY_CRITICAL, "%s(%d): %s", __FILE__, __LINE__, SDL_GetError()); \
@@ -77,12 +81,16 @@ typedef int64_t ssize_t;
 	} \
 )
 
+#define VK_CHECK(E) STMT( SDL_assert((E) == VK_SUCCESS); )
+#else
+#define SDL_CHECK(E) E
+#define VK_CHECK(E) E
+#endif
+
 #define SDL_ReadStruct(S, STRUCT) SDL_ReadIO(S, (STRUCT), sizeof(*(STRUCT)))
 
 #define SDL_ReadIOChecked(S, P, SZ) SDL_CHECK(SDL_ReadIO(S, P, SZ) == SZ)
 #define SDL_ReadStructChecked(S, STRUCT) SDL_CHECK(SDL_ReadStruct(S, STRUCT) == sizeof(*(STRUCT)))
-
-#define FULLSCREEN 1
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -106,9 +114,9 @@ typedef int64_t ssize_t;
 
 #define MIN_FPS 15
 
-// 1/60/8
-// So basically, if we are running at perfect 60 fps, then the physics will update 8 times per second.
-#define dt 0.00208333333333333333333333333333333333333333333333
+// 1/60/6
+// So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
+#define dt 0.00277777777777777777777777777777777777777777777778
 
 typedef struct SpriteLayer {
 	char* name;
@@ -238,7 +246,7 @@ typedef struct Context {
 
 	SDL_Window* window;
 
-	SDL_Renderer* renderer;
+	//SDL_Renderer* renderer;
 	bool vsync;
 
 	SDL_Gamepad* gamepad;
@@ -269,6 +277,30 @@ typedef struct Context {
 	size_t replay_frame_idx_max;
 	size_t c_replay_frames;
 	bool paused;
+
+	VkInstance vk_instance;
+
+	VkPhysicalDevice vk_physical_device;
+	VkPhysicalDeviceProperties vk_physical_device_properties;
+	VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties;
+
+	VkSurfaceKHR vk_surface;
+	VkSurfaceCapabilitiesKHR vk_surface_capabilities;
+	VkSurfaceFormatKHR* vk_surface_formats; size_t n_vk_surface_formats;
+
+	VkQueueFamilyProperties* vk_queue_family_properties; size_t n_vk_queue_family_properties;
+	VkQueue* vk_queues;
+	VkQueue vk_graphics_queue;
+
+	VkDevice vk_device;
+
+	// TODO: Swapchain recreation.
+	VkSwapchainKHR vk_swapchain;
+	VkSwapchainCreateInfoKHR vk_swapchain_info;
+
+	VkImage* vk_swapchain_images;
+	VkImageView* vk_swapchain_image_views;
+	VkFramebuffer* vk_framebuffers;
 } Context;
 
 #include "util.c"
@@ -1115,6 +1147,28 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	SPALL_BUFFER_END();
 }
 
+#ifdef _DEBUG
+VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) {
+	SDL_Log(data->pMessage);
+	return VK_FALSE;
+}
+#endif
+
+// TODO: Search for supported extensions.
+// TODO: remove global variables.
+
+#ifdef _DEBUG
+static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
+static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
+#endif
+#ifndef _DEBUG
+static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
+#endif
+
+static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
 int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
@@ -1178,31 +1232,176 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 #endif
 
-	// CreateWindowAndRenderer
+	// CreateWindow
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
 		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
 	#if !FULLSCREEN
-		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_HIGH_PIXEL_DENSITY, &ctx->window, &ctx->renderer));
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY); SDL_CHECK(ctx->window);
 	#else
-		SDL_CHECK(SDL_CreateWindowAndRenderer("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN, &ctx->window, &ctx->renderer));
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN); SDL_CHECK(ctx->window);
 	#endif
 
-		ctx->vsync = SDL_SetRenderVSync(ctx->renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
-		if (!ctx->vsync) {
-			ctx->vsync = SDL_SetRenderVSync(ctx->renderer, 1); // fixed refresh rate
-		}
-
-		if (display_mode->refresh_rate_numerator == 0) {
-			ctx->refresh_rate = 0.01666666666666666666666666666666666666666666666667;
-		} else {
-			ctx->refresh_rate = (double)display_mode->refresh_rate_numerator / (double)display_mode->refresh_rate_denominator;
-		}
-
-		SDL_CHECK(SDL_SetDefaultTextureScaleMode(ctx->renderer, SDL_SCALEMODE_PIXELART));
-		SDL_CHECK(SDL_SetRenderScale(ctx->renderer, (float)(display_mode->w/GAME_WIDTH), (float)(display_mode->h/GAME_HEIGHT)));
-		SDL_CHECK(SDL_SetRenderDrawBlendMode(ctx->renderer, SDL_BLENDMODE_BLEND));
+		PFN_vkGetInstanceProcAddr f = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+		volkInitializeCustom(f);
 	}
+
+	// VulkanCreateInstance
+	{
+		VkApplicationInfo app_info = { 
+			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+			.pApplicationName = "Legacy Fantasy",
+			.applicationVersion = VK_API_VERSION_1_0,
+			.pEngineName = "Legacy Fantasy",
+			.engineVersion = VK_API_VERSION_1_0,
+			.apiVersion = VK_API_VERSION_1_1,
+		};
+
+		VkInstanceCreateInfo create_info = { 
+			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+			.pApplicationInfo = &app_info,
+	#ifdef _DEBUG
+			.enabledLayerCount = SDL_arraysize(g_vk_layers),
+			.ppEnabledLayerNames = g_vk_layers,
+	#endif
+			.enabledExtensionCount = SDL_arraysize(g_vk_instance_extensions),
+			.ppEnabledExtensionNames = g_vk_instance_extensions,
+		};
+
+	#ifdef _DEBUG
+		VkDebugUtilsMessengerCreateInfoEXT debug_info = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+			.pfnUserCallback = VulkanDebugCallback,
+			.pUserData = ctx,
+		};
+
+		create_info.pNext = &debug_info;
+	#endif
+
+		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk_instance));
+		volkLoadInstanceOnly(ctx->vk_instance);
+	}
+
+	// VulkanGetPhysicalDevice
+	{
+		// HACK: This only happens to work and make sense on my laptop!.
+		uint32_t physical_device_count = 2;
+		VkPhysicalDevice physical_devices[2];
+		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk_instance, &physical_device_count, physical_devices));
+		ctx->vk_physical_device = physical_devices[1];
+
+		vkGetPhysicalDeviceProperties(ctx->vk_physical_device, &ctx->vk_physical_device_properties);
+		vkGetPhysicalDeviceMemoryProperties(ctx->vk_physical_device, &ctx->vk_physical_device_memory_properties);
+	}
+
+	// VulkanCreateSurface
+	{
+		SDL_CHECK(SDL_Vulkan_CreateSurface(ctx->window, ctx->vk_instance, NULL, &ctx->vk_surface));
+		VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx->vk_physical_device, ctx->vk_surface, &ctx->vk_surface_capabilities));
+	}
+
+	// VulkanGetPhysicalDeviceSurfaceFormats
+	{
+		uint32_t count;
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, NULL));
+		ctx->vk_surface_formats = ArenaAlloc(&ctx->perm, count, VkSurfaceFormatKHR);
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, ctx->vk_surface_formats));
+		ctx->n_vk_surface_formats = (size_t)ctx->vk_surface_formats;
+	}
+
+	// VulkanCreateDeviceAndGetDeviceQueues
+	{
+		{
+			uint32_t count;
+			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, NULL);
+			ctx->vk_queue_family_properties = ArenaAlloc(&ctx->perm, ctx->n_vk_queue_family_properties, VkQueueFamilyProperties);
+			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, ctx->vk_queue_family_properties);
+			ctx->n_vk_queue_family_properties = (size_t)count;
+		}
+
+		VkPhysicalDeviceFeatures physical_device_features;
+		vkGetPhysicalDeviceFeatures(ctx->vk_physical_device, &physical_device_features);
+
+		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->n_vk_queue_family_properties, VkDeviceQueueCreateInfo);
+		size_t n_queue_infos = 0;
+		size_t n_queues = 0;
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->n_vk_queue_family_properties; ++queue_family_idx) {
+			if (ctx->vk_queue_family_properties[queue_family_idx].queueCount == 0) continue;
+			queue_infos[n_queue_infos] = (VkDeviceQueueCreateInfo){
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.queueFamilyIndex = (uint32_t)queue_family_idx,
+				.queueCount = ctx->vk_queue_family_properties[queue_family_idx].queueCount,
+				.pQueuePriorities = g_queue_priorities,
+			};
+			++n_queue_infos;
+			n_queues += (size_t)ctx->vk_queue_family_properties[queue_family_idx].queueCount;
+		}
+
+		VkDeviceCreateInfo device_info = { 
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.queueCreateInfoCount = (uint32_t)n_queue_infos,
+			.pQueueCreateInfos = queue_infos,
+			.enabledExtensionCount = SDL_arraysize(g_vk_device_extensions),
+			.ppEnabledExtensionNames = g_vk_device_extensions,
+			.pEnabledFeatures = &physical_device_features,
+		};
+		VK_CHECK(vkCreateDevice(ctx->vk_physical_device, &device_info, NULL, &ctx->vk_device));
+		volkLoadDevice(ctx->vk_device);
+
+		ctx->vk_queues = ArenaAlloc(&ctx->arena, n_queues, VkQueue);
+		size_t queue_idx = 0;
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->n_vk_queue_family_properties; ++queue_family_idx) {
+			for (; queue_idx < (size_t)ctx->vk_queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
+				vkGetDeviceQueue(ctx->vk_device, (uint32_t)queue_family_idx, (uint32_t)queue_idx, &ctx->vk_queues[queue_idx]);
+			}
+		}
+	}
+
+	// create_swapchain
+	{
+		ctx->vk_swapchain_info = { 
+			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.surface = ctx->vk_surface,
+			.minImageCount = glm::min(ctx->vk_surface_capabilities.minImageCount + 1, ctx->vk_surface_capabilities.maxImageCount),
+			.imageFormat = VK_FORMAT_R8G8B8A8_UNORM, // TODO
+			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // TODO
+			.imageExtent = ctx->vk_surface_capabilities.currentExtent,
+			.imageArrayLayers = 1,
+			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			.preTransform = ctx->vk_surface_capabilities.currentTransform,
+			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+			.clipped = VK_TRUE,
+		};
+		
+		VK_CHECK(vkCreateSwapchainKHR(ctx->vk_device, &ctx->vk_swapchain_info, NULL, &ctx->vk_swapchain));
+	}
+
+	// get_swapchain_images
+	{
+		uint32_t swapchain_image_count;
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &swapchain_image_count, NULL));
+		ctx->vk_swapchain_images = ctx->arena_perm.alloc_span<VkImage>(swapchain_image_count);
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &swapchain_image_count, ctx->vk_swapchain_images.data()));
+	}
+
+	// create_swapchain_image_view
+	{
+		ctx->vk_swapchain_image_views = ctx->arena_perm.alloc_span<VkImageView>(ctx->vk_swapchain_images.size());
+		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk_swapchain_images.size(); swapchain_image_idx += 1) {
+			VkImageViewCreateInfo info{ 
+				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				.image = ctx->vk_swapchain_images[swapchain_image_idx],
+				.viewType = VK_IMAGE_VIEW_TYPE_2D,
+				.format = ctx->vk_swapchain_info.imageFormat,
+				.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1},
+			};
+			VK_CHECK(vkCreateImageView(ctx->vk_device, &info, NULL, &ctx->vk_swapchain_image_views[swapchain_image_idx]));
+		}
+	}
+	
 	
 	// LoadSprites
 	{
