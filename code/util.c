@@ -107,3 +107,30 @@ function FORCEINLINE bool IsSolid(Level* level, ivec2s pos) {
     size_t idx = (size_t)(pos.x + pos.y*level->size.x);
     return level->tiles[idx];
 }
+
+function FORCEINLINE bool TileIsValid(Tile tile) {
+    return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
+}
+
+function FORCEINLINE bool TilesEqual(Tile a, Tile b) {
+    return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
+}
+
+function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
+    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
+    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
+        return -1;
+    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
+        return 1;
+    }
+    return 0;
+}
+
+function int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
+    if (a->src.y < b->src.y) return -1;
+    if (a->src.y > b->src.y) return 1;
+    if (a->src.x < b->src.x) return -1;
+    if (a->src.x > b->src.x) return 1;
+    return -1; // this could be 1, but then the sort would be unstable
+}

@@ -1115,17 +1115,6 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	SPALL_BUFFER_END();
 }
 
-function int32_t CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
-    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
-    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
-    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
-        return -1;
-    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
-        return 1;
-    }
-    return 0;
-}
-
 int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
@@ -1382,6 +1371,8 @@ int32_t main(int32_t argc, char* argv[]) {
 						SDL_assert(i < tile_layer->n_tiles);
 						tile_layer->tiles[i++] = (Tile){src, dst};
 					}
+
+					//SDL_qsort(tile_layer->tiles, tile_layer->n_tiles, sizeof(Tile), (SDL_CompareCallback)CompareTileSrc);
 				}
  				
 			}
@@ -1633,43 +1624,63 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawLevel");
 
-			Level* level = GetCurrentLevel(ctx);
-
 			SpriteDesc* sd = GetSpriteDesc(ctx, spr_tiles);
 			SDL_assert(sd->n_layers == 1);
 			SDL_assert(sd->n_frames == 1);
 			SDL_assert(sd->frames[0].n_cells == 1);
 
+			#if 0
+			Level* level = GetCurrentLevel(ctx);
+
 			SDL_Texture* texture = sd->frames[0].cells[0].texture;
 
 			size_t draw_calls = 0;
 
+			SDL_FRect* tiles_to_draw = ArenaAlloc(&ctx->temp, level->size.x*level->size.y/TILE_SIZE, SDL_FRect);
+			size_t n_tiles_to_draw = 0;
+
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
 				size_t n_tiles;
 				Tile* tiles = GetLayerTiles(level, tile_layer_idx, &n_tiles);
-				for (size_t tile_idx = 0; tile_idx < n_tiles; ++tile_idx) {
-					Tile tile = tiles[tile_idx];
+				
+				for (size_t i = 0; i < n_tiles; ++i) {
+					if (!TileIsValid(tiles[i])) continue;
 
-					if (tile.src.x == -1) continue;					
-					
+					tiles_to_draw[n_tiles_to_draw++] = (SDL_FRect){
+						(float)tiles[i].dst.x,
+						(float)tile[i].dst.y,
+						(float)TILE_SIZE,
+						(float)TILE_SIZE,
+					};
+
+					size_t j;
+					for (j = i + 1; j < n_tiles; ++j) {
+						SDL_assert(TileIsValid(tiles[j]));				
+						if (tiles[j].src.x != tiles[i].src.x || tiles[j].src.y != tiles[i].src.y) break;
+						tiles_to_draw[n_tiles_to_draw++] = (SDL_FRect){
+							(float)tiles[j].dst.x,
+							(float)tile[j].dst.y,
+							(float)TILE_SIZE,
+							(float)TILE_SIZE,
+						};
+					}
+
 					SDL_FRect srcrect = {
-						(float)tile.src.x,
-						(float)tile.src.y,
+						(float)tiles[i].src.x,
+						(float)tiles[i].src.y,
 						(float)TILE_SIZE,
 						(float)TILE_SIZE,
 					};
-					SDL_FRect dstrect = {
-						(float)tile.dst.x,
-						(float)tile.dst.y,
-						(float)TILE_SIZE,
-						(float)TILE_SIZE,
-					};
-
+					
 					SDL_CHECK(SDL_RenderTexture(ctx->renderer, texture, &srcrect, &dstrect));
+
+					i = j;
+					n_tiles_to_draw = 0;
 
 					++draw_calls;
 				}
 			}
+			#endif
 
 			//SDL_Log("Draw calls: %llu", draw_calls);
 
@@ -1739,7 +1750,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->time = current_time;
 
 			SPALL_BUFFER_END();
-		}	
+		}
+
+		ArenaReset(&ctx->temp);
 	}
 	
 	// NOTE: If we don't do this, we might not get the last few events.
