@@ -281,7 +281,7 @@ typedef struct Context {
 	VkInstance vk_instance;
 
 	VkPhysicalDevice vk_physical_device;
-	VkPhysicalDeviceProperties2 vk_physical_device_properties;
+	VkPhysicalDeviceProperties vk_physical_device_properties;
 	VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties;
 
 	VkSurfaceKHR vk_surface;
@@ -1259,7 +1259,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.applicationVersion = VK_API_VERSION_1_0,
 			.pEngineName = "Legacy Fantasy",
 			.engineVersion = VK_API_VERSION_1_0,
-			.apiVersion = VK_API_VERSION_1_1,
+			.apiVersion = VK_API_VERSION_1_0,
 		};
 
 		VkInstanceCreateInfo create_info = { 
@@ -1297,7 +1297,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk_instance, &physical_device_count, physical_devices));
 		ctx->vk_physical_device = physical_devices[1];
 
-		vkGetPhysicalDeviceProperties2(ctx->vk_physical_device, &ctx->vk_physical_device_properties);
+		vkGetPhysicalDeviceProperties(ctx->vk_physical_device, &ctx->vk_physical_device_properties);
 		vkGetPhysicalDeviceMemoryProperties(ctx->vk_physical_device, &ctx->vk_physical_device_memory_properties);
 	}
 
