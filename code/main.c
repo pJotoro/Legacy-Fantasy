@@ -299,6 +299,7 @@ typedef struct Vulkan {
 	VkDescriptorPool descriptor_pool;
 	
 	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
+	size_t current_frame;
 } Vulkan;
 
 typedef struct Context {
@@ -947,8 +948,12 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
     Rect hitbox = GetEntityHitbox(ctx, entity);
 
 	ivec2s grid_pos;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
+		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
+		++grid_pos.y) {
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; 
+			(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE;
+			 ++grid_pos.x) {
 			if (IsSolid(level, grid_pos)) {
 				Rect tile_rect;
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
@@ -2281,16 +2286,109 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		SDL_Log("Times updated: %llu", times_updated);
 
+		uint32_t image_idx;
+		VkCommandBuffer cb;
+
 		// DrawBegin
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawBegin");
 
-			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 0, 0, 0, 0));
-			SDL_CHECK(SDL_RenderClear(ctx->renderer));
+			VK_CHECK(vkWaitForFences(ctx->vk.device, 1, &ctx->vk.frames[ctx->vk.current_frame].fence_in_flight, VK_TRUE, UINT64_MAX));
+			VK_CHECK(vkResetFences(ctx->vk.device, 1, &ctx->vk.frames[ctx->vk.current_frame].fence_in_flight));
+
+			VK_CHECK(vkAcquireNextImageKHR(ctx->vk.device, ctx->vk.swapchain, UINT64_MAX, ctx->vk.frames[ctx->vk.current_frame].sem_image_available, VK_NULL_HANDLE, &image_idx));
+
+			cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
+
+			{
+				VkCommandBufferBeginInfo info = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+					.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+				};
+				VK_CHECK(vkBeginCommandBuffer(cb, &info));
+			}
+
+			{
+
+				VkClearValue clear_values[2];
+				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
+				clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
+
+				VkRenderPassBeginInfo info = { 
+					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+					.renderPass = ctx->vk.render_pass,
+					.framebuffer = ctx->vk.framebuffers[image_idx],
+					.renderArea = { .extent = ctx->vk.swapchain_info.imageExtent },
+					.clearValueCount = SDL_arraysize(clear_values),
+					.pClearValues = clear_values,
+
+				};
+				vkCmdBeginRenderPass(cb, &info, VK_SUBPASS_CONTENTS_INLINE);
+			}
+
+			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
+			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
 
 			SPALL_BUFFER_END();
 		}
 
+		// Draw
+		{
+
+		}
+
+		// DrawEnd
+		{
+			vkCmdEndRenderPass(cb);
+
+			VK_CHECK(vkEndCommandBuffer(cb));
+
+			VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+			VkSubmitInfo submit_info = { 
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+				.waitSemaphoreCount = 1,
+				.pWaitSemaphores = &ctx->vk.frames[ctx->vk.current_frame].sem_image_available,
+				.pWaitDstStageMask = &wait_stage,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &cb,
+				.signalSemaphoreCount = 1,
+				.pSignalSemaphores = &ctx->vk.frames[ctx->vk.current_frame].sem_render_finished,
+			};
+			VK_CHECK(vkQueueSubmit(ctx->vk.graphics_queue, 1, &submit_info, ctx->vk.frames[ctx->vk.current_frame].fence_in_flight));
+
+			VkPresentInfoKHR present_info = { 
+				.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+				.waitSemaphoreCount = 1,
+				.pWaitSemaphores = &ctx->vk.frames[ctx->vk.current_frame].sem_render_finished,
+				.swapchainCount = 1,
+				.pSwapchains = &ctx->vk.swapchain,
+				.pImageIndices = &image_idx,
+			};
+			VK_CHECK(vkQueuePresentKHR(ctx->vk.graphics_queue, &present_info));
+
+			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+			ArenaReset(&ctx->temp);
+		}
+
+		// UpdateTime
+		{			
+			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
+
+			SDL_Time current_time;
+			SDL_CHECK(SDL_GetCurrentTime(&current_time));
+			SDL_Time dt_int = current_time - ctx->time;
+			const double NANOSECONDS_IN_SECOND = 1000000000.0;
+			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
+
+			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS)); // TODO
+			
+			ctx->time = current_time;
+
+			SPALL_BUFFER_END();
+		}
+	#if 0
 		// DrawEntities
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
@@ -2314,7 +2412,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_assert(sd->n_frames == 1);
 			SDL_assert(sd->frames[0].n_cells == 1);
 
-			#if 0
 			Level* level = GetCurrentLevel(ctx);
 
 			SDL_Texture* texture = sd->frames[0].cells[0].texture;
@@ -2365,7 +2462,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					++draw_calls;
 				}
 			}
-			#endif
 
 			//SDL_Log("Draw calls: %llu", draw_calls);
 
@@ -2419,25 +2515,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SPALL_BUFFER_END();
 		}
+	#endif
 
-		// UpdateTime
-		{			
-			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
 
-			SDL_Time current_time;
-			SDL_CHECK(SDL_GetCurrentTime(&current_time));
-			SDL_Time dt_int = current_time - ctx->time;
-			const double NANOSECONDS_IN_SECOND = 1000000000.0;
-			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-
-			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS)); // TODO
-			
-			ctx->time = current_time;
-
-			SPALL_BUFFER_END();
-		}
-
-		ArenaReset(&ctx->temp);
 	}
 	
 	// NOTE: If we don't do this, we might not get the last few events.
