@@ -114,6 +114,8 @@ typedef int64_t ssize_t;
 
 #define MIN_FPS 15
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 // 1/60/6
 // So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
 #define dt 0.00277777777777777777777777777777777777777777777778
@@ -235,6 +237,70 @@ typedef struct Arena {
 	uint8_t* cur;
 } Arena;
 
+typedef struct Vertex {
+	vec3s pos;
+	vec3s color;
+	vec2s tex_coord;
+} Vertex;
+
+typedef struct VulkanFrame {
+	VkDescriptorSet descriptor_set;
+	VkCommandBuffer command_buffer;
+	VkSemaphore sem_image_available;
+	VkSemaphore sem_render_finished;
+	VkFence fence_in_flight;
+} VulkanFrame;
+
+typedef struct Vulkan {
+	VkInstance instance;
+
+	VkPhysicalDevice physical_device;
+	VkPhysicalDeviceProperties physical_device_properties;
+	VkPhysicalDeviceMemoryProperties physical_device_memory_properties;
+
+	VkSurfaceKHR surface;
+	VkSurfaceCapabilitiesKHR surface_capabilities;
+	VkSurfaceFormatKHR* surface_formats; size_t n_surface_formats;
+
+	VkQueueFamilyProperties* queue_family_properties; size_t n_queue_family_properties;
+	VkQueue* queues;
+	VkQueue graphics_queue;
+
+	VkDevice device;
+
+	// TODO: Swapchain recreation.
+	VkSwapchainKHR swapchain;
+	VkSwapchainCreateInfoKHR swapchain_info;
+
+	VkImage* swapchain_images;
+	VkImageView* swapchain_image_views;
+	VkFramebuffer* framebuffers;
+	size_t n_swapchain_images;
+
+	VkShaderModule vertex_shader;
+	VkShaderModule fragment_shader;
+
+	VkDescriptorSetLayout descriptor_set_layout;
+	VkPipelineLayout pipeline_layout;
+	VkPipeline graphics_pipeline;
+	VkRenderPass render_pass;
+
+	VkCommandPool command_pool;
+
+	VkViewport viewport;
+	VkRect2D scissor;
+
+	VkImage depth_stencil_image;
+	VkDeviceMemory depth_stencil_image_memory;
+	VkImageView depth_stencil_image_view;
+
+	VkSampler sampler;
+
+	VkDescriptorPool descriptor_pool;
+	
+	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
+} Vulkan;
+
 typedef struct Context {
 #if ENABLE_PROFILING
 	SpallProfile spall_ctx;
@@ -278,34 +344,7 @@ typedef struct Context {
 	size_t c_replay_frames;
 	bool paused;
 
-	VkInstance vk_instance;
-
-	VkPhysicalDevice vk_physical_device;
-	VkPhysicalDeviceProperties vk_physical_device_properties;
-	VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties;
-
-	VkSurfaceKHR vk_surface;
-	VkSurfaceCapabilitiesKHR vk_surface_capabilities;
-	VkSurfaceFormatKHR* vk_surface_formats; size_t vk_n_surface_formats;
-
-	VkQueueFamilyProperties* vk_queue_family_properties; size_t vk_n_queue_family_properties;
-	VkQueue* vk_queues;
-	VkQueue vk_graphics_queue;
-
-	VkDevice vk_device;
-
-	// TODO: Swapchain recreation.
-	VkSwapchainKHR vk_swapchain;
-	VkSwapchainCreateInfoKHR vk_swapchain_info;
-
-	VkImage* vk_swapchain_images;
-	VkImageView* vk_swapchain_image_views;
-	VkFramebuffer* vk_framebuffers;
-	size_t vk_n_swapchain_images;
-
-	VkDescriptorSetLayout vk_descriptor_set_layout;
-	VkPipelineLayout vk_pipeline_layout;
-	VkRenderPass vk_render_pass;
+	Vulkan vk;
 } Context;
 
 #include "util.c"
@@ -1285,8 +1324,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		create_info.pNext = &debug_info;
 	#endif
 
-		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk_instance));
-		volkLoadInstanceOnly(ctx->vk_instance);
+		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
+		volkLoadInstanceOnly(ctx->vk.instance);
 	}
 
 	// VulkanGetPhysicalDevice
@@ -1294,54 +1333,54 @@ int32_t main(int32_t argc, char* argv[]) {
 		// HACK: This only happens to work and make sense on my laptop!.
 		uint32_t physical_device_count = 2;
 		VkPhysicalDevice physical_devices[2];
-		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk_instance, &physical_device_count, physical_devices));
-		ctx->vk_physical_device = physical_devices[1];
+		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk.instance, &physical_device_count, physical_devices));
+		ctx->vk.physical_device = physical_devices[1];
 
-		vkGetPhysicalDeviceProperties(ctx->vk_physical_device, &ctx->vk_physical_device_properties);
-		vkGetPhysicalDeviceMemoryProperties(ctx->vk_physical_device, &ctx->vk_physical_device_memory_properties);
+		vkGetPhysicalDeviceProperties(ctx->vk.physical_device, &ctx->vk.physical_device_properties);
+		vkGetPhysicalDeviceMemoryProperties(ctx->vk.physical_device, &ctx->vk.physical_device_memory_properties);
 	}
 
 	// VulkanCreateSurface
 	{
-		SDL_CHECK(SDL_Vulkan_CreateSurface(ctx->window, ctx->vk_instance, NULL, &ctx->vk_surface));
-		VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx->vk_physical_device, ctx->vk_surface, &ctx->vk_surface_capabilities));
+		SDL_CHECK(SDL_Vulkan_CreateSurface(ctx->window, ctx->vk.instance, NULL, &ctx->vk.surface));
+		VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx->vk.physical_device, ctx->vk.surface, &ctx->vk.surface_capabilities));
 	}
 
 	// VulkanGetPhysicalDeviceSurfaceFormats
 	{
 		uint32_t count;
-		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, NULL));
-		ctx->vk_surface_formats = ArenaAlloc(&ctx->perm, count, VkSurfaceFormatKHR);
-		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, ctx->vk_surface_formats));
-		ctx->vk_n_surface_formats = (size_t)ctx->vk_surface_formats;
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, NULL));
+		ctx->vk.surface_formats = ArenaAlloc(&ctx->perm, count, VkSurfaceFormatKHR);
+		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, ctx->vk.surface_formats));
+		ctx->vk.n_surface_formats = (size_t)ctx->vk.surface_formats;
 	}
 
 	// VulkanCreateDeviceAndGetDeviceQueues
 	{
 		{
 			uint32_t count;
-			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, NULL);
-			ctx->vk_queue_family_properties = ArenaAlloc(&ctx->perm, ctx->vk_n_queue_family_properties, VkQueueFamilyProperties);
-			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, ctx->vk_queue_family_properties);
-			ctx->vk_n_queue_family_properties = (size_t)count;
+			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, NULL);
+			ctx->vk.queue_family_properties = ArenaAlloc(&ctx->perm, ctx->vk.n_queue_family_properties, VkQueueFamilyProperties);
+			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
+			ctx->vk.n_queue_family_properties = (size_t)count;
 		}
 
 		VkPhysicalDeviceFeatures physical_device_features;
-		vkGetPhysicalDeviceFeatures(ctx->vk_physical_device, &physical_device_features);
+		vkGetPhysicalDeviceFeatures(ctx->vk.physical_device, &physical_device_features);
 
-		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->vk_n_queue_family_properties, VkDeviceQueueCreateInfo);
+		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->vk.n_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t n_queue_infos = 0;
 		size_t n_queues = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk_n_queue_family_properties; ++queue_family_idx) {
-			if (ctx->vk_queue_family_properties[queue_family_idx].queueCount == 0) continue;
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.n_queue_family_properties; ++queue_family_idx) {
+			if (ctx->vk.queue_family_properties[queue_family_idx].queueCount == 0) continue;
 			queue_infos[n_queue_infos] = (VkDeviceQueueCreateInfo){
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 				.queueFamilyIndex = (uint32_t)queue_family_idx,
-				.queueCount = ctx->vk_queue_family_properties[queue_family_idx].queueCount,
+				.queueCount = ctx->vk.queue_family_properties[queue_family_idx].queueCount,
 				.pQueuePriorities = g_queue_priorities,
 			};
 			++n_queue_infos;
-			n_queues += (size_t)ctx->vk_queue_family_properties[queue_family_idx].queueCount;
+			n_queues += (size_t)ctx->vk.queue_family_properties[queue_family_idx].queueCount;
 		}
 
 		VkDeviceCreateInfo device_info = { 
@@ -1352,61 +1391,93 @@ int32_t main(int32_t argc, char* argv[]) {
 			.ppEnabledExtensionNames = g_vk_device_extensions,
 			.pEnabledFeatures = &physical_device_features,
 		};
-		VK_CHECK(vkCreateDevice(ctx->vk_physical_device, &device_info, NULL, &ctx->vk_device));
-		volkLoadDevice(ctx->vk_device);
+		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
+		volkLoadDevice(ctx->vk.device);
 
-		ctx->vk_queues = ArenaAlloc(&ctx->perm, n_queues, VkQueue);
+		ctx->vk.queues = ArenaAlloc(&ctx->perm, n_queues, VkQueue);
 		size_t queue_array_idx = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk_n_queue_family_properties; ++queue_family_idx) {
-			for (uint32_t queue_idx = 0; queue_idx < ctx->vk_queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
-				vkGetDeviceQueue(ctx->vk_device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk_queues[queue_array_idx]);
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.n_queue_family_properties; ++queue_family_idx) {
+			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
+				vkGetDeviceQueue(ctx->vk.device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk.queues[queue_array_idx]);
 				++queue_array_idx;
 			}
 		}
+
+		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
 	}
 
-	// create_swapchain
+	// VulkanCreateSwapchain
 	{
-		ctx->vk_swapchain_info = (VkSwapchainCreateInfoKHR){ 
+		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){ 
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-			.surface = ctx->vk_surface,
-			.minImageCount = SDL_min(ctx->vk_surface_capabilities.minImageCount + 1, ctx->vk_surface_capabilities.maxImageCount),
+			.surface = ctx->vk.surface,
+			.minImageCount = SDL_min(ctx->vk.surface_capabilities.minImageCount + 1, ctx->vk.surface_capabilities.maxImageCount),
 			.imageFormat = VK_FORMAT_R8G8B8A8_UNORM, // TODO
 			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // TODO
-			.imageExtent = ctx->vk_surface_capabilities.currentExtent,
+			.imageExtent = ctx->vk.surface_capabilities.currentExtent,
 			.imageArrayLayers = 1,
 			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			.preTransform = ctx->vk_surface_capabilities.currentTransform,
+			.preTransform = ctx->vk.surface_capabilities.currentTransform,
 			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
 			.clipped = VK_TRUE,
 		};
 		
-		VK_CHECK(vkCreateSwapchainKHR(ctx->vk_device, &ctx->vk_swapchain_info, NULL, &ctx->vk_swapchain));
+		VK_CHECK(vkCreateSwapchainKHR(ctx->vk.device, &ctx->vk.swapchain_info, NULL, &ctx->vk.swapchain));
 	}
 
-	// get_swapchain_images
+	// VulkanGetSwapchainImages
 	{
 		uint32_t count;
-		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &count, NULL));
-		ctx->vk_n_swapchain_images = (size_t)count;
-		ctx->vk_swapchain_images = ArenaAlloc(&ctx->perm, ctx->vk_n_swapchain_images, VkImage);
-		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &count, ctx->vk_swapchain_images));
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, NULL));
+		ctx->vk.n_swapchain_images = (size_t)count;
+		ctx->vk.swapchain_images = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkImage);
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, ctx->vk.swapchain_images));
 	}
 
-	// create_swapchain_image_view
+	// VulkanCreateSwapchainImageView
 	{
-		ctx->vk_swapchain_image_views = ArenaAlloc(&ctx->perm, ctx->vk_n_swapchain_images, VkImageView);
-		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk_n_swapchain_images; swapchain_image_idx += 1) {
+		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkImageView);
+		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.n_swapchain_images; ++swapchain_image_idx) {
 			VkImageViewCreateInfo info = { 
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-				.image = ctx->vk_swapchain_images[swapchain_image_idx],
+				.image = ctx->vk.swapchain_images[swapchain_image_idx],
 				.viewType = VK_IMAGE_VIEW_TYPE_2D,
-				.format = ctx->vk_swapchain_info.imageFormat,
+				.format = ctx->vk.swapchain_info.imageFormat,
 				.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1},
 			};
-			VK_CHECK(vkCreateImageView(ctx->vk_device, &info, NULL, &ctx->vk_swapchain_image_views[swapchain_image_idx]));
+			VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.swapchain_image_views[swapchain_image_idx]));
 		}
+	}
+
+	// CreateShaderModule
+	{
+		size_t len;
+		void* data = SDL_LoadFile("vert.spv", &len); SDL_CHECK(data);
+
+		VkShaderModuleCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+			.codeSize = len,
+			.pCode = (uint32_t*)data,
+		};
+		VK_CHECK(vkCreateShaderModule(ctx->vk.device, &info, NULL, &ctx->vk.vertex_shader));
+
+		SDL_free(data);
+	}
+
+	// CreateShaderModule
+	{
+		size_t len;
+		void* data = SDL_LoadFile("frag.spv", &len); SDL_CHECK(data);
+
+		VkShaderModuleCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+			.codeSize = len,
+			.pCode = (uint32_t*)data,
+		};
+		VK_CHECK(vkCreateShaderModule(ctx->vk.device, &info, NULL, &ctx->vk.fragment_shader));
+
+		SDL_free(data);
 	}
 
 	// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
@@ -1437,7 +1508,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pBindings = bindings,
 		};
 		
-		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk_device, &info, NULL, &ctx->vk_descriptor_set_layout));
+		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
 	}
 
 	// VulkanCreatePipelineLayout
@@ -1445,16 +1516,16 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.setLayoutCount = 1,
-			.pSetLayouts = &ctx->vk_descriptor_set_layout,
+			.pSetLayouts = &ctx->vk.descriptor_set_layout,
 		};
 
-		VK_CHECK(vkCreatePipelineLayout(ctx->vk_device, &pipeline_layout_info, NULL, &ctx->vk_pipeline_layout));
+		VK_CHECK(vkCreatePipelineLayout(ctx->vk.device, &pipeline_layout_info, NULL, &ctx->vk.pipeline_layout));
 	}
 
-	// create_render_pass
+	// VulkanCreateRenderPass
 	{
 		VkAttachmentDescription color_attachment = {
-			.format = ctx->vk_swapchain_info.imageFormat,
+			.format = ctx->vk.swapchain_info.imageFormat,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -1513,7 +1584,309 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pDependencies = &subpass_dependency,
 		};
 
-		VK_CHECK(vkCreateRenderPass(ctx->vk_device, &info, NULL, &ctx->vk_render_pass));
+		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
+	}
+
+	// VulkanCreateGraphicsPipeline
+	{
+		VkPipelineShaderStageCreateInfo vert_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.stage = VK_SHADER_STAGE_VERTEX_BIT,
+			.module = ctx->vk.vertex_shader,
+			.pName = "main",
+		};
+		
+		VkPipelineShaderStageCreateInfo frag_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.module = ctx->vk.fragment_shader,
+			.pName = "main",
+		};
+		
+		VkPipelineShaderStageCreateInfo shader_stages[] = {
+			vert_info,
+			frag_info,
+		};
+
+		VkDynamicState dynamic_states[] = {
+			VK_DYNAMIC_STATE_VIEWPORT,
+			VK_DYNAMIC_STATE_SCISSOR,
+		};
+
+		VkPipelineDynamicStateCreateInfo dynamic_state_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+			.dynamicStateCount = SDL_arraysize(dynamic_states),
+			.pDynamicStates = dynamic_states,
+		};
+		
+		VkVertexInputBindingDescription vertex_input_binding = {
+			.binding = 0,
+			.stride = sizeof(Vertex),
+			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+		};
+		
+		VkVertexInputAttributeDescription vertex_attributes[] = {
+			(VkVertexInputAttributeDescription){
+				.location = 0,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32B32_SFLOAT,
+				.offset = offsetof(Vertex, pos),
+			},
+			{
+				.location = 1,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32B32_SFLOAT,
+				.offset = offsetof(Vertex, color),
+			},
+			{
+				.location = 2,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32_SFLOAT,
+				.offset = offsetof(Vertex, tex_coord),
+			},
+		};
+
+		VkPipelineVertexInputStateCreateInfo vertex_input_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = 1,
+			.pVertexBindingDescriptions = &vertex_input_binding,
+			.vertexAttributeDescriptionCount = 3,
+			.pVertexAttributeDescriptions = vertex_attributes,
+		};
+		
+		// TODO: what does primitive restart do?
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+			.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		};
+		
+		ctx->vk.viewport = (VkViewport){
+			.width = (float)ctx->vk.swapchain_info.imageExtent.width,
+			.height = (float)ctx->vk.swapchain_info.imageExtent.height,
+			.maxDepth = 1.0f,
+		};
+		
+		ctx->vk.scissor.extent = ctx->vk.swapchain_info.imageExtent;
+
+		VkPipelineViewportStateCreateInfo viewport_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+			.viewportCount = 1,
+			.scissorCount = 1,
+		};
+		
+		VkPipelineRasterizationStateCreateInfo rasterization_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+			.cullMode = VK_CULL_MODE_BACK_BIT,
+			.frontFace = VK_FRONT_FACE_CLOCKWISE,
+			.lineWidth = 1.0f
+		};
+		
+		VkPipelineMultisampleStateCreateInfo multisample_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+		};
+
+		VkPipelineColorBlendAttachmentState blend_attachment_info = { 
+			.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+		};
+
+		VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+			.depthTestEnable = VK_TRUE,
+			.depthWriteEnable = VK_TRUE,
+			.depthCompareOp = VK_COMPARE_OP_LESS,
+
+		};
+
+		VkPipelineColorBlendStateCreateInfo blend_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+			.attachmentCount = 1,
+			.pAttachments = &blend_attachment_info,
+		};
+		
+		VkGraphicsPipelineCreateInfo graphics_pipeline_info = { 
+			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+			.stageCount = SDL_arraysize(shader_stages),
+			.pStages = shader_stages,
+			.pVertexInputState = &vertex_input_info,
+			.pInputAssemblyState = &input_assembly_info,
+			.pViewportState = &viewport_info,
+			.pRasterizationState = &rasterization_info,
+			.pMultisampleState = &multisample_info,
+			.pDepthStencilState = &depth_stencil_info,
+			.pColorBlendState = &blend_info,
+			.pDynamicState = &dynamic_state_info,
+			.layout = ctx->vk.pipeline_layout,
+			.renderPass = ctx->vk.render_pass,
+		};
+		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, NULL, &ctx->vk.graphics_pipeline));
+	}
+
+	// VulkanCreateCommandPool
+	{
+		VkCommandPoolCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		};
+	
+		// TODO: Search for graphics queue family index.
+		VK_CHECK(vkCreateCommandPool(ctx->vk.device, &info, NULL, &ctx->vk.command_pool));
+	}
+
+	// VulkanCreateDepthStencilImage
+	{
+		VkImageCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.imageType = VK_IMAGE_TYPE_2D,
+			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
+			.extent = {.width = ctx->vk.swapchain_info.imageExtent.width, .height = ctx->vk.swapchain_info.imageExtent.height, .depth = 1 },
+			.mipLevels = 1,
+			.arrayLayers = 1,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.tiling = VK_IMAGE_TILING_OPTIMAL,
+			.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
+		VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image));
+	}
+
+	// CreateDepthStencilImageMemory
+	{
+		VkMemoryRequirements mem_req;
+		vkGetImageMemoryRequirements(ctx->vk.device, ctx->vk.depth_stencil_image, &mem_req);
+
+		VkMemoryAllocateInfo mem_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = 0, // HACK: This happens to work on my laptop.
+		};
+
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
+		size_t memory_offset = 0;
+		VK_CHECK(vkBindImageMemory(ctx->vk.device, ctx->vk.depth_stencil_image, ctx->vk.depth_stencil_image_memory, memory_offset));
+	}
+
+	// CreateDepthStencilImageView
+	{
+		VkImageViewCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = ctx->vk.depth_stencil_image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
+			.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .levelCount = 1, .layerCount = 1 },
+		};
+
+		VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image_view));
+	}
+
+	// VulkanCreateFramebuffers
+	{
+		ctx->vk.framebuffers = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkFramebuffer);
+		for (size_t i = 0; i < ctx->vk.n_swapchain_images; ++i) {
+			VkImageView attachments[] = {
+				ctx->vk.swapchain_image_views[i],
+				ctx->vk.depth_stencil_image_view,
+			};
+
+			VkFramebufferCreateInfo info = {
+				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+				.renderPass = ctx->vk.render_pass,
+				.attachmentCount = SDL_arraysize(attachments),
+				.pAttachments = attachments,
+				.width = ctx->vk.swapchain_info.imageExtent.width,
+				.height = ctx->vk.swapchain_info.imageExtent.height,
+				.layers = 1,
+			};
+			VK_CHECK(vkCreateFramebuffer(ctx->vk.device, &info, NULL, &ctx->vk.framebuffers[i]));
+		}
+	}
+
+	// VulkanCreateSampler
+	{
+		VkSamplerCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			.magFilter = VK_FILTER_LINEAR,
+			.minFilter = VK_FILTER_LINEAR,
+			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.anisotropyEnable = VK_TRUE,
+			.maxAnisotropy = ctx->vk.physical_device_properties.limits.maxSamplerAnisotropy,
+			.compareOp = VK_COMPARE_OP_ALWAYS,
+			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+		};
+		VK_CHECK(vkCreateSampler(ctx->vk.device, &info, NULL, &ctx->vk.sampler));
+	}
+
+	// VulkanCreateDescriptorPool
+	{
+		VkDescriptorPoolSize sizes[MAX_FRAMES_IN_FLIGHT] = {
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT },
+		};
+
+		VkDescriptorPoolCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.maxSets = MAX_FRAMES_IN_FLIGHT,
+			.poolSizeCount = MAX_FRAMES_IN_FLIGHT,
+			.pPoolSizes = sizes,
+		};
+
+		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
+	}
+
+	// VulkanCreateDescriptorSets
+	{
+		VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT] = { ctx->vk.descriptor_set_layout, ctx->vk.descriptor_set_layout };
+
+		VkDescriptorSetAllocateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = ctx->vk.descriptor_pool,
+			.descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+			.pSetLayouts = layouts,
+		};
+
+		VkDescriptorSet descriptor_sets[MAX_FRAMES_IN_FLIGHT];
+
+		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
+	}
+
+	// VulkanAllocateCommandBuffers
+	{
+		VkCommandBufferAllocateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = ctx->vk.command_pool,
+			.commandBufferCount = MAX_FRAMES_IN_FLIGHT,
+		};
+
+		VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
+
+		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
+	}
+
+	// VulkanCreateSemaphores
+	{
+		VkSemaphoreCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		};
+
+		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].sem_image_available));
+		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].sem_render_finished));
+		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].sem_image_available));
+		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].sem_render_finished));
+	}
+
+	// VulkanCreateFences
+	{
+		VkFenceCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
+		};
+
+		VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].fence_in_flight));
+		VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].fence_in_flight));
 	}
 	
 	// LoadSprites
