@@ -303,7 +303,7 @@ typedef struct Context {
 	VkFramebuffer* vk_framebuffers;
 	size_t vk_n_swapchain_images;
 
-
+	VkDescriptorSetLayout vk_descriptor_set_layout;
 } Context;
 
 #include "util.c"
@@ -1407,7 +1407,37 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 	
-	
+	// VulkanCreateDescriptorSetLayout
+	{
+		// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
+		// this will work just fine.
+
+		VkDescriptorSetLayoutBinding b_uniform_buffer = {
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding b_sampler = {
+			.binding = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutBinding bindings[] = { b_uniform_buffer, b_sampler };
+
+		VkDescriptorSetLayoutCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.bindingCount = SDL_arraysize(bindings),
+			.pBindings = bindings,
+		};
+		
+		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk_device, &info, NULL, &ctx->vk_descriptor_set_layout));
+	}
+
+
 	
 	// LoadSprites
 	{
