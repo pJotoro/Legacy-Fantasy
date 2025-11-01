@@ -304,6 +304,7 @@ typedef struct Context {
 	size_t vk_n_swapchain_images;
 
 	VkDescriptorSetLayout vk_descriptor_set_layout;
+	VkPipelineLayout vk_pipeline_layout;
 } Context;
 
 #include "util.c"
@@ -1406,12 +1407,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkCreateImageView(ctx->vk_device, &info, NULL, &ctx->vk_swapchain_image_views[swapchain_image_idx]));
 		}
 	}
+
+	// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
+	// just having one descriptor set layout and one pipeline layout like this should
+	// be fine.
 	
 	// VulkanCreateDescriptorSetLayout
 	{
-		// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
-		// this will work just fine.
-
 		VkDescriptorSetLayoutBinding b_uniform_buffer = {
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1435,6 +1437,17 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		
 		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk_device, &info, NULL, &ctx->vk_descriptor_set_layout));
+	}
+
+	// VulkanCreatePipelineLayout
+	{
+		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = 1,
+			.pSetLayouts = &ctx->vk_descriptor_set_layout,
+		};
+
+		VK_CHECK(vkCreatePipelineLayout(ctx->vk_device, &pipeline_layout_info, NULL, &ctx->vk_pipeline_layout));
 	}
 
 
