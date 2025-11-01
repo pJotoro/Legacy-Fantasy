@@ -286,9 +286,9 @@ typedef struct Context {
 
 	VkSurfaceKHR vk_surface;
 	VkSurfaceCapabilitiesKHR vk_surface_capabilities;
-	VkSurfaceFormatKHR* vk_surface_formats; size_t n_vk_surface_formats;
+	VkSurfaceFormatKHR* vk_surface_formats; size_t vk_n_surface_formats;
 
-	VkQueueFamilyProperties* vk_queue_family_properties; size_t n_vk_queue_family_properties;
+	VkQueueFamilyProperties* vk_queue_family_properties; size_t vk_n_queue_family_properties;
 	VkQueue* vk_queues;
 	VkQueue vk_graphics_queue;
 
@@ -301,6 +301,9 @@ typedef struct Context {
 	VkImage* vk_swapchain_images;
 	VkImageView* vk_swapchain_image_views;
 	VkFramebuffer* vk_framebuffers;
+	size_t vk_n_swapchain_images;
+
+
 } Context;
 
 #include "util.c"
@@ -1308,7 +1311,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, NULL));
 		ctx->vk_surface_formats = ArenaAlloc(&ctx->perm, count, VkSurfaceFormatKHR);
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk_physical_device, ctx->vk_surface, &count, ctx->vk_surface_formats));
-		ctx->n_vk_surface_formats = (size_t)ctx->vk_surface_formats;
+		ctx->vk_n_surface_formats = (size_t)ctx->vk_surface_formats;
 	}
 
 	// VulkanCreateDeviceAndGetDeviceQueues
@@ -1316,18 +1319,18 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			uint32_t count;
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, NULL);
-			ctx->vk_queue_family_properties = ArenaAlloc(&ctx->perm, ctx->n_vk_queue_family_properties, VkQueueFamilyProperties);
+			ctx->vk_queue_family_properties = ArenaAlloc(&ctx->perm, ctx->vk_n_queue_family_properties, VkQueueFamilyProperties);
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk_physical_device, &count, ctx->vk_queue_family_properties);
-			ctx->n_vk_queue_family_properties = (size_t)count;
+			ctx->vk_n_queue_family_properties = (size_t)count;
 		}
 
 		VkPhysicalDeviceFeatures physical_device_features;
 		vkGetPhysicalDeviceFeatures(ctx->vk_physical_device, &physical_device_features);
 
-		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->n_vk_queue_family_properties, VkDeviceQueueCreateInfo);
+		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->vk_n_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t n_queue_infos = 0;
 		size_t n_queues = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->n_vk_queue_family_properties; ++queue_family_idx) {
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk_n_queue_family_properties; ++queue_family_idx) {
 			if (ctx->vk_queue_family_properties[queue_family_idx].queueCount == 0) continue;
 			queue_infos[n_queue_infos] = (VkDeviceQueueCreateInfo){
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -1350,21 +1353,22 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateDevice(ctx->vk_physical_device, &device_info, NULL, &ctx->vk_device));
 		volkLoadDevice(ctx->vk_device);
 
-		ctx->vk_queues = ArenaAlloc(&ctx->arena, n_queues, VkQueue);
-		size_t queue_idx = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->n_vk_queue_family_properties; ++queue_family_idx) {
-			for (; queue_idx < (size_t)ctx->vk_queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
-				vkGetDeviceQueue(ctx->vk_device, (uint32_t)queue_family_idx, (uint32_t)queue_idx, &ctx->vk_queues[queue_idx]);
+		ctx->vk_queues = ArenaAlloc(&ctx->perm, n_queues, VkQueue);
+		size_t queue_array_idx = 0;
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk_n_queue_family_properties; ++queue_family_idx) {
+			for (uint32_t queue_idx = 0; queue_idx < ctx->vk_queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
+				vkGetDeviceQueue(ctx->vk_device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk_queues[queue_array_idx]);
+				++queue_array_idx;
 			}
 		}
 	}
 
 	// create_swapchain
 	{
-		ctx->vk_swapchain_info = { 
+		ctx->vk_swapchain_info = (VkSwapchainCreateInfoKHR){ 
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.surface = ctx->vk_surface,
-			.minImageCount = glm::min(ctx->vk_surface_capabilities.minImageCount + 1, ctx->vk_surface_capabilities.maxImageCount),
+			.minImageCount = SDL_min(ctx->vk_surface_capabilities.minImageCount + 1, ctx->vk_surface_capabilities.maxImageCount),
 			.imageFormat = VK_FORMAT_R8G8B8A8_UNORM, // TODO
 			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // TODO
 			.imageExtent = ctx->vk_surface_capabilities.currentExtent,
@@ -1381,17 +1385,18 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// get_swapchain_images
 	{
-		uint32_t swapchain_image_count;
-		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &swapchain_image_count, NULL));
-		ctx->vk_swapchain_images = ctx->arena_perm.alloc_span<VkImage>(swapchain_image_count);
-		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &swapchain_image_count, ctx->vk_swapchain_images.data()));
+		uint32_t count;
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &count, NULL));
+		ctx->vk_n_swapchain_images = (size_t)count;
+		ctx->vk_swapchain_images = ArenaAlloc(&ctx->perm, ctx->vk_n_swapchain_images, VkImage);
+		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk_device, ctx->vk_swapchain, &count, ctx->vk_swapchain_images));
 	}
 
 	// create_swapchain_image_view
 	{
-		ctx->vk_swapchain_image_views = ctx->arena_perm.alloc_span<VkImageView>(ctx->vk_swapchain_images.size());
-		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk_swapchain_images.size(); swapchain_image_idx += 1) {
-			VkImageViewCreateInfo info{ 
+		ctx->vk_swapchain_image_views = ArenaAlloc(&ctx->perm, ctx->vk_n_swapchain_images, VkImageView);
+		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk_n_swapchain_images; swapchain_image_idx += 1) {
+			VkImageViewCreateInfo info = { 
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 				.image = ctx->vk_swapchain_images[swapchain_image_idx],
 				.viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -1401,6 +1406,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkCreateImageView(ctx->vk_device, &info, NULL, &ctx->vk_swapchain_image_views[swapchain_image_idx]));
 		}
 	}
+	
 	
 	
 	// LoadSprites
