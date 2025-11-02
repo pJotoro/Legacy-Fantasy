@@ -1221,10 +1221,10 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 #ifdef _DEBUG
 static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", "VK_NV_external_memory_rdma" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
 #else
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", "VK_NV_external_memory_rdma" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
 #endif
 
 static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
