@@ -277,12 +277,16 @@ typedef struct Vulkan {
 	VkFramebuffer* framebuffers;
 	size_t n_swapchain_images;
 
+#if 0
 	VkShaderModule vertex_shader;
 	VkShaderModule fragment_shader;
+#endif
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
+#if 0
 	VkPipeline graphics_pipeline;
+#endif
 	VkRenderPass render_pass;
 
 	VkCommandPool command_pool;
@@ -430,6 +434,7 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	return res;
 }
 
+#if 0
 function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SPALL_BUFFER_BEGIN();
 
@@ -464,6 +469,7 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 
 	SPALL_BUFFER_END();
 }
+#endif
 
 function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
@@ -545,6 +551,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SPALL_BUFFER_END();
 }
 
+#if 0
 function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
@@ -826,16 +833,21 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 	SPALL_BUFFER_END();
 	return SDL_ENUM_CONTINUE;
 }
+#endif
 
+#if 0
 function void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
     DrawSprite(ctx, anim->sprite, anim->frame_idx, pos, dir);
 }
+#endif
 
+#if 0
 function void DrawEntity(Context* ctx, Entity* entity) {
     if (entity->state != EntityState_Inactive) {
         DrawAnim(ctx, &entity->anim, vec2_from_ivec2(entity->pos), entity->dir);
     }
 }
+#endif
 
 function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
@@ -1198,22 +1210,25 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 
 #ifdef _DEBUG
 VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) {
+	UNUSED(severity);
+	UNUSED(types);
+	UNUSED(user_data);
 	SDL_Log(data->pMessage);
 	return VK_FALSE;
 }
 #endif
 
 // TODO: Search for supported extensions.
-// TODO: remove global variables.
+// TODO: Remove global variables.
+// TODO: Platform specific extensions should only be added conditionally.
 
 #ifdef _DEBUG
 static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
-#endif
-#ifndef _DEBUG
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", "VK_NV_external_memory_rdma" };
+#else
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", "VK_NV_external_memory_rdma" };
 #endif
 
 static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
@@ -1303,7 +1318,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.applicationVersion = VK_API_VERSION_1_0,
 			.pEngineName = "Legacy Fantasy",
 			.engineVersion = VK_API_VERSION_1_0,
-			.apiVersion = VK_API_VERSION_1_0,
+			.apiVersion = VK_API_VERSION_1_1,
 		};
 
 		VkInstanceCreateInfo create_info = { 
@@ -1365,9 +1380,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			uint32_t count;
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, NULL);
+			ctx->vk.n_queue_family_properties = (size_t)count;
 			ctx->vk.queue_family_properties = ArenaAlloc(&ctx->perm, ctx->vk.n_queue_family_properties, VkQueueFamilyProperties);
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
-			ctx->vk.n_queue_family_properties = (size_t)count;
 		}
 
 		VkPhysicalDeviceFeatures physical_device_features;
@@ -1455,6 +1470,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
+#if 0
 	// CreateShaderModule
 	{
 		size_t len;
@@ -1484,6 +1500,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_free(data);
 	}
+#endif
 
 	// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
 	// just having one descriptor set layout and one pipeline layout like this should
@@ -1592,6 +1609,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
 	}
 
+#if 0
 	// VulkanCreateGraphicsPipeline
 	{
 		VkPipelineShaderStageCreateInfo vert_info = { 
@@ -1726,6 +1744,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, NULL, &ctx->vk.graphics_pipeline));
 	}
+#endif
 
 	// VulkanCreateCommandPool
 	{
@@ -1764,7 +1783,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.size,
-			.memoryTypeIndex = 0, // HACK: This happens to work on my laptop.
+			.memoryTypeIndex = 7, // HACK: This happens to work on my laptop.
 		};
 
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
@@ -1896,7 +1915,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 	// LoadSprites
 	{
+		#if 0
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
+		#endif
 	}
 
 	// SortSprites
