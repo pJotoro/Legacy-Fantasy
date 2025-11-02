@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 4.0.0)
+
 set(CMAKE_C_STANDARD 17)
 include_directories(libraries libraries/SDL3/include libraries/SDL3/include/SDL3)
 link_directories(libraries/SDL3/lib)

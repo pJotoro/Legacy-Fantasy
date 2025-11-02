@@ -277,16 +277,12 @@ typedef struct Vulkan {
 	VkFramebuffer* framebuffers;
 	size_t n_swapchain_images;
 
-#if 0
 	VkShaderModule vertex_shader;
 	VkShaderModule fragment_shader;
-#endif
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
-#if 0
 	VkPipeline graphics_pipeline;
-#endif
 	VkRenderPass render_pass;
 
 	VkCommandPool command_pool;
@@ -1470,11 +1466,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
-#if 0
 	// CreateShaderModule
 	{
 		size_t len;
-		void* data = SDL_LoadFile("vert.spv", &len); SDL_CHECK(data);
+		void* data = SDL_LoadFile("build/shaders/vert.spv", &len); SDL_CHECK(data);
 
 		VkShaderModuleCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1489,7 +1484,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// CreateShaderModule
 	{
 		size_t len;
-		void* data = SDL_LoadFile("frag.spv", &len); SDL_CHECK(data);
+		void* data = SDL_LoadFile("build/shaders/frag.spv", &len); SDL_CHECK(data);
 
 		VkShaderModuleCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1500,7 +1495,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		SDL_free(data);
 	}
-#endif
 
 	// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
 	// just having one descriptor set layout and one pipeline layout like this should
@@ -1609,7 +1603,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
 	}
 
-#if 0
 	// VulkanCreateGraphicsPipeline
 	{
 		VkPipelineShaderStageCreateInfo vert_info = { 
@@ -1744,7 +1737,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, NULL, &ctx->vk.graphics_pipeline));
 	}
-#endif
 
 	// VulkanCreateCommandPool
 	{
