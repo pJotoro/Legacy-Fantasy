@@ -239,8 +239,6 @@ typedef struct Arena {
 
 typedef struct Vertex {
 	vec3s pos;
-	vec3s color;
-	vec2s tex_coord;
 } Vertex;
 
 typedef struct VulkanFrame {
@@ -1502,26 +1500,26 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 	// VulkanCreateDescriptorSetLayout
 	{
-		VkDescriptorSetLayoutBinding b_uniform_buffer = {
+	#if 0
+		VkDescriptorSetLayoutBinding binding_vertex_shader = {
 			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorType = VK_DESCRIPTOR_TYPE_,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
 		};
 
-		VkDescriptorSetLayoutBinding b_sampler = {
+		VkDescriptorSetLayoutBinding binding_fragment_shader = {
 			.binding = 1,
-			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorType = VK_DESCRIPTOR_TYPE_,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		};
 
-		VkDescriptorSetLayoutBinding bindings[] = { b_uniform_buffer, b_sampler };
+		VkDescriptorSetLayoutBinding bindings[] = { binding_vertex_shader, binding_fragment_shader };
+	#endif
 
 		VkDescriptorSetLayoutCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.bindingCount = SDL_arraysize(bindings),
-			.pBindings = bindings,
 		};
 		
 		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
@@ -1648,25 +1646,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				.format = VK_FORMAT_R32G32B32_SFLOAT,
 				.offset = offsetof(Vertex, pos),
 			},
-			{
-				.location = 1,
-				.binding = 0,
-				.format = VK_FORMAT_R32G32B32_SFLOAT,
-				.offset = offsetof(Vertex, color),
-			},
-			{
-				.location = 2,
-				.binding = 0,
-				.format = VK_FORMAT_R32G32_SFLOAT,
-				.offset = offsetof(Vertex, tex_coord),
-			},
 		};
 
 		VkPipelineVertexInputStateCreateInfo vertex_input_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			.vertexBindingDescriptionCount = 1,
 			.pVertexBindingDescriptions = &vertex_input_binding,
-			.vertexAttributeDescriptionCount = 3,
+			.vertexAttributeDescriptionCount = 1,
 			.pVertexAttributeDescriptions = vertex_attributes,
 		};
 		
@@ -1769,18 +1755,34 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// CreateDepthStencilImageMemory
 	{
-		VkMemoryRequirements mem_req;
-		vkGetImageMemoryRequirements(ctx->vk.device, ctx->vk.depth_stencil_image, &mem_req);
+		VkImageMemoryRequirementsInfo2 info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+			.image = ctx->vk.depth_stencil_image,
+		};
+
+		VkMemoryDedicatedRequirements dedicated_mem_req = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
+		};
+		VkMemoryRequirements2 mem_req = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
+			.pNext = &dedicated_mem_req,
+		};
+		vkGetImageMemoryRequirements2(ctx->vk.device, &info, &mem_req);
 
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.size,
+			.allocationSize = mem_req.memoryRequirements.size,
 			.memoryTypeIndex = 7, // HACK: This happens to work on my laptop.
 		};
 
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
-		size_t memory_offset = 0;
-		VK_CHECK(vkBindImageMemory(ctx->vk.device, ctx->vk.depth_stencil_image, ctx->vk.depth_stencil_image_memory, memory_offset));
+
+		VkBindImageMemoryInfo bind_info = {
+			.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+			.image = ctx->vk.depth_stencil_image,
+			.memory = ctx->vk.depth_stencil_image_memory,
+		};
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, 1, &bind_info));
 	}
 
 	// CreateDepthStencilImageView
