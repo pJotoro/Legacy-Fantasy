@@ -248,6 +248,8 @@ typedef struct VulkanFrame {
 	VkFence fence_in_flight;
 } VulkanFrame;
 
+#define MAX_IMAGE_INFOS 4096
+
 typedef struct Vulkan {
 	VkInstance instance;
 
@@ -301,6 +303,8 @@ typedef struct Vulkan {
 	
 	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
 	size_t current_frame;
+
+	VkImageCreateInfo image_infos[MAX_IMAGE_INFOS]; size_t n_image_infos;
 } Vulkan;
 
 typedef struct Context {
@@ -563,9 +567,6 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
 		void* raw_chunk = ArenaAllocRaw(&ctx->temp, raw_chunk_alloc_size);
 
-		size_t dst_buf_alloc_size = 4096ULL * 2048ULL;
-		void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_alloc_size);
-
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; ++file_idx) {
 			char* file = files[file_idx];
 
@@ -738,23 +739,34 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
 										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-										size_t dst_buf_size = sizeof(uint32_t)*cell.size.x*cell.size.y;
-										SDL_assert(dst_buf_alloc_size >= dst_buf_size);
+										size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
+										void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_size);
 										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 										SPALL_BUFFER_END();
 										SDL_assert(res > 0);
 
-										typedef struct ImageAlloc {
-											ivec2s size;
-											void* buf; // assumed to be rgba32
-											
-										} ImageAlloc;
+										// Provided by VK_VERSION_1_0
+										typedef struct VkImageCreateInfo {
+										    uint32_t                 arrayLayers;
+										    VkSampleCountFlagBits    samples;
+										    VkImageTiling            tiling;
+										    VkImageUsageFlags        usage;
+										    VkSharingMode            sharingMode;
+										    uint32_t                 queueFamilyIndexCount;
+										    const uint32_t*          pQueueFamilyIndices;
+										    VkImageLayout            initialLayout;
+										} VkImageCreateInfo;
 
-
-										SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
-										cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
-										SDL_DestroySurface(surf);
+										SDL_assert(ctx->vk.n_image_infos < MAX_IMAGE_INFOS);
+										ctx->vk.image_infos[ctx->vk.n_image_infos++] = (VkImageCreateInfo){
+											.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+											.imageType = VK_IMAGE_TYPE_2D,
+											.format = VK_FORMAT_R8G8B8A8_SRGB, // TODO: Is this right?
+											.extent = {cell.size.x, cell.size.y, 1},
+											.mipLevels = 1,
+											.arrayLayers = 1,
+										};
 									}
 								} break;
 								case ASE_CellType_CompressedTilemap: {
@@ -824,10 +836,6 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 			SDL_CloseIO(fs);
 		}
-
-		// Normally this should only be reset at the end of every frame, but in this case I know it will work.
-		ArenaReset(&ctx->temp);
-
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
@@ -1319,7 +1327,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.applicationVersion = VK_API_VERSION_1_0,
 			.pEngineName = "Legacy Fantasy",
 			.engineVersion = VK_API_VERSION_1_0,
-			.apiVersion = VK_API_VERSION_1_1,
+			.apiVersion = VK_API_VERSION_1_3,
 		};
 
 		VkInstanceCreateInfo create_info = { 
@@ -2009,6 +2017,21 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 	}
 
+	// VulkanLoadSprites
+	{
+		VkImageCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		};
+
+		VkMemoryRequirements2 mem_req = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
+		};
+		VkDeviceImageMemoryRequirements req = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
+			.pCreateInfo = &info,
+		};
+	}
+
 	// SortSprites
 	{
 		SPALL_BUFFER_BEGIN_NAME("SortSprites");
@@ -2393,7 +2416,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			#endif
 
-			ArenaReset(&ctx->temp);
 	 		ctx->dt_accumulator -= dt;
 		}
 		
@@ -2482,8 +2504,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkQueuePresentKHR(ctx->vk.graphics_queue, &present_info));
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
-			ArenaReset(&ctx->temp);
 		}
 
 		// UpdateTime
@@ -2632,6 +2652,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	#endif
 
+		ArenaReset(&ctx->temp);
 	}
 
 	// NOTE: If we don't do this, we might not get the last few events.
