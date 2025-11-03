@@ -2219,6 +2219,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
+	#if 0
 		size_t times_updated = 0;
 		while (ctx->dt_accumulator > dt && times_updated < 8) {	// TODO
 			++times_updated;		
@@ -2393,6 +2394,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	 		ctx->dt_accumulator -= dt;
 		}
 		SDL_Log("Times updated: %llu", times_updated);
+		#endif
 
 		uint32_t image_idx;
 		VkCommandBuffer cb;
@@ -2480,6 +2482,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			ArenaReset(&ctx->temp);
 		}
 
+	#if 0
 		// UpdateTime
 		{			
 			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
@@ -2496,7 +2499,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SPALL_BUFFER_END();
 		}
-	#if 0
 		// DrawEntities
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
