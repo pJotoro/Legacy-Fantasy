@@ -2219,7 +2219,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	ctx->running = true;
 	while (ctx->running) {
-	#if 0
 		size_t times_updated = 0;
 		while (ctx->dt_accumulator > dt && times_updated < 8) {	// TODO
 			++times_updated;		
@@ -2262,7 +2261,7 @@ int32_t main(int32_t argc, char* argv[]) {
 									ctx->button_left = 1;
 								}
 								if (ctx->paused) {
-									SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
+									//SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
 								}
 								break;
 							case SDLK_RIGHT:
@@ -2270,7 +2269,7 @@ int32_t main(int32_t argc, char* argv[]) {
 									ctx->button_right = 1;
 								}
 								if (ctx->paused) {
-									SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
+									//SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
 								}
 								break;
 							case SDLK_UP:
@@ -2349,6 +2348,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				SPALL_BUFFER_END();
 			}
+		#if 0
 			if (!ctx->paused) {
 				// UpdateGame
 				{
@@ -2389,12 +2389,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
-			ArenaReset(&ctx->temp);
+			#endif
 
+			ArenaReset(&ctx->temp);
 	 		ctx->dt_accumulator -= dt;
 		}
+		
 		SDL_Log("Times updated: %llu", times_updated);
-		#endif
+		
 
 		uint32_t image_idx;
 		VkCommandBuffer cb;
@@ -2482,7 +2484,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			ArenaReset(&ctx->temp);
 		}
 
-	#if 0
 		// UpdateTime
 		{			
 			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
@@ -2499,6 +2500,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SPALL_BUFFER_END();
 		}
+
+	#if 0
 		// DrawEntities
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
@@ -2627,9 +2630,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	#endif
 
-
 	}
-	
+
 	// NOTE: If we don't do this, we might not get the last few events.
 #if ENABLE_PROFILING
 	spall_buffer_quit(&ctx->spall_ctx, &ctx->spall_buffer);
