@@ -1956,6 +1956,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDescriptorSet descriptor_sets[MAX_FRAMES_IN_FLIGHT];
 
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
+
+		ctx->vk.frames[0].descriptor_set = descriptor_sets[0];
+		ctx->vk.frames[1].descriptor_set = descriptor_sets[1];
 	}
 
 	// VulkanAllocateCommandBuffers
@@ -1969,6 +1972,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
 
 		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
+
+		ctx->vk.frames[0].command_buffer = command_buffers[0];
+		ctx->vk.frames[1].command_buffer = command_buffers[1];
 	}
 
 	// VulkanCreateSemaphores
