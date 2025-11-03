@@ -256,6 +256,10 @@ typedef struct Vulkan {
 	VkPhysicalDeviceProperties physical_device_properties;
 	VkPhysicalDeviceMemoryProperties physical_device_memory_properties;
 
+	VkLayerProperties* instance_layers; size_t n_instance_layers;
+	VkExtensionProperties* instance_extensions; size_t n_instance_extensions;
+	VkExtensionProperties* device_extensions; size_t n_device_extensions;
+
 	VkSurfaceKHR surface;
 	VkSurfaceCapabilitiesKHR surface_capabilities;
 	VkSurfaceFormatKHR* surface_formats; size_t n_surface_formats;
@@ -1212,17 +1216,16 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 }
 #endif
 
-// TODO: Search for supported extensions.
 // TODO: Remove global variables.
 // TODO: Platform specific extensions should only be added conditionally.
 
 #ifdef _DEBUG
 static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", /*"VK_NV_external_memory", "VK_NV_external_memory_win32"*/ };
 #else
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain" };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", /*"VK_NV_external_memory", "VK_NV_external_memory_win32"*/ };
 #endif
 
 static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
@@ -1342,6 +1345,46 @@ int32_t main(int32_t argc, char* argv[]) {
 		volkLoadInstanceOnly(ctx->vk.instance);
 	}
 
+	// VulkanGetInstanceLayers
+	{
+		uint32_t count;
+		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, NULL));
+		ctx->vk.n_instance_layers = (size_t)count;
+		ctx->vk.instance_layers = ArenaAlloc(&ctx->perm, ctx->vk.n_instance_layers, VkLayerProperties);
+		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, ctx->vk.instance_layers));
+	}
+
+	// VulkanGetInstanceExtensions
+	{
+		uint32_t count;
+
+		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
+		for (size_t layer_idx = 0; 
+			layer_idx < ctx->vk.n_instance_layers;
+			++layer_idx, ctx->vk.n_instance_extensions += (size_t)count) {
+			VK_CHECK(vkEnumerateInstanceExtensionProperties(
+				ctx->vk.instance_layers[layer_idx].layerName, 
+				&count, 
+				NULL));
+		}
+		ctx->vk.instance_extensions = ArenaAlloc(&ctx->perm, ctx->vk.n_instance_extensions, VkExtensionProperties);
+
+		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
+		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, ctx->vk.instance_extensions));
+		for (size_t layer_idx = 0, extension_idx = (size_t)count; 
+			layer_idx < ctx->vk.n_instance_layers && extension_idx < ctx->vk.n_instance_extensions;
+			++layer_idx, extension_idx += (size_t)count) {
+			VK_CHECK(vkEnumerateInstanceExtensionProperties(
+				ctx->vk.instance_layers[layer_idx].layerName, 
+				&count, 
+				NULL));
+			VK_CHECK(vkEnumerateInstanceExtensionProperties(
+				ctx->vk.instance_layers[layer_idx].layerName, 
+				&count, 
+				&ctx->vk.instance_extensions[extension_idx]));
+		}
+	}
+
 	// VulkanGetPhysicalDevice
 	{
 		// HACK: This only happens to work and make sense on my laptop!.
@@ -1352,6 +1395,43 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		vkGetPhysicalDeviceProperties(ctx->vk.physical_device, &ctx->vk.physical_device_properties);
 		vkGetPhysicalDeviceMemoryProperties(ctx->vk.physical_device, &ctx->vk.physical_device_memory_properties);
+	}
+
+	// VulkanGetDeviceExtensions
+	{
+		uint32_t count;
+
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
+		size_t layer_idx;
+		for (layer_idx = 0, ctx->vk.n_device_extensions = (size_t)count; 
+			layer_idx < ctx->vk.n_instance_layers;
+			++layer_idx, ctx->vk.n_device_extensions += (size_t)count) {
+			VK_CHECK(vkEnumerateDeviceExtensionProperties(
+				ctx->vk.physical_device, 
+				ctx->vk.instance_layers[layer_idx].layerName, 
+				&count, 
+				NULL));
+		}
+		ctx->vk.device_extensions = ArenaAlloc(&ctx->perm, ctx->vk.n_device_extensions, VkExtensionProperties);
+
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
+		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, ctx->vk.device_extensions));
+		size_t extension_idx;
+		for (layer_idx = 0, extension_idx = (size_t)count; 
+			layer_idx < ctx->vk.n_instance_layers && extension_idx < ctx->vk.n_device_extensions;
+			++layer_idx, extension_idx += (size_t)count) {
+			VK_CHECK(vkEnumerateDeviceExtensionProperties(
+					ctx->vk.physical_device,
+					ctx->vk.instance_layers[layer_idx].layerName, 
+					&count, 
+					NULL));
+			VK_CHECK(vkEnumerateDeviceExtensionProperties(
+					ctx->vk.physical_device, 
+					ctx->vk.instance_layers[layer_idx].layerName, 
+					&count, 
+					&ctx->vk.device_extensions[extension_idx]));
+
+		}
 	}
 
 	// VulkanCreateSurface
@@ -1379,8 +1459,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
 		}
 
-		VkPhysicalDeviceFeatures physical_device_features;
-		vkGetPhysicalDeviceFeatures(ctx->vk.physical_device, &physical_device_features);
+		VkPhysicalDeviceFeatures2 physical_device_features = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		};
+		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
 
 		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->vk.n_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t n_queue_infos = 0;
@@ -1399,11 +1481,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		VkDeviceCreateInfo device_info = { 
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.pNext = &physical_device_features,
 			.queueCreateInfoCount = (uint32_t)n_queue_infos,
 			.pQueueCreateInfos = queue_infos,
 			.enabledExtensionCount = SDL_arraysize(g_vk_device_extensions),
 			.ppEnabledExtensionNames = g_vk_device_extensions,
-			.pEnabledFeatures = &physical_device_features,
 		};
 		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
 		volkLoadDevice(ctx->vk.device);
@@ -1759,7 +1841,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
 			.image = ctx->vk.depth_stencil_image,
 		};
-
 		VkMemoryDedicatedRequirements dedicated_mem_req = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
 		};
@@ -1769,12 +1850,19 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		vkGetImageMemoryRequirements2(ctx->vk.device, &info, &mem_req);
 
+		uint32_t memory_type_idx = 0;
+		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
+		    if ((mem_req.memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) &&
+		        (ctx->vk.physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & mem_req.memoryRequirements.memoryTypeBits)) {
+		        break;
+		    }
+		}
+		
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.memoryRequirements.size,
-			.memoryTypeIndex = 7, // HACK: This happens to work on my laptop.
+			.memoryTypeIndex = memory_type_idx,
 		};
-
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
 
 		VkBindImageMemoryInfo bind_info = {
