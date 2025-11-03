@@ -1852,8 +1852,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		uint32_t memory_type_idx = 0;
 		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
-		    if ((mem_req.memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) &&
-		        (ctx->vk.physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & mem_req.memoryRequirements.memoryTypeBits)) {
+		    if (mem_req.memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) {
 		        break;
 		    }
 		}
