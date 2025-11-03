@@ -135,7 +135,6 @@ typedef uint32_t SpriteCellType;
 typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
-	SDL_Texture* texture;
 	uint32_t layer_idx;
 	uint32_t frame_idx;
 	int32_t z_idx;
@@ -467,7 +466,6 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 
 	SPALL_BUFFER_END();
 }
-#endif
 
 function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
@@ -479,6 +477,7 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 
 	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
 }
+#endif
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SPALL_BUFFER_BEGIN();
@@ -549,7 +548,6 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SPALL_BUFFER_END();
 }
 
-#if 0
 function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
@@ -643,7 +641,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 						}
 					}
 				}
-				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer); // We don't have to zero this out.
+				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer);
 				
 				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 					if (sd->frames[frame_idx].n_cells > 0) {
@@ -719,7 +717,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 								.frame_idx = (uint32_t)frame_idx,
 								.offset.x = chunk->x,
 								.offset.y = chunk->y,
-								.z_idx = (ssize_t)chunk->z_idx,
+								.z_idx = chunk->z_idx,
 							};
 							SDL_assert(chunk->type == ASE_CellType_CompressedImage);
 							switch (chunk->type) {
@@ -746,6 +744,13 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 										SPALL_BUFFER_END();
 										SDL_assert(res > 0);
+
+										typedef struct ImageAlloc {
+											ivec2s size;
+											void* buf; // assumed to be rgba32
+											
+										} ImageAlloc;
+
 
 										SDL_Surface* surf = SDL_CreateSurfaceFrom(cell.size.x, cell.size.y, SDL_PIXELFORMAT_RGBA32, dst_buf, sizeof(uint32_t)*cell.size.x); SDL_CHECK(surf);
 										cell.texture = SDL_CreateTextureFromSurface(ctx->renderer, surf); SDL_CHECK(cell.texture);
@@ -831,7 +836,6 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 	SPALL_BUFFER_END();
 	return SDL_ENUM_CONTINUE;
 }
-#endif
 
 #if 0
 function void DrawAnim(Context* ctx, Anim* anim, vec2s pos, int32_t dir) {
@@ -2002,9 +2006,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 	// LoadSprites
 	{
-		#if 0
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
-		#endif
 	}
 
 	// SortSprites
