@@ -139,6 +139,10 @@ typedef struct SpriteCell {
 	uint32_t frame_idx;
 	int32_t z_idx;
 	SpriteCellType type;
+
+	VkBuffer vk_staging_buffer;
+	VkImage vk_image;
+	VkImageView vk_image_view;
 } SpriteCell;
 
 typedef struct SpriteFrame {
@@ -248,8 +252,6 @@ typedef struct VulkanFrame {
 	VkFence fence_in_flight;
 } VulkanFrame;
 
-#define MAX_IMAGE_INFOS 4096
-
 typedef struct Vulkan {
 	VkInstance instance;
 
@@ -303,8 +305,6 @@ typedef struct Vulkan {
 	
 	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
 	size_t current_frame;
-
-	VkImageCreateInfo image_infos[MAX_IMAGE_INFOS]; size_t n_image_infos;
 } Vulkan;
 
 typedef struct Context {
@@ -740,33 +740,55 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 										size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
-										void* dst_buf = ArenaAllocRaw(&ctx->temp, dst_buf_size);
+										void* dst_buf = ArenaAllocRaw(&ctx->perm, dst_buf_size);
 										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 										SPALL_BUFFER_END();
 										SDL_assert(res > 0);
 
-										// Provided by VK_VERSION_1_0
-										typedef struct VkImageCreateInfo {
-										    uint32_t                 arrayLayers;
-										    VkSampleCountFlagBits    samples;
-										    VkImageTiling            tiling;
-										    VkImageUsageFlags        usage;
-										    VkSharingMode            sharingMode;
-										    uint32_t                 queueFamilyIndexCount;
-										    const uint32_t*          pQueueFamilyIndices;
-										    VkImageLayout            initialLayout;
-										} VkImageCreateInfo;
+										uint32_t queue_family_idx = 0;
 
-										SDL_assert(ctx->vk.n_image_infos < MAX_IMAGE_INFOS);
-										ctx->vk.image_infos[ctx->vk.n_image_infos++] = (VkImageCreateInfo){
+										VkBufferCreateInfo buffer_info = {
+											.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+											.size = (VkDeviceSize)dst_buf_size,
+											.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+
+											// TODO
+											.queueFamilyIndexCount = 1,
+											.pQueueFamilyIndices = &queue_family_idx,
+										};
+										VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &cell.vk_staging_buffer));
+
+										VkImageCreateInfo image_info = {
 											.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 											.imageType = VK_IMAGE_TYPE_2D,
 											.format = VK_FORMAT_R8G8B8A8_SRGB, // TODO: Is this right?
 											.extent = {cell.size.x, cell.size.y, 1},
 											.mipLevels = 1,
 											.arrayLayers = 1,
+											.samples = VK_SAMPLE_COUNT_1_BIT,
+											.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,
+
+											// TODO
+											.queueFamilyIndexCount = 1,
+											.pQueueFamilyIndices = &queue_family_idx,
 										};
+										VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
+
+										VkImageViewCreateInfo image_view_info = {
+											.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+											.image = cell.vk_image,
+											.viewType = VK_IMAGE_VIEW_TYPE_2D,
+											.format = image_info.format,
+											.subresourceRange = {
+												.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
+												.baseMipLevel = 0, 
+												.levelCount = 1,
+												.baseArrayLayer = 0, 
+												.layerCount = 1,
+											},
+										};
+										VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
 									}
 								} break;
 								case ASE_CellType_CompressedTilemap: {
@@ -1327,7 +1349,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.applicationVersion = VK_API_VERSION_1_0,
 			.pEngineName = "Legacy Fantasy",
 			.engineVersion = VK_API_VERSION_1_0,
-			.apiVersion = VK_API_VERSION_1_3,
+			.apiVersion = VK_API_VERSION_1_1,
 		};
 
 		VkInstanceCreateInfo create_info = { 
@@ -2015,21 +2037,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	// LoadSprites
 	{
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
-	}
-
-	// VulkanLoadSprites
-	{
-		VkImageCreateInfo info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		};
-
-		VkMemoryRequirements2 mem_req = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
-		};
-		VkDeviceImageMemoryRequirements req = {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
-			.pCreateInfo = &info,
-		};
 	}
 
 	// SortSprites
