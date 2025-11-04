@@ -306,7 +306,9 @@ typedef struct Vulkan {
 	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
 	size_t current_frame;
 
-	VkBuffer staging_buffer; VkDeviceSize staging_buffer_size;
+	VkBuffer staging_buffer; 
+	VkDeviceSize staging_buffer_size;
+	size_t staging_buffer_bind_info_count;
 	VkDeviceMemory staging_buffer_memory;
 } Vulkan;
 
@@ -752,12 +754,13 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										cell.buf = dst_buf;
 
 										ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
+										++ctx->vk.staging_buffer_bind_info_count;
 
 										uint32_t queue_family_idx = 0;
 										VkImageCreateInfo image_info = {
 											.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 											.imageType = VK_IMAGE_TYPE_2D,
-											.format = VK_FORMAT_R8G8B8A8_SRGB, // TODO: Is this right?
+											.format = VK_FORMAT_R8G8B8A8_SRGB,
 											.extent = {cell.size.x, cell.size.y, 1},
 											.mipLevels = 1,
 											.arrayLayers = 1,
@@ -2053,7 +2056,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanAllocateStagingBuffer
+	// VulkanInitStagingBuffer
 	{
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
@@ -2086,6 +2089,24 @@ int32_t main(int32_t argc, char* argv[]) {
 			.memoryTypeIndex = memory_type_idx,
 		};
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer_memory));
+
+		void* data;
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory, 0, mem_info.allocationSize, 0, &data));
+		uint8_t* cur = data;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+			SpriteDesc* sd = &ctx->sprites[sprite_idx];
+			if (sd->path) {
+				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
+					SpriteFrame* sf = &sd->frames[frame_idx];
+					for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
+						SpriteCell* cell = &sf->cells[cell_idx];
+						SDL_memcpy((void*)cur, cell->buf, sizeof(uint32_t)*cell->size.x*cell->size.y);
+						cur += sizeof(uint32_t)*cell->size.x*cell->size.y;
+					}
+				}
+			}
+		}
+		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory);
 	}
 
 	// LoadLevels
