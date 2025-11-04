@@ -307,6 +307,7 @@ typedef struct Vulkan {
 	size_t current_frame;
 
 	VkBuffer staging_buffer; VkDeviceSize staging_buffer_size;
+	VkDeviceMemory staging_buffer_memory;
 } Vulkan;
 
 typedef struct Context {
@@ -769,20 +770,20 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										};
 										VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
 
-										VkImageViewCreateInfo image_view_info = {
-											.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-											.image = cell.vk_image,
-											.viewType = VK_IMAGE_VIEW_TYPE_2D,
-											.format = image_info.format,
-											.subresourceRange = {
-												.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
-												.baseMipLevel = 0, 
-												.levelCount = 1,
-												.baseArrayLayer = 0, 
-												.layerCount = 1,
-											},
-										};
-										VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
+										// VkImageViewCreateInfo image_view_info = {
+										// 	.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+										// 	.image = cell.vk_image,
+										// 	.viewType = VK_IMAGE_VIEW_TYPE_2D,
+										// 	.format = image_info.format,
+										// 	.subresourceRange = {
+										// 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
+										// 		.baseMipLevel = 0, 
+										// 		.levelCount = 1,
+										// 		.baseArrayLayer = 0, 
+										// 		.layerCount = 1,
+										// 	},
+										// };
+										// VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
 									}
 								} break;
 								case ASE_CellType_CompressedTilemap: {
@@ -1290,7 +1291,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-		uint64_t memory_size = 1024ULL * 1024ULL * 32ULL;
+		uint64_t memory_size = 1024ULL * 1024ULL * 256ULL;
 
 		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
 		Arena perm;
@@ -2052,7 +2053,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanLoadSprites
+	// VulkanAllocateStagingBuffer
 	{
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
@@ -2066,7 +2067,25 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer));
 
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer, &mem_req);
+
+		uint32_t memory_type_idx = 0;
+		bool found_memory_type_idx = false;
+		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
+		    if ((mem_req.memoryTypeBits & (1 << memory_type_idx)) && (ctx->vk.physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+		    	found_memory_type_idx = true;
+		        break;
+		    }
+		}
+		SDL_assert(found_memory_type_idx);
 		
+		VkMemoryAllocateInfo mem_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer_memory));
 	}
 
 	// LoadLevels
