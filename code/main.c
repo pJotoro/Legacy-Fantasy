@@ -318,8 +318,7 @@ typedef struct Context {
 	SpallBuffer spall_buffer;
 #endif
 
-	Arena perm;
-	Arena temp;
+	Arena arena;
 
 	SDL_Window* window;
 
@@ -570,8 +569,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &n_files); SDL_CHECK(files);
 	if (n_files > 0) {
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
-		void* raw_chunk = ArenaAllocRaw(&ctx->temp, raw_chunk_alloc_size);
-		uint8_t* arena_save = ctx->temp.cur;
+		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
 
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; ++file_idx) {
 			char* file = files[file_idx];
@@ -587,7 +585,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 			{
 				size_t buf_len = SDL_strlen(sprite_path) + 1;
-				sd->path = ArenaAlloc(&ctx->perm, (uint64_t)buf_len, char);
+				sd->path = ArenaAlloc(&ctx->arena, (uint64_t)buf_len, char);
 				SDL_strlcpy(sd->path, sprite_path, buf_len);
 			}
 			
@@ -617,7 +615,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 				SDL_assert(header.grid_w == 0 || header.grid_w == 16);
 				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 				sd->n_frames = (size_t)header.n_frames;
-				sd->frames = ArenaAlloc(&ctx->perm, sd->n_frames, SpriteFrame);
+				sd->frames = ArenaAlloc(&ctx->arena, sd->n_frames, SpriteFrame);
 
 				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
@@ -648,11 +646,11 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 						}
 					}
 				}
-				sd->layers = ArenaAlloc(&ctx->perm, sd->n_layers, SpriteLayer);
+				sd->layers = ArenaAlloc(&ctx->arena, sd->n_layers, SpriteLayer);
 				
 				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
 					if (sd->frames[frame_idx].n_cells > 0) {
-						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->perm, sd->frames[frame_idx].n_cells, SpriteCell);
+						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].n_cells, SpriteCell);
 					}
 				}
 
@@ -682,7 +680,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 							ASE_LayerChunk* chunk = raw_chunk;
 							SpriteLayer sprite_layer = {0};
 							if (chunk->layer_name.len > 0) {
-								sprite_layer.name = ArenaAlloc(&ctx->perm, chunk->layer_name.len + 1, char);
+								sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
 								SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 							}
 							sd->layers[layer_idx++] = sprite_layer;
@@ -746,7 +744,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 										size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
-										void* dst_buf = ArenaAllocRaw(&ctx->perm, dst_buf_size);
+										void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
 										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 										SPALL_BUFFER_END();
@@ -857,7 +855,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 			SDL_CloseIO(fs);
 		}
 
-		ctx->temp.cur = arena_save;
+		SDL_free(raw_chunk);
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
@@ -1296,19 +1294,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		uint64_t memory_size = 1024ULL * 1024ULL * 256ULL;
 
-		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
-		Arena perm;
-		perm.first = memory;
-		perm.last = memory + memory_size/2;
-		perm.cur = perm.first;
-		Arena temp;
-		temp.first = memory + memory_size/2 + 1;
-		temp.last = memory + memory_size;
-		temp.cur = temp.first;
+		Arena arena;
+		arena.first = SDL_malloc(memory_size); SDL_CHECK(arena.first);
+		arena.last = arena.first + memory_size;
+		arena.cur = arena.first;
 
-		ctx = ArenaAlloc(&perm, 1, Context);
-		ctx->perm = perm;
-		ctx->temp = temp;
+		ctx = ArenaAlloc(&arena, 1, Context);
+		ctx->arena = arena;
 	}
 
 #if ENABLE_PROFILING
@@ -1384,7 +1376,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		uint32_t count;
 		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, NULL));
 		ctx->vk.n_instance_layers = (size_t)count;
-		ctx->vk.instance_layers = ArenaAlloc(&ctx->perm, ctx->vk.n_instance_layers, VkLayerProperties);
+		ctx->vk.instance_layers = ArenaAlloc(&ctx->arena, ctx->vk.n_instance_layers, VkLayerProperties);
 		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, ctx->vk.instance_layers));
 	}
 
@@ -1401,7 +1393,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				&count, 
 				NULL));
 		}
-		ctx->vk.instance_extensions = ArenaAlloc(&ctx->perm, ctx->vk.n_instance_extensions, VkExtensionProperties);
+		ctx->vk.instance_extensions = ArenaAlloc(&ctx->arena, ctx->vk.n_instance_extensions, VkExtensionProperties);
 
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, ctx->vk.instance_extensions));
@@ -1446,7 +1438,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				&count, 
 				NULL));
 		}
-		ctx->vk.device_extensions = ArenaAlloc(&ctx->perm, ctx->vk.n_device_extensions, VkExtensionProperties);
+		ctx->vk.device_extensions = ArenaAlloc(&ctx->arena, ctx->vk.n_device_extensions, VkExtensionProperties);
 
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, ctx->vk.device_extensions));
@@ -1478,7 +1470,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		uint32_t count;
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, NULL));
-		ctx->vk.surface_formats = ArenaAlloc(&ctx->perm, count, VkSurfaceFormatKHR);
+		ctx->vk.surface_formats = ArenaAlloc(&ctx->arena, count, VkSurfaceFormatKHR);
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, ctx->vk.surface_formats));
 		ctx->vk.n_surface_formats = (size_t)ctx->vk.surface_formats;
 	}
@@ -1489,7 +1481,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			uint32_t count;
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, NULL);
 			ctx->vk.n_queue_family_properties = (size_t)count;
-			ctx->vk.queue_family_properties = ArenaAlloc(&ctx->perm, ctx->vk.n_queue_family_properties, VkQueueFamilyProperties);
+			ctx->vk.queue_family_properties = ArenaAlloc(&ctx->arena, ctx->vk.n_queue_family_properties, VkQueueFamilyProperties);
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
 		}
 
@@ -1498,7 +1490,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
 
-		VkDeviceQueueCreateInfo* queue_infos = ArenaAlloc(&ctx->temp, ctx->vk.n_queue_family_properties, VkDeviceQueueCreateInfo);
+		VkDeviceQueueCreateInfo* queue_infos = SDL_malloc(ctx->vk.n_queue_family_properties * sizeof(VkDeviceQueueCreateInfo)); SDL_CHECK(queue_infos);
 		size_t n_queue_infos = 0;
 		size_t n_queues = 0;
 		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.n_queue_family_properties; ++queue_family_idx) {
@@ -1524,7 +1516,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
 		volkLoadDevice(ctx->vk.device);
 
-		ctx->vk.queues = ArenaAlloc(&ctx->perm, n_queues, VkQueue);
+		ctx->vk.queues = ArenaAlloc(&ctx->arena, n_queues, VkQueue);
 		size_t queue_array_idx = 0;
 		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.n_queue_family_properties; ++queue_family_idx) {
 			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
@@ -1534,6 +1526,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
+
+		SDL_free(queue_infos);
 	}
 
 	// VulkanCreateSwapchain
@@ -1561,13 +1555,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		uint32_t count;
 		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, NULL));
 		ctx->vk.n_swapchain_images = (size_t)count;
-		ctx->vk.swapchain_images = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkImage);
+		ctx->vk.swapchain_images = ArenaAlloc(&ctx->arena, ctx->vk.n_swapchain_images, VkImage);
 		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, ctx->vk.swapchain_images));
 	}
 
 	// VulkanCreateSwapchainImageView
 	{
-		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkImageView);
+		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->arena, ctx->vk.n_swapchain_images, VkImageView);
 		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.n_swapchain_images; ++swapchain_image_idx) {
 			VkImageViewCreateInfo info = { 
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1921,7 +1915,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateFramebuffers
 	{
-		ctx->vk.framebuffers = ArenaAlloc(&ctx->perm, ctx->vk.n_swapchain_images, VkFramebuffer);
+		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.n_swapchain_images, VkFramebuffer);
 		for (size_t i = 0; i < ctx->vk.n_swapchain_images; ++i) {
 			VkImageView attachments[] = {
 				ctx->vk.swapchain_image_views[i],
@@ -2126,7 +2120,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) {
 			++ctx->n_levels;
 		}
-		ctx->levels = ArenaAlloc(&ctx->perm, ctx->n_levels, Level);
+		ctx->levels = ArenaAlloc(&ctx->arena, ctx->n_levels, Level);
 		size_t level_idx = 0;
 
 		// LoadLevel
@@ -2140,11 +2134,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			level.size.y = (int32_t)cJSON_GetNumberValue(h);
 
 			size_t n_tiles = (size_t)(level.size.x*level.size.y/TILE_SIZE);
-			level.tiles = ArenaAlloc(&ctx->perm, n_tiles, bool);
+			level.tiles = ArenaAlloc(&ctx->arena, n_tiles, bool);
 
 			// TODO
 			level.n_tile_layers = 3;
-			level.tile_layers = ArenaAlloc(&ctx->perm, level.n_tile_layers, TileLayer);
+			level.tile_layers = ArenaAlloc(&ctx->arena, level.n_tile_layers, TileLayer);
 		
 			const char* layer_player = "Player";
 			const char* layer_enemies = "Enemies";
@@ -2186,7 +2180,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level.n_tile_layers; ++tile_layer_idx) {
 				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
-				tile_layer->tiles = ArenaAlloc(&ctx->perm, tile_layer->n_tiles, Tile);
+				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->n_tiles, Tile);
 				for (size_t i = 0; i < tile_layer->n_tiles; ++i) {
 					tile_layer->tiles[i].src.x = -1;
 					tile_layer->tiles[i].src.x = -1;
@@ -2194,7 +2188,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					tile_layer->tiles[i].dst.y = -1;
 				}
 			}
-			level.enemies = ArenaAlloc(&ctx->perm, level.n_enemies, Entity);
+			level.enemies = ArenaAlloc(&ctx->arena, level.n_enemies, Entity);
 			Entity* enemy = level.enemies;
 			cJSON_ArrayForEach(layer_instance, layer_instances) {
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
@@ -2711,8 +2705,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_END();
 		}
 	#endif
-
-		ArenaReset(&ctx->temp);
 	}
 
 	// NOTE: If we don't do this, we might not get the last few events.

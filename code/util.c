@@ -96,10 +96,6 @@ function FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
 
 #define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw(ARENA, COUNT*sizeof(TYPE))
 
-function FORCEINLINE void ArenaReset(Arena* arena) {
-    arena->cur = arena->first;
-}
-
 // TODO: Switch away from using bool to using a bit mask.
 
 function FORCEINLINE bool IsSolid(Level* level, ivec2s pos) {
