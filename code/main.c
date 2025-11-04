@@ -310,6 +310,7 @@ typedef struct Vulkan {
 	VkDeviceSize staging_buffer_size;
 	size_t staging_buffer_bind_info_count;
 	VkDeviceMemory staging_buffer_memory;
+	bool staged;
 } Vulkan;
 
 typedef struct Context {
@@ -1292,7 +1293,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-		uint64_t memory_size = 1024ULL * 1024ULL * 256ULL;
+		uint64_t memory_size = 4096ULL * 128ULL;
 
 		Arena arena;
 		arena.first = SDL_malloc(memory_size); SDL_CHECK(arena.first);
@@ -2094,8 +2095,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
 					for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 						SpriteCell* cell = &sf->cells[cell_idx];
-						SDL_memcpy((void*)cur, cell->buf, sizeof(uint32_t)*cell->size.x*cell->size.y);
-						cur += sizeof(uint32_t)*cell->size.x*cell->size.y;
+						if (cell->type == SpriteCellType_Sprite) {
+							SDL_assert(cell->buf);
+							SDL_memcpy((void*)cur, cell->buf, sizeof(uint32_t)*cell->size.x*cell->size.y);
+							SDL_free(cell->buf); cell->buf = NULL;
+							cur += sizeof(uint32_t)*cell->size.x*cell->size.y;
+						}
 					}
 				}
 			}
@@ -2498,6 +2503,39 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
+			if (!ctx->vk.staged) {
+				ctx->vk.staged = true;
+
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+					SpriteDesc* sd = &ctx->sprites[sprite_idx];
+					if (sd->path) {
+						for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
+							SpriteFrame* sf = &sd->frames[frame_idx];
+							for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
+								SpriteCell* cell = &sf->cells[cell_idx];
+								if (cell->type == SpriteCellType_Sprite) {
+									VkBufferImageCopy region = {
+										.bufferRowLength = (uint32_t)cell->size.x,
+										.bufferImageHeight = (uint32_t)cell->size.y,
+										.imageSubresource = {
+											.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+											.mipLevel = 1,
+											.baseArrayLayer = 0,
+											.layerCount = 1,
+										},
+									};
+									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_UNDEFINED, 1, &region);
+								}
+
+							}
+
+						}
+
+					}
+
+				}
+			}
+
 			{
 
 				VkClearValue clear_values[2];
@@ -2516,15 +2554,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdBeginRenderPass(cb, &info, VK_SUBPASS_CONTENTS_INLINE);
 			}
 
-			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
-			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
-
 			SPALL_BUFFER_END();
 		}
 
 		// Draw
 		{
-
+			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
+			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
 		}
 
 		// DrawEnd
