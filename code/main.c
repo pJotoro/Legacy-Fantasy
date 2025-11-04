@@ -140,7 +140,7 @@ typedef struct SpriteCell {
 	int32_t z_idx;
 	SpriteCellType type;
 
-	VkBuffer vk_staging_buffer;
+	void* buf; // buf_size = sizeof(uint32_t)*size.x*size.y
 	VkImage vk_image;
 	VkImageView vk_image_view;
 } SpriteCell;
@@ -305,6 +305,8 @@ typedef struct Vulkan {
 	
 	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
 	size_t current_frame;
+
+	VkBuffer staging_buffer; VkDeviceSize staging_buffer_size;
 } Vulkan;
 
 typedef struct Context {
@@ -566,6 +568,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 	if (n_files > 0) {
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
 		void* raw_chunk = ArenaAllocRaw(&ctx->temp, raw_chunk_alloc_size);
+		uint8_t* arena_save = ctx->temp.cur;
 
 		for (size_t file_idx = 0; file_idx < (size_t)n_files; ++file_idx) {
 			char* file = files[file_idx];
@@ -745,20 +748,11 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
 										SPALL_BUFFER_END();
 										SDL_assert(res > 0);
+										cell.buf = dst_buf;
+
+										ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
 
 										uint32_t queue_family_idx = 0;
-
-										VkBufferCreateInfo buffer_info = {
-											.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-											.size = (VkDeviceSize)dst_buf_size,
-											.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-
-											// TODO
-											.queueFamilyIndexCount = 1,
-											.pQueueFamilyIndices = &queue_family_idx,
-										};
-										VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &cell.vk_staging_buffer));
-
 										VkImageCreateInfo image_info = {
 											.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 											.imageType = VK_IMAGE_TYPE_2D,
@@ -858,6 +852,8 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 			SDL_CloseIO(fs);
 		}
+
+		ctx->temp.cur = arena_save;
 	} else if (n_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
@@ -2054,6 +2050,23 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		SPALL_BUFFER_END();
+	}
+
+	// VulkanLoadSprites
+	{
+		uint32_t queue_family_idx = 0;
+		VkBufferCreateInfo buffer_info = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.size = ctx->vk.staging_buffer_size,
+			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+
+			// TODO
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &queue_family_idx,
+		};
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer));
+
+		
 	}
 
 	// LoadLevels
