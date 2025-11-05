@@ -2514,17 +2514,43 @@ int32_t main(int32_t argc, char* argv[]) {
 							for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 								SpriteCell* cell = &sf->cells[cell_idx];
 								if (cell->type == SpriteCellType_Sprite) {
+									VkImageSubresourceRange subresource_range = {
+										.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+										.baseMipLevel = 0,
+										.levelCount = 1,
+										.baseArrayLayer = 0,
+										.layerCount = 1,
+									};
+
+									VkImageMemoryBarrier barrier_before = {
+										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+										.srcAccessMask = 0,
+										.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+										.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+										.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+										.image = cell->vk_image,
+										.subresourceRange = subresource_range,
+									};
+									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier_before);
+
 									VkBufferImageCopy region = {
 										.bufferRowLength = (uint32_t)cell->size.x,
 										.bufferImageHeight = (uint32_t)cell->size.y,
-										.imageSubresource = {
-											.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-											.mipLevel = 1,
-											.baseArrayLayer = 0,
-											.layerCount = 1,
-										},
+										.imageSubresource = VK_IMAGE_ASPECT_COLOR_BIT,
+										.imageExtent = {(uint32_t)cell->size.x, (uint32_t)cell->size.y, 1},
 									};
 									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_UNDEFINED, 1, &region);
+
+									VkImageMemoryBarrier barrier_after = {
+										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+										.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+										.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+										.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+										.image = cell->vk_image,
+										.subresourceRange = subresource_range,
+									};
+									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier_after);
 								}
 
 							}
