@@ -2503,17 +2503,15 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			if (!ctx->vk.staged) {
-				ctx->vk.staged = true;
-
-				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
-					SpriteDesc* sd = &ctx->sprites[sprite_idx];
-					if (sd->path) {
-						for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
-							SpriteFrame* sf = &sd->frames[frame_idx];
-							for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
-								SpriteCell* cell = &sf->cells[cell_idx];
-								if (cell->type == SpriteCellType_Sprite) {
+			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+				SpriteDesc* sd = &ctx->sprites[sprite_idx];
+				if (sd->path) {
+					for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
+						SpriteFrame* sf = &sd->frames[frame_idx];
+						for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
+							SpriteCell* cell = &sf->cells[cell_idx];
+							if (cell->type == SpriteCellType_Sprite) {
+								if (!ctx->vk.staged) {
 									VkImageSubresourceRange subresource_range = {
 										.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 										.baseMipLevel = 0,
@@ -2551,8 +2549,27 @@ int32_t main(int32_t argc, char* argv[]) {
 										.subresourceRange = subresource_range,
 									};
 									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier_after);
-								}
+								} else {
+									VkImageSubresourceRange subresource_range = {
+										.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+										.baseMipLevel = 0,
+										.levelCount = 1,
+										.baseArrayLayer = 0,
+										.layerCount = 1,
+									};
 
+									VkImageMemoryBarrier barrier = {
+										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+										.srcAccessMask = 0,
+										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+										.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+										.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+										.image = cell->vk_image,
+										.subresourceRange = subresource_range,
+									};
+									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+								}
+								
 							}
 
 						}
@@ -2561,6 +2578,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				}
 			}
+			ctx->vk.staged = true;
 
 			{
 
