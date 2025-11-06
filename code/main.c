@@ -114,8 +114,6 @@ typedef int64_t ssize_t;
 
 #define MIN_FPS 15
 
-#define MAX_FRAMES_IN_FLIGHT 2
-
 // 1/60/6
 // So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
 #define dt 0.00277777777777777777777777777777777777777777777778
@@ -303,7 +301,7 @@ typedef struct Vulkan {
 
 	VkDescriptorPool descriptor_pool;
 	
-	VulkanFrame frames[MAX_FRAMES_IN_FLIGHT];
+	VulkanFrame* frames; size_t n_frames;
 	size_t current_frame;
 
 	VkBuffer staging_buffer; 
@@ -1582,6 +1580,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
+	// VulkanAllocateFrames
+	{
+		ctx->vk.n_frames = ctx->vk.n_swapchain_images;
+		ctx->vk.frames = ArenaAlloc(&ctx->arena, ctx->vk.n_frames, VulkanFrame);
+	}
+
 	// CreateShaderModule
 	{
 		size_t len;
@@ -1963,38 +1967,50 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDescriptorPool
 	{
-		VkDescriptorPoolSize sizes[MAX_FRAMES_IN_FLIGHT] = {
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_FRAMES_IN_FLIGHT },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_FRAMES_IN_FLIGHT },
-		};
+		VkDescriptorPoolSize* sizes = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorPoolSize)); SDL_CHECK(sizes);
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			sizes[i] = (VkDescriptorPoolSize){
+				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+				(uint32_t)ctx->vk.n_frames,
+			};
+		}
 
 		VkDescriptorPoolCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = MAX_FRAMES_IN_FLIGHT,
-			.poolSizeCount = MAX_FRAMES_IN_FLIGHT,
+			.maxSets = (uint32_t)ctx->vk.n_frames,
+			.poolSizeCount = (uint32_t)ctx->vk.n_frames,
 			.pPoolSizes = sizes,
 		};
 
 		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
+
+		SDL_free(sizes);
 	}
 
 	// VulkanCreateDescriptorSets
 	{
-		VkDescriptorSetLayout layouts[MAX_FRAMES_IN_FLIGHT] = { ctx->vk.descriptor_set_layout, ctx->vk.descriptor_set_layout };
+		VkDescriptorSetLayout* layouts = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorSetLayout)); SDL_CHECK(layouts);
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			layouts[i] = ctx->vk.descriptor_set_layout;
+		}
 
 		VkDescriptorSetAllocateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = ctx->vk.descriptor_pool,
-			.descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+			.descriptorSetCount = (uint32_t)ctx->vk.n_frames,
 			.pSetLayouts = layouts,
 		};
 
-		VkDescriptorSet descriptor_sets[MAX_FRAMES_IN_FLIGHT];
+		VkDescriptorSet* descriptor_sets = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorSet)); SDL_CHECK(descriptor_sets);
 
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
-		ctx->vk.frames[0].descriptor_set = descriptor_sets[0];
-		ctx->vk.frames[1].descriptor_set = descriptor_sets[1];
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			ctx->vk.frames[i].descriptor_set = descriptor_sets[i];
+		}
+
+		SDL_free(descriptor_sets);
+		SDL_free(layouts);
 	}
 
 	// VulkanAllocateCommandBuffers
@@ -2002,15 +2018,17 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkCommandBufferAllocateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.commandPool = ctx->vk.command_pool,
-			.commandBufferCount = MAX_FRAMES_IN_FLIGHT,
+			.commandBufferCount = (uint32_t)ctx->vk.n_frames,
 		};
 
-		VkCommandBuffer command_buffers[MAX_FRAMES_IN_FLIGHT];
-
+		VkCommandBuffer* command_buffers = SDL_malloc(ctx->vk.n_frames * sizeof(VkCommandBuffer)); SDL_CHECK(command_buffers);
 		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
 
-		ctx->vk.frames[0].command_buffer = command_buffers[0];
-		ctx->vk.frames[1].command_buffer = command_buffers[1];
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			ctx->vk.frames[i].command_buffer = command_buffers[i];			
+		}
+
+		SDL_free(command_buffers);
 	}
 
 	// VulkanCreateSemaphores
@@ -2019,10 +2037,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
 
-		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].sem_image_available));
-		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].sem_render_finished));
-		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].sem_image_available));
-		VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].sem_render_finished));
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
+			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
+		}
 	}
 
 	// VulkanCreateFences
@@ -2032,8 +2050,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
 		};
 
-		VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[0].fence_in_flight));
-		VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[1].fence_in_flight));
+		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
+			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
+		}
 	}
 	
 	// LoadSprites
@@ -2710,7 +2729,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 			VK_CHECK(vkQueuePresentKHR(ctx->vk.graphics_queue, &present_info));
 
-			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.n_frames;
 		}
 
 		// UpdateTime
