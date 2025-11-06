@@ -2617,7 +2617,7 @@ int32_t main(int32_t argc, char* argv[]) {
 										.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 										.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-										.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+										.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 										.image = cell->vk_image,
 										.subresourceRange = subresource_range,
 									};
@@ -2636,7 +2636,7 @@ int32_t main(int32_t argc, char* argv[]) {
 										.srcAccessMask = 0,
 										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 										.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-										.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+										.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 										.image = cell->vk_image,
 										.subresourceRange = subresource_range,
 									};
