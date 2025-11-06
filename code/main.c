@@ -2113,6 +2113,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory);
+
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer, ctx->vk.staging_buffer_memory, 0));
 	}
 
 	// VulkanAllocateAndBindImageMemory
@@ -2138,6 +2140,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		SDL_assert(i == ctx->vk.n_images);
 
+		// TODO: Uncomment this. It's not technically necessary, but it may lead to less memory getting allocated.
+		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->vk.n_images, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
 		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
