@@ -2610,7 +2610,7 @@ int32_t main(int32_t argc, char* argv[]) {
 										.imageSubresource = VK_IMAGE_ASPECT_COLOR_BIT,
 										.imageExtent = {(uint32_t)cell->size.x, (uint32_t)cell->size.y, 1},
 									};
-									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_UNDEFINED, 1, &region);
+									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 									VkImageMemoryBarrier barrier_after = {
 										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
