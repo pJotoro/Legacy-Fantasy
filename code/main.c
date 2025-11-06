@@ -2607,7 +2607,7 @@ int32_t main(int32_t argc, char* argv[]) {
 									VkBufferImageCopy region = {
 										.bufferRowLength = (uint32_t)cell->size.x,
 										.bufferImageHeight = (uint32_t)cell->size.y,
-										.imageSubresource = VK_IMAGE_ASPECT_COLOR_BIT,
+										.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 										.imageExtent = {(uint32_t)cell->size.x, (uint32_t)cell->size.y, 1},
 									};
 									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
