@@ -308,9 +308,11 @@ typedef struct Vulkan {
 
 	VkBuffer staging_buffer; 
 	VkDeviceSize staging_buffer_size;
-	size_t staging_buffer_bind_info_count;
+	size_t n_images;
 	VkDeviceMemory staging_buffer_memory;
 	bool staged;
+
+	VkDeviceMemory image_memory;
 } Vulkan;
 
 typedef struct Context {
@@ -357,6 +359,11 @@ typedef struct Context {
 
 	Vulkan vk;
 } Context;
+
+typedef struct VkImageMemoryRequirements {
+	VkMemoryRequirements memoryRequirements;
+	VkImage image;
+} VkImageMemoryRequirements;
 
 #include "util.c"
 
@@ -753,7 +760,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										cell.buf = dst_buf;
 
 										ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
-										++ctx->vk.staging_buffer_bind_info_count;
+										++ctx->vk.n_images;
 
 										uint32_t queue_family_idx = 0;
 										VkImageCreateInfo image_info = {
@@ -2106,6 +2113,68 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory);
+	}
+
+	// VulkanAllocateAndBindImageMemory
+	{
+		VkImageMemoryRequirements* mem_req = SDL_calloc(ctx->vk.n_images, sizeof(VkImageMemoryRequirements)); SDL_CHECK(mem_req);
+		size_t i = 0;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+			SpriteDesc* sd = &ctx->sprites[sprite_idx];
+			if (sd->path) {
+				for (size_t frame_idx = 0; frame_idx < sd->n_frames; ++frame_idx) {
+					SpriteFrame* sf = &sd->frames[frame_idx];
+					for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
+						SpriteCell* cell = &sf->cells[cell_idx];
+						if (cell->type == SpriteCellType_Sprite) {
+							mem_req[i].image = cell->vk_image;
+							SDL_assert(mem_req[i].image);
+							vkGetImageMemoryRequirements(ctx->vk.device, mem_req[i].image, &mem_req[i].memoryRequirements);
+							++i;
+						}
+					}
+				}
+			}
+		}
+		SDL_assert(i == ctx->vk.n_images);
+
+		//SDL_qsort((void*)mem_req, ctx->vk.n_images, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
+
+		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
+		uint32_t memory_type_idx = 0;
+		bool found_memory_type_idx = false;
+		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
+		    if (mem_req[0].memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) {
+		    	found_memory_type_idx = true;
+		        break;
+		    }
+		}
+		SDL_assert(found_memory_type_idx);
+
+		VkMemoryAllocateInfo allocate_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->vk.n_images, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
+
+		for (size_t i = 0; i < ctx->vk.n_images; ++i) {
+			allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_req[i].memoryRequirements.alignment);
+			bind_infos[i] = (VkBindImageMemoryInfo){
+				.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+				.image = mem_req[i].image,
+				.memoryOffset = allocate_info.allocationSize,
+			};
+			allocate_info.allocationSize += mem_req[i].memoryRequirements.size;
+		}
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
+
+		for (size_t i = 0; i < ctx->vk.n_images; ++i) {
+			bind_infos[i].memory = ctx->vk.image_memory;
+		}
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->vk.n_images, bind_infos));
+
+		SDL_free(bind_infos);
+		SDL_free(mem_req);
 	}
 
 	// LoadLevels
