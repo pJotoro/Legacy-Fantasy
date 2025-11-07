@@ -18,6 +18,16 @@
             "working_dir": "$project_path/build/ninja/release",
             "shell_cmd": "ninja",
             "file_regex": "^(.*)\\((\\d+),(\\d+)\\): (.*)$",
+        },
+        {
+            "name": "shader_debug",
+            "working_dir": "$project_path",
+            "shell_cmd": "build_shaders_debug",
+        },
+        {
+            "name": "shader_release",
+            "working_dir": "$project_path",
+            "shell_cmd": "build_shaders_release",
         }
     ]
 }

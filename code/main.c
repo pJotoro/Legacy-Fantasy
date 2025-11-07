@@ -138,7 +138,9 @@ typedef struct SpriteCell {
 	int32_t z_idx;
 	SpriteCellType type;
 
+	// NOTE: This gets freed after getting copied to vk_image.
 	void* buf; // buf_size = sizeof(uint32_t)*size.x*size.y
+	
 	VkImage vk_image;
 	VkImageView vk_image_view;
 } SpriteCell;
@@ -161,8 +163,8 @@ typedef struct Sprite {
 
 typedef struct Anim {
 	Sprite sprite;
+	int32_t frame_idx;
 	double dt_accumulator;
-	uint32_t frame_idx;
 	bool ended;
 } Anim;
 
@@ -204,6 +206,12 @@ typedef struct Entity {
 	EntityState state;
 } Entity;
 
+typedef struct EntityVertex {
+	ivec2s pos;
+	int32_t dir;
+	int32_t frame_idx;
+} EntityVertex;
+
 typedef struct Tile {
 	ivec2s src;
 	ivec2s dst;
@@ -239,7 +247,7 @@ typedef struct Arena {
 } Arena;
 
 typedef struct Vertex {
-	vec3s pos;
+	ivec2s tile_pos;
 } Vertex;
 
 typedef struct VulkanFrame {
@@ -312,6 +320,23 @@ typedef struct Vulkan {
 
 	VkDeviceMemory image_memory;
 } Vulkan;
+
+function uint32_t VulkanGetMemoryTypeIdxWithProperties(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
+	uint32_t memory_type_idx;
+	bool found_memory_type_idx = false;
+	for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
+	    if ((mem_req->memoryTypeBits & (1 << memory_type_idx)) && (vk->physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & properties)) {
+	    	found_memory_type_idx = true;
+	        break;
+	    }
+	}
+	SDL_assert(found_memory_type_idx);
+	return memory_type_idx;
+}
+
+function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req) {
+	return VulkanGetMemoryTypeIdxWithProperties(vk, mem_req, (VkMemoryPropertyFlags)-1);
+}
 
 typedef struct Context {
 #if ENABLE_PROFILING
@@ -445,7 +470,6 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	return res;
 }
 
-#if 0
 function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SPALL_BUFFER_BEGIN();
 
@@ -455,27 +479,28 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 	for (size_t cell_idx = 0; cell_idx < sf->n_cells; ++cell_idx) {
 		SpriteCell* cell = &sf->cells[cell_idx];
-		if (cell->texture) {
-			SDL_FRect srcrect = {
-				0.0f,
-				0.0f,
-				(float)(cell->size.x),
-				(float)(cell->size.y),
-			};
 
-			SDL_FRect dstrect = {
-				pos.x + (float)(cell->offset.x*dir - origin.x),
-				pos.y + (float)(cell->offset.y - origin.y),
-				(float)(cell->size.x*dir),
-				(float)(cell->size.y),
-			};
+		// if (cell->texture) {
+		// 	SDL_FRect srcrect = {
+		// 		0.0f,
+		// 		0.0f,
+		// 		(float)(cell->size.x),
+		// 		(float)(cell->size.y),
+		// 	};
 
-			if (dir == -1) {
-				dstrect.x += (float)sd->size.x;
-			}
+		// 	SDL_FRect dstrect = {
+		// 		pos.x + (float)(cell->offset.x*dir - origin.x),
+		// 		pos.y + (float)(cell->offset.y - origin.y),
+		// 		(float)(cell->size.x*dir),
+		// 		(float)(cell->size.y),
+		// 	};
 
-			SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
-		}
+		// 	if (dir == -1) {
+		// 		dstrect.x += (float)sd->size.x;
+		// 	}
+
+		// 	SDL_CHECK(SDL_RenderTexture(ctx->renderer, cell->texture, &srcrect, &dstrect));
+		// }
 	}
 
 	SPALL_BUFFER_END();
@@ -486,12 +511,8 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SDL_assert(sd->n_layers == 1);
 	SDL_assert(sd->n_frames == 1);
 	SDL_assert(sd->frames[0].n_cells == 1);
-
-	SDL_Texture* texture = sd->frames[0].cells[0].texture;
-
-	return (ivec2s){texture->w/TILE_SIZE, texture->h/TILE_SIZE};
+	return sd->size;
 }
-#endif
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
 	SPALL_BUFFER_BEGIN();
@@ -541,6 +562,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+    SDL_assert(anim->frame_idx >= 0 && anim->frame_idx < (int32_t)sd->n_frames);
 	double dur = sd->frames[anim->frame_idx].dur;
 	size_t n_frames = sd->n_frames;
 
@@ -549,7 +571,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
         if (anim->dt_accumulator >= dur) {
             anim->dt_accumulator = 0.0;
             ++anim->frame_idx;
-            if (anim->frame_idx >= n_frames) {
+            if (anim->frame_idx >= (int32_t)n_frames) {
                 if (loop) anim->frame_idx = 0;
                 else {
                     --anim->frame_idx;
@@ -757,8 +779,11 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										SDL_assert(res > 0);
 										cell.buf = dst_buf;
 
-										ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
-										++ctx->vk.n_images;
+										// VulkanIncrementStagingBufferSize
+										{
+											ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
+											++ctx->vk.n_images;
+										}
 
 										uint32_t queue_family_idx = 0;
 										VkImageCreateInfo image_info = {
@@ -1616,32 +1641,19 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_free(data);
 	}
 
-	// NOTE: As long as I'm doing the good ol' vertex shader followed by fragment shader,
-	// just having one descriptor set layout and one pipeline layout like this should
-	// be fine.
-	
 	// VulkanCreateDescriptorSetLayout
 	{
-	#if 0
-		VkDescriptorSetLayoutBinding binding_vertex_shader = {
+		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_,
-			.descriptorCount = 1,
-			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-		};
-
-		VkDescriptorSetLayoutBinding binding_fragment_shader = {
-			.binding = 1,
-			.descriptorType = VK_DESCRIPTOR_TYPE_,
+			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		};
 
-		VkDescriptorSetLayoutBinding bindings[] = { binding_vertex_shader, binding_fragment_shader };
-	#endif
-
 		VkDescriptorSetLayoutCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.bindingCount = 1,
+			.pBindings = &binding,
 		};
 		
 		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
@@ -1755,18 +1767,32 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pDynamicStates = dynamic_states,
 		};
 		
-		VkVertexInputBindingDescription vertex_input_binding = {
-			.binding = 0,
-			.stride = sizeof(Vertex),
-			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+		VkVertexInputBindingDescription vertex_input_bindings[] = 
+		{
+			{
+				.binding = 0,
+				.stride = sizeof(Tile),
+				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+			},
+			{
+				.binding = 1,
+				.stride = sizeof(EntityVertex),
+				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+			},
 		};
 		
 		VkVertexInputAttributeDescription vertex_attributes[] = {
-			(VkVertexInputAttributeDescription){
+			{
 				.location = 0,
 				.binding = 0,
-				.format = VK_FORMAT_R32G32B32_SFLOAT,
+				.format = VK_FORMAT_R32G32_SFLOAT,
 				.offset = offsetof(Vertex, pos),
+			},
+			{
+				.location = 1,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32B32A32_SFLOAT,
+				.offset = offsetof(Vertex, color),
 			},
 		};
 
@@ -1890,13 +1916,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		vkGetImageMemoryRequirements2(ctx->vk.device, &info, &mem_req);
 
-		uint32_t memory_type_idx = 0;
-		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
-		    if (mem_req.memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) {
-		        break;
-		    }
-		}
-		
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req.memoryRequirements);		
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.memoryRequirements.size,
@@ -2077,7 +2097,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanInitStagingBuffer
+	const uint32_t indices[] = {
+		0, 1, 3,   // first triangle
+		1, 2, 3    // second triangle
+	};
+	// VulkanCreateStagingBuffer
 	{
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
@@ -2094,16 +2118,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkMemoryRequirements mem_req;
 		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer, &mem_req);
 
-		uint32_t memory_type_idx = 0;
-		bool found_memory_type_idx = false;
-		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
-		    if ((mem_req.memoryTypeBits & (1 << memory_type_idx)) && (ctx->vk.physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-		    	found_memory_type_idx = true;
-		        break;
-		    }
-		}
-		SDL_assert(found_memory_type_idx);
-		
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.size,
@@ -2136,6 +2151,67 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer, ctx->vk.staging_buffer_memory, 0));
 	}
 
+	// VulkanCreateVertexBuffer
+	{
+		VkDeviceSize size = 0;
+
+		for (size_t level_idx = 0; level_idx < ctx->n_levels; ++level_idx) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->n_tile_layers; ++tile_layer_idx) {
+				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				size += tile_layer->n_tiles * sizeof(Tile);
+			}
+			size += level->n_entities * sizeof(EntityVertex);
+		}
+
+		VkBufferCreateInfo buffer_info = { 
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.size = size,
+			.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		};
+		
+		VK_CHECK(vkCreateBuffer(ctx->vk_device, &buffer_info, nullptr, &ctx->vk_vertex_buffer));
+
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk_device, ctx->vk_vertex_buffer, &mem_req);
+
+		VkMemoryAllocateInfo mem_info = { 
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = static_cast<uint32_t>(ctx->vk_memory_type_device),
+		};
+		
+		VK_CHECK(vkAllocateMemory(ctx->vk_device, &mem_info, nullptr, &ctx->vk_vertex_buffer_memory));
+		VK_CHECK(vkBindBufferMemory(ctx->vk_device, ctx->vk_vertex_buffer, ctx->vk_vertex_buffer_memory, 0));
+	}
+
+	// VulkanCreateIndexBuffer
+	{
+		VkBufferCreateInfo buffer_info = { 
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.size = ctx->indices.size() * sizeof(ctx->indices[0]),
+			.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		};
+		
+		VK_CHECK(vkCreateBuffer(ctx->vk_device, &buffer_info, nullptr, &ctx->vk_index_buffer));
+
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk_device, ctx->vk_index_buffer, &mem_req);
+
+		VkMemoryAllocateInfo mem_info = { 
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, 
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = static_cast<uint32_t>(ctx->vk_memory_type_device),
+		};
+		
+		VK_CHECK(vkAllocateMemory(ctx->vk_device, &mem_info, nullptr, &ctx->vk_index_buffer_memory));
+		VK_CHECK(vkBindBufferMemory(ctx->vk_device, ctx->vk_index_buffer, ctx->vk_index_buffer_memory, 0));
+	}
+
+
+
 	// VulkanAllocateAndBindImageMemory
 	{
 		VkImageMemoryRequirements* mem_req = SDL_calloc(ctx->vk.n_images, sizeof(VkImageMemoryRequirements)); SDL_CHECK(mem_req);
@@ -2164,16 +2240,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		//SDL_qsort((void*)mem_req, ctx->vk.n_images, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
 		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
-		uint32_t memory_type_idx = 0;
-		bool found_memory_type_idx = false;
-		for (; memory_type_idx < ctx->vk.physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
-		    if (mem_req[0].memoryRequirements.memoryTypeBits & (1 << memory_type_idx)) {
-		    	found_memory_type_idx = true;
-		        break;
-		    }
-		}
-		SDL_assert(found_memory_type_idx);
-
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req[0].memoryRequirements);
 		VkMemoryAllocateInfo allocate_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.memoryTypeIndex = memory_type_idx,
@@ -2697,6 +2764,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
 			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
+
+			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.graphics_pipeline);
+
 		}
 
 		// DrawEnd
