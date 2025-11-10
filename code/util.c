@@ -36,10 +36,10 @@ function FORCEINLINE float NormInt16(int16_t i16) {
     return res;
 }
 
-function FORCEINLINE bool* GetTiles(Level* level, size_t* n_tiles) {
-    SDL_assert(n_tiles);
+function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) {
+    SDL_assert(num_tiles);
     ivec2s size = level->size;
-    *n_tiles = (size_t)(size.x*size.y/TILE_SIZE);
+    *num_tiles = (size_t)(size.x*size.y/TILE_SIZE);
     return level->tiles;
 }
 
@@ -47,9 +47,9 @@ function FORCEINLINE Entity* GetPlayer(Context* ctx) {
     return &ctx->levels[ctx->level_idx].player;
 }
 
-function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* n_enemies) {
-    SDL_assert(n_enemies);
-    *n_enemies = ctx->levels[ctx->level_idx].n_enemies;
+function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) {
+    SDL_assert(num_enemies);
+    *num_enemies = ctx->levels[ctx->level_idx].num_enemies;
     return ctx->levels[ctx->level_idx].enemies;
 }
 
@@ -78,9 +78,9 @@ function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx
 	return &level->tile_layers[tile_layer_idx];
 }
 
-function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* n_tiles) {
-    SDL_assert(n_tiles);
-    *n_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
+function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) {
+    SDL_assert(num_tiles);
+    *num_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
     return level->tile_layers[tile_layer_idx].tiles;
 }
 

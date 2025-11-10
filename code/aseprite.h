@@ -35,7 +35,7 @@ typedef uint32_t ASE_Flags;
 typedef struct ASE_Header {
 	uint32_t file_size;
 	uint16_t magic_number;
-	uint16_t n_frames;
+	uint16_t num_frames;
 	uint16_t w;
 	uint16_t h;
 	uint16_t color_depth;
@@ -45,7 +45,7 @@ typedef struct ASE_Header {
 	uint32_t reserved2;
 	uint8_t transparent_color_entry;
 	uint8_t reserved3[3];
-	uint16_t n_colors;
+	uint16_t num_colors;
 	uint8_t pixel_w;
 	uint8_t pixel_h;
 	int16_t grid_x;
@@ -58,12 +58,12 @@ typedef struct ASE_Header {
 static_assert(sizeof(ASE_Header) == 128);
 
 typedef struct ASE_Frame {
-	uint32_t n_bytes;
+	uint32_t num_bytes;
 	uint16_t magic_number;
 	uint16_t reserved0;
 	uint16_t frame_dur;
 	uint8_t reserved1[2];
-	uint32_t n_chunks;
+	uint32_t num_chunks;
 } ASE_Frame;
 static_assert(sizeof(ASE_Frame) == 16);
 
@@ -228,7 +228,7 @@ typedef struct ASE_ExternalFilesEntry {
 } ASE_ExternalFilesEntry;
 
 typedef struct ASE_ExternalFilesChunk {
-	uint32_t n_entries;
+	uint32_t num_entries;
 	uint8_t reserved0[8];
 #if 0
 	ASE_ExternalFilesEntry entries[];
@@ -255,7 +255,7 @@ typedef struct ASE_Tag {
 } ASE_Tag;
 
 typedef struct ASE_TagsChunk {
-	uint16_t n_tags;
+	uint16_t num_tags;
 #if 0
 	ASE_Tag tags[];
 #endif
@@ -278,7 +278,7 @@ typedef struct ASE_PaletteEntry {
 } ASE_PaletteEntry;
 
 typedef struct ASE_PaletteChunk {
-	uint32_t n_entries;
+	uint32_t num_entries;
 	uint32_t first_color_idx_to_change;
 	uint32_t last_color_idx_to_change;
 	uint8_t reserved0[8];
