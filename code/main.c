@@ -286,11 +286,6 @@ typedef struct Vulkan {
 	VkFramebuffer* framebuffers;
 	size_t n_swapchain_images;
 
-	VkPipelineShaderStageCreateInfo tile_vert;
-	VkPipelineShaderStageCreateInfo tile_frag;
-	VkPipelineShaderStageCreateInfo entity_vert;
-	VkPipelineShaderStageCreateInfo entity_frag;
-
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
 	VkPipeline pipelines[PIPELINE_COUNT];
@@ -1786,11 +1781,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		// VulkanCreateGraphicsPipelineTile
-		ctx->vk.tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		ctx->vk.tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		VkPipelineShaderStageCreateInfo tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkPipelineShaderStageCreateInfo tile_shader_stages[] = {
-			ctx->vk.tile_vert,
-			ctx->vk.tile_frag,
+			tile_vert,
+			tile_frag,
 		};
 		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
 		{
@@ -1827,11 +1822,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		tile_graphics_pipeline_info.pVertexInputState = &tile_vertex_input_info;
 
 		// VulkanCreateGraphicsPipelineEntity
-		ctx->vk.entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		ctx->vk.entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		VkPipelineShaderStageCreateInfo entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkPipelineShaderStageCreateInfo entity_shader_stages[] = {
-			ctx->vk.entity_vert,
-			ctx->vk.entity_frag,
+			entity_vert,
+			entity_frag,
 		};
 		VkVertexInputBindingDescription entity_vertex_input_bindings[] = 
 		{
@@ -1867,6 +1862,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, ctx->vk.pipeline_cache, SDL_arraysize(infos), infos, NULL, ctx->vk.pipelines));
+
+		vkDestroyShaderModule(ctx->vk.device, tile_vert.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
 	}
 
 	// VulkanCreateCommandPool
@@ -2116,7 +2116,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkMemoryRequirements mem_req;
 		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer, &mem_req);
 
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkMemoryAllocateInfo mem_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.size,
@@ -2818,11 +2818,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
 
 			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS)); // TODO
-			
 			ctx->time = current_time;
 
 			SPALL_BUFFER_END();
 		}
+
+		SDL_TriggerBreakpoint();
 
 	#if 0
 		// DrawEntities
