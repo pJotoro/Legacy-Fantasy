@@ -247,7 +247,6 @@ typedef struct Arena {
 } Arena;
 
 typedef struct VulkanFrame {
-	VkDescriptorSet descriptor_set;
 	VkCommandBuffer command_buffer;
 	VkSemaphore sem_image_available;
 	VkSemaphore sem_render_finished;
@@ -293,6 +292,7 @@ typedef struct Vulkan {
 	VkRenderPass render_pass;
 
 	VkCommandPool command_pool;
+	VkDescriptorSet descriptor_set;
 
 	VkViewport viewport;
 	VkRect2D scissor;
@@ -1615,7 +1615,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		};
@@ -1984,50 +1984,32 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDescriptorPool
 	{
-		VkDescriptorPoolSize* sizes = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorPoolSize)); SDL_CHECK(sizes);
-		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
-			sizes[i] = (VkDescriptorPoolSize){
-				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
-				(uint32_t)ctx->vk.n_frames,
-			};
-		}
+		VkDescriptorPoolSize size = {
+			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			1,
+		};
 
 		VkDescriptorPoolCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = (uint32_t)ctx->vk.n_frames,
-			.poolSizeCount = (uint32_t)ctx->vk.n_frames,
-			.pPoolSizes = sizes,
+			.maxSets = 1,
+			.poolSizeCount = 1,
+			.pPoolSizes = &size,
 		};
 
 		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
-
-		SDL_free(sizes);
 	}
 
 	// VulkanCreateDescriptorSets
 	{
-		VkDescriptorSetLayout* layouts = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorSetLayout)); SDL_CHECK(layouts);
-		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
-			layouts[i] = ctx->vk.descriptor_set_layout;
-		}
-
 		VkDescriptorSetAllocateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = ctx->vk.descriptor_pool,
-			.descriptorSetCount = (uint32_t)ctx->vk.n_frames,
-			.pSetLayouts = layouts,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &ctx->vk.descriptor_set_layout,
 		};
 
-		VkDescriptorSet* descriptor_sets = SDL_malloc(ctx->vk.n_frames * sizeof(VkDescriptorSet)); SDL_CHECK(descriptor_sets);
 
-		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
-
-		for (size_t i = 0; i < ctx->vk.n_frames; ++i) {
-			ctx->vk.frames[i].descriptor_set = descriptor_sets[i];
-		}
-
-		SDL_free(descriptor_sets);
-		SDL_free(layouts);
+		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
 	}
 
 	// VulkanAllocateCommandBuffers
