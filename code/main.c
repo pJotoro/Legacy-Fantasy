@@ -246,10 +246,6 @@ typedef struct Arena {
 	uint8_t* cur;
 } Arena;
 
-typedef struct Vertex {
-	ivec2s tile_pos;
-} Vertex;
-
 typedef struct VulkanFrame {
 	VkDescriptorSet descriptor_set;
 	VkCommandBuffer command_buffer;
@@ -257,6 +253,8 @@ typedef struct VulkanFrame {
 	VkSemaphore sem_render_finished;
 	VkFence fence_in_flight;
 } VulkanFrame;
+
+#define PIPELINE_COUNT 2
 
 typedef struct Vulkan {
 	VkInstance instance;
@@ -288,12 +286,15 @@ typedef struct Vulkan {
 	VkFramebuffer* framebuffers;
 	size_t n_swapchain_images;
 
-	VkShaderModule vertex_shader;
-	VkShaderModule fragment_shader;
+	VkPipelineShaderStageCreateInfo tile_vert;
+	VkPipelineShaderStageCreateInfo tile_frag;
+	VkPipelineShaderStageCreateInfo entity_vert;
+	VkPipelineShaderStageCreateInfo entity_frag;
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
-	VkPipeline graphics_pipeline;
+	VkPipeline pipelines[PIPELINE_COUNT];
+	VkPipelineCache pipeline_cache;
 	VkRenderPass render_pass;
 
 	VkCommandPool command_pool;
@@ -470,6 +471,7 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	return res;
 }
 
+#if 0
 function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
 	SPALL_BUFFER_BEGIN();
 
@@ -505,6 +507,7 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 
 	SPALL_BUFFER_END();
 }
+#endif
 
 function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
@@ -1611,38 +1614,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.frames = ArenaAlloc(&ctx->arena, ctx->vk.n_frames, VulkanFrame);
 	}
 
-	// CreateShaderModule
-	{
-		size_t len;
-		void* data = SDL_LoadFile("build/shaders/vert.spv", &len); SDL_CHECK(data);
-
-		VkShaderModuleCreateInfo info = {
-			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-			.codeSize = len,
-			.pCode = (uint32_t*)data,
-		};
-		VK_CHECK(vkCreateShaderModule(ctx->vk.device, &info, NULL, &ctx->vk.vertex_shader));
-
-		SDL_free(data);
-	}
-
-	// CreateShaderModule
-	{
-		size_t len;
-		void* data = SDL_LoadFile("build/shaders/frag.spv", &len); SDL_CHECK(data);
-
-		VkShaderModuleCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-			.codeSize = len,
-			.pCode = (uint32_t*)data,
-		};
-		VK_CHECK(vkCreateShaderModule(ctx->vk.device, &info, NULL, &ctx->vk.fragment_shader));
-
-		SDL_free(data);
-	}
-
 	// VulkanCreateDescriptorSetLayout
 	{
+		// TODO: Is there anything else I want to put in here? Should I have a different pipline layout for different graphics pipelines?
+
 		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
@@ -1735,130 +1710,70 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
 	}
 
-	// VulkanCreateGraphicsPipeline
+	// VulkanCreatePipelineCache
 	{
-		VkPipelineShaderStageCreateInfo vert_info = { 
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			.stage = VK_SHADER_STAGE_VERTEX_BIT,
-			.module = ctx->vk.vertex_shader,
-			.pName = "main",
+		VkPipelineCacheCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
 		};
-		
-		VkPipelineShaderStageCreateInfo frag_info = { 
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-			.module = ctx->vk.fragment_shader,
-			.pName = "main",
-		};
-		
-		VkPipelineShaderStageCreateInfo shader_stages[] = {
-			vert_info,
-			frag_info,
-		};
+		VK_CHECK(vkCreatePipelineCache(ctx->vk.device, &info, NULL, &ctx->vk.pipeline_cache));
+	}
 
+	// VulkanCreateGraphicsPipelines
+	{
 		VkDynamicState dynamic_states[] = {
 			VK_DYNAMIC_STATE_VIEWPORT,
 			VK_DYNAMIC_STATE_SCISSOR,
 		};
-
 		VkPipelineDynamicStateCreateInfo dynamic_state_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 			.dynamicStateCount = SDL_arraysize(dynamic_states),
 			.pDynamicStates = dynamic_states,
 		};
-		
-		VkVertexInputBindingDescription vertex_input_bindings[] = 
-		{
-			{
-				.binding = 0,
-				.stride = sizeof(Tile),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-			},
-			{
-				.binding = 1,
-				.stride = sizeof(EntityVertex),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-			},
-		};
-		
-		VkVertexInputAttributeDescription vertex_attributes[] = {
-			{
-				.location = 0,
-				.binding = 0,
-				.format = VK_FORMAT_R32G32_SFLOAT,
-				.offset = offsetof(Vertex, pos),
-			},
-			{
-				.location = 1,
-				.binding = 0,
-				.format = VK_FORMAT_R32G32B32A32_SFLOAT,
-				.offset = offsetof(Vertex, color),
-			},
-		};
-
-		VkPipelineVertexInputStateCreateInfo vertex_input_info = { 
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-			.vertexBindingDescriptionCount = 1,
-			.pVertexBindingDescriptions = &vertex_input_binding,
-			.vertexAttributeDescriptionCount = 1,
-			.pVertexAttributeDescriptions = vertex_attributes,
-		};
-		
-		// TODO: what does primitive restart do?
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = { 
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 			.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		};
-		
 		ctx->vk.viewport = (VkViewport){
 			.width = (float)ctx->vk.swapchain_info.imageExtent.width,
 			.height = (float)ctx->vk.swapchain_info.imageExtent.height,
 			.maxDepth = 1.0f,
 		};
-		
 		ctx->vk.scissor.extent = ctx->vk.swapchain_info.imageExtent;
-
 		VkPipelineViewportStateCreateInfo viewport_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 			.viewportCount = 1,
 			.scissorCount = 1,
 		};
-		
 		VkPipelineRasterizationStateCreateInfo rasterization_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 			.cullMode = VK_CULL_MODE_BACK_BIT,
 			.frontFace = VK_FRONT_FACE_CLOCKWISE,
 			.lineWidth = 1.0f
 		};
-		
 		VkPipelineMultisampleStateCreateInfo multisample_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
 		};
-
 		VkPipelineColorBlendAttachmentState blend_attachment_info = { 
 			.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
 		};
-
 		VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			.depthTestEnable = VK_TRUE,
 			.depthWriteEnable = VK_TRUE,
 			.depthCompareOp = VK_COMPARE_OP_LESS,
-
 		};
-
 		VkPipelineColorBlendStateCreateInfo blend_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 			.attachmentCount = 1,
 			.pAttachments = &blend_attachment_info,
 		};
-		
-		VkGraphicsPipelineCreateInfo graphics_pipeline_info = { 
+
+		VkGraphicsPipelineCreateInfo graphics_pipline_info = { 
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-			.stageCount = SDL_arraysize(shader_stages),
-			.pStages = shader_stages,
-			.pVertexInputState = &vertex_input_info,
+		#ifdef _DEBUG
+			.flags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT,
+		#endif
 			.pInputAssemblyState = &input_assembly_info,
 			.pViewportState = &viewport_info,
 			.pRasterizationState = &rasterization_info,
@@ -1869,7 +1784,89 @@ int32_t main(int32_t argc, char* argv[]) {
 			.layout = ctx->vk.pipeline_layout,
 			.renderPass = ctx->vk.render_pass,
 		};
-		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, VK_NULL_HANDLE, 1, &graphics_pipeline_info, NULL, &ctx->vk.graphics_pipeline));
+
+		// VulkanCreateGraphicsPipelineTile
+		ctx->vk.tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		ctx->vk.tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo tile_shader_stages[] = {
+			ctx->vk.tile_vert,
+			ctx->vk.tile_frag,
+		};
+		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
+		{
+			{
+				.binding = 0,
+				.stride = sizeof(Tile),
+				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE, // TODO: Figure out instance rendering.
+			},
+		};
+		VkVertexInputAttributeDescription tile_vertex_attributes[] = {
+			{
+				.location = 0,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32_SINT,
+				.offset = offsetof(Tile, src),
+			},
+			{
+				.location = 1,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32_SINT,
+				.offset = offsetof(Tile, dst),
+			},
+		};
+		VkPipelineVertexInputStateCreateInfo tile_vertex_input_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = SDL_arraysize(tile_vertex_input_bindings),
+			.pVertexBindingDescriptions = tile_vertex_input_bindings,
+			.vertexAttributeDescriptionCount = SDL_arraysize(tile_vertex_attributes),
+			.pVertexAttributeDescriptions = tile_vertex_attributes,
+		};
+		VkGraphicsPipelineCreateInfo tile_graphics_pipeline_info = graphics_pipline_info;
+		tile_graphics_pipeline_info.stageCount = SDL_arraysize(tile_shader_stages);
+		tile_graphics_pipeline_info.pStages = tile_shader_stages;
+		tile_graphics_pipeline_info.pVertexInputState = &tile_vertex_input_info;
+
+		// VulkanCreateGraphicsPipelineEntity
+		ctx->vk.entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		ctx->vk.entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo entity_shader_stages[] = {
+			ctx->vk.entity_vert,
+			ctx->vk.entity_frag,
+		};
+		VkVertexInputBindingDescription entity_vertex_input_bindings[] = 
+		{
+			{
+				.binding = 0,
+				.stride = sizeof(EntityVertex),
+				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+			},
+		};
+		VkVertexInputAttributeDescription entity_vertex_attributes[] = {
+			{
+				.location = 0,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32B32A32_SINT,
+				.offset = offsetof(EntityVertex, pos),
+			},
+		};
+		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+			.vertexBindingDescriptionCount = SDL_arraysize(entity_vertex_input_bindings),
+			.pVertexBindingDescriptions = entity_vertex_input_bindings,
+			.vertexAttributeDescriptionCount = SDL_arraysize(entity_vertex_attributes),
+			.pVertexAttributeDescriptions = entity_vertex_attributes,
+		};
+		VkGraphicsPipelineCreateInfo entity_graphics_pipeline_info = graphics_pipline_info;
+		entity_graphics_pipeline_info.stageCount = SDL_arraysize(entity_shader_stages);
+		entity_graphics_pipeline_info.pStages = entity_shader_stages;
+		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
+
+		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = {
+			tile_graphics_pipeline_info,
+			entity_graphics_pipeline_info,
+		};
+
+		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, ctx->vk.pipeline_cache, SDL_arraysize(infos), infos, NULL, ctx->vk.pipelines));
 	}
 
 	// VulkanCreateCommandPool
@@ -2101,6 +2098,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		0, 1, 3,   // first triangle
 		1, 2, 3    // second triangle
 	};
+	UNUSED(indices);
 	// VulkanCreateStagingBuffer
 	{
 		uint32_t queue_family_idx = 0;
@@ -2152,6 +2150,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	// VulkanCreateVertexBuffer
+	#if 0
 	{
 		VkDeviceSize size = 0;
 
@@ -2161,7 +2160,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->n_tiles * sizeof(Tile);
 			}
-			size += level->n_entities * sizeof(EntityVertex);
+			size += level->n_enemies * sizeof(EntityVertex);
 		}
 
 		VkBufferCreateInfo buffer_info = { 
@@ -2171,10 +2170,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 		
-		VK_CHECK(vkCreateBuffer(ctx->vk_device, &buffer_info, nullptr, &ctx->vk_vertex_buffer));
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, nullptr, &ctx->vk_vertex_buffer));
 
 		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk_device, ctx->vk_vertex_buffer, &mem_req);
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk_vertex_buffer, &mem_req);
 
 		VkMemoryAllocateInfo mem_info = { 
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -2185,8 +2184,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkAllocateMemory(ctx->vk_device, &mem_info, nullptr, &ctx->vk_vertex_buffer_memory));
 		VK_CHECK(vkBindBufferMemory(ctx->vk_device, ctx->vk_vertex_buffer, ctx->vk_vertex_buffer_memory, 0));
 	}
+	#endif
 
 	// VulkanCreateIndexBuffer
+	#if 0
 	{
 		VkBufferCreateInfo buffer_info = { 
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -2209,8 +2210,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkAllocateMemory(ctx->vk_device, &mem_info, nullptr, &ctx->vk_index_buffer_memory));
 		VK_CHECK(vkBindBufferMemory(ctx->vk_device, ctx->vk_index_buffer, ctx->vk_index_buffer_memory, 0));
 	}
-
-
+	#endif
 
 	// VulkanAllocateAndBindImageMemory
 	{
@@ -2765,7 +2765,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
 			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
 
-			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.graphics_pipeline);
+			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
+			// TODO: Draw tiles.
+
+			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
+			// TODO: Draw entities.
+
 
 		}
 

@@ -160,3 +160,24 @@ int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirem
     if (a->memoryRequirements.size < b->memoryRequirements.size) return 1;
     return -1; // this could be 1, but then the sort would be unstable
 }
+
+function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device, const char* path, VkShaderStageFlags stage) {
+    VkPipelineShaderStageCreateInfo res = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = stage,
+        .pName = "main",
+    };
+
+    size_t len;
+    void* data = SDL_LoadFile(path, &len); SDL_CHECK(data);
+
+    VkShaderModuleCreateInfo info = { 
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = len,
+        .pCode = (uint32_t*)data,
+    };
+    VK_CHECK(vkCreateShaderModule(device, &info, NULL, &res.module));
+
+    SDL_free(data);
+    return res;
+}
