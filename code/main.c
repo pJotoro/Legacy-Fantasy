@@ -2076,13 +2076,16 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	const uint32_t indices[] = {
-		0, 1, 3,   // first triangle
-		1, 2, 3    // second triangle
-	};
-	UNUSED(indices);
 	// VulkanCreateStagingBuffer
 	{
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				ctx->vk.staging_buffer_size += tile_layer->num_tiles * sizeof(Tile);
+			}
+		}
+
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -2128,7 +2131,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory);
 
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer, ctx->vk.staging_buffer_memory, 0));
+		VkDeviceSize memory_offset = 0;
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer, ctx->vk.staging_buffer_memory, memory_offset));
 	}
 
 	// VulkanCreateVertexBuffer
