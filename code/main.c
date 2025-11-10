@@ -1603,10 +1603,125 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
+	// VulkanCreateDepthStencilImage
+	{
+		VkImageCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.imageType = VK_IMAGE_TYPE_2D,
+			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
+			.extent = {.width = ctx->vk.swapchain_info.imageExtent.width, .height = ctx->vk.swapchain_info.imageExtent.height, .depth = 1 },
+			.mipLevels = 1,
+			.arrayLayers = 1,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.tiling = VK_IMAGE_TILING_OPTIMAL,
+			.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
+		VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image));
+	}
+
+	// CreateDepthStencilImageMemory
+	{
+		VkImageMemoryRequirementsInfo2 info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+			.image = ctx->vk.depth_stencil_image,
+		};
+		VkMemoryDedicatedRequirements dedicated_mem_req = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
+		};
+		VkMemoryRequirements2 mem_req = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
+			.pNext = &dedicated_mem_req,
+		};
+		vkGetImageMemoryRequirements2(ctx->vk.device, &info, &mem_req);
+
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req.memoryRequirements);		
+		VkMemoryAllocateInfo mem_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.memoryRequirements.size,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
+
+		VkBindImageMemoryInfo bind_info = {
+			.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+			.image = ctx->vk.depth_stencil_image,
+			.memory = ctx->vk.depth_stencil_image_memory,
+		};
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, 1, &bind_info));
+	}
+
+	// CreateDepthStencilImageView
+	{
+		VkImageViewCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = ctx->vk.depth_stencil_image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
+			.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .levelCount = 1, .layerCount = 1 },
+		};
+
+		VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image_view));
+	}
+
 	// VulkanAllocateFrames
 	{
 		ctx->vk.num_frames = ctx->vk.num_swapchain_images;
 		ctx->vk.frames = ArenaAlloc(&ctx->arena, ctx->vk.num_frames, VulkanFrame);
+	}
+
+	// VulkanCreateCommandPool
+	{
+		VkCommandPoolCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		};
+	
+		// TODO: Search for graphics queue family index.
+		VK_CHECK(vkCreateCommandPool(ctx->vk.device, &info, NULL, &ctx->vk.command_pool));
+	}
+
+	// VulkanAllocateCommandBuffers
+	{
+		VkCommandBufferAllocateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = ctx->vk.command_pool,
+			.commandBufferCount = (uint32_t)ctx->vk.num_frames,
+		};
+
+		VkCommandBuffer* command_buffers = SDL_malloc(ctx->vk.num_frames * sizeof(VkCommandBuffer)); SDL_CHECK(command_buffers);
+		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
+
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+			ctx->vk.frames[i].command_buffer = command_buffers[i];			
+		}
+
+		SDL_free(command_buffers);
+	}
+
+	// VulkanCreateFences
+	{
+		VkFenceCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
+		};
+
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
+		}
+	}
+
+	// VulkanCreateSemaphores
+	{
+		VkSemaphoreCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		};
+
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
+			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
+		}
 	}
 
 	// VulkanCreateDescriptorSetLayout
@@ -1703,6 +1818,28 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
+	}
+
+	// VulkanCreateFramebuffers
+	{
+		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkFramebuffer);
+		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
+			VkImageView attachments[] = {
+				ctx->vk.swapchain_image_views[i],
+				ctx->vk.depth_stencil_image_view,
+			};
+
+			VkFramebufferCreateInfo info = {
+				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+				.renderPass = ctx->vk.render_pass,
+				.attachmentCount = SDL_arraysize(attachments),
+				.pAttachments = attachments,
+				.width = ctx->vk.swapchain_info.imageExtent.width,
+				.height = ctx->vk.swapchain_info.imageExtent.height,
+				.layers = 1,
+			};
+			VK_CHECK(vkCreateFramebuffer(ctx->vk.device, &info, NULL, &ctx->vk.framebuffers[i]));
+		}
 	}
 
 	// VulkanCreatePipelineCache
@@ -1869,101 +2006,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
 	}
 
-	// VulkanCreateCommandPool
-	{
-		VkCommandPoolCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-		};
-	
-		// TODO: Search for graphics queue family index.
-		VK_CHECK(vkCreateCommandPool(ctx->vk.device, &info, NULL, &ctx->vk.command_pool));
-	}
-
-	// VulkanCreateDepthStencilImage
-	{
-		VkImageCreateInfo info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-			.imageType = VK_IMAGE_TYPE_2D,
-			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
-			.extent = {.width = ctx->vk.swapchain_info.imageExtent.width, .height = ctx->vk.swapchain_info.imageExtent.height, .depth = 1 },
-			.mipLevels = 1,
-			.arrayLayers = 1,
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.tiling = VK_IMAGE_TILING_OPTIMAL,
-			.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		};
-		VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image));
-	}
-
-	// CreateDepthStencilImageMemory
-	{
-		VkImageMemoryRequirementsInfo2 info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
-			.image = ctx->vk.depth_stencil_image,
-		};
-		VkMemoryDedicatedRequirements dedicated_mem_req = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
-		};
-		VkMemoryRequirements2 mem_req = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
-			.pNext = &dedicated_mem_req,
-		};
-		vkGetImageMemoryRequirements2(ctx->vk.device, &info, &mem_req);
-
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req.memoryRequirements);		
-		VkMemoryAllocateInfo mem_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.memoryRequirements.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.depth_stencil_image_memory));
-
-		VkBindImageMemoryInfo bind_info = {
-			.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-			.image = ctx->vk.depth_stencil_image,
-			.memory = ctx->vk.depth_stencil_image_memory,
-		};
-		VK_CHECK(vkBindImageMemory2(ctx->vk.device, 1, &bind_info));
-	}
-
-	// CreateDepthStencilImageView
-	{
-		VkImageViewCreateInfo info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			.image = ctx->vk.depth_stencil_image,
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
-			.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .levelCount = 1, .layerCount = 1 },
-		};
-
-		VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image_view));
-	}
-
-	// VulkanCreateFramebuffers
-	{
-		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkFramebuffer);
-		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
-			VkImageView attachments[] = {
-				ctx->vk.swapchain_image_views[i],
-				ctx->vk.depth_stencil_image_view,
-			};
-
-			VkFramebufferCreateInfo info = {
-				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-				.renderPass = ctx->vk.render_pass,
-				.attachmentCount = SDL_arraysize(attachments),
-				.pAttachments = attachments,
-				.width = ctx->vk.swapchain_info.imageExtent.width,
-				.height = ctx->vk.swapchain_info.imageExtent.height,
-				.layers = 1,
-			};
-			VK_CHECK(vkCreateFramebuffer(ctx->vk.device, &info, NULL, &ctx->vk.framebuffers[i]));
-		}
-	}
-
 	// VulkanCreateSampler
 	{
 		VkSamplerCreateInfo info = { 
@@ -2010,48 +2052,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
-	}
-
-	// VulkanAllocateCommandBuffers
-	{
-		VkCommandBufferAllocateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.commandPool = ctx->vk.command_pool,
-			.commandBufferCount = (uint32_t)ctx->vk.num_frames,
-		};
-
-		VkCommandBuffer* command_buffers = SDL_malloc(ctx->vk.num_frames * sizeof(VkCommandBuffer)); SDL_CHECK(command_buffers);
-		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
-
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
-			ctx->vk.frames[i].command_buffer = command_buffers[i];			
-		}
-
-		SDL_free(command_buffers);
-	}
-
-	// VulkanCreateSemaphores
-	{
-		VkSemaphoreCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-		};
-
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
-			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
-			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
-		}
-	}
-
-	// VulkanCreateFences
-	{
-		VkFenceCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
-		};
-
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
-			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
-		}
 	}
 	
 	// LoadSprites
