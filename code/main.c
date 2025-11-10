@@ -320,7 +320,7 @@ typedef struct Vulkan {
 function uint32_t VulkanGetMemoryTypeIdxWithProperties(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
 	uint32_t memory_type_idx;
 	bool found_memory_type_idx = false;
-	for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; ++memory_type_idx) {
+	for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; memory_type_idx += 1) {
 	    if ((mem_req->memoryTypeBits & (1 << memory_type_idx)) && (vk->physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & properties)) {
 	    	found_memory_type_idx = true;
 	        break;
@@ -415,7 +415,7 @@ function void ResetGame(Context* ctx) {
 	SPALL_BUFFER_BEGIN();
 
 	ctx->level_idx = 0;
-	for (size_t level_idx = 0; level_idx < ctx->num_levels; ++level_idx) {
+	for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 		Level* level = &ctx->levels[level_idx];
 		{
 			Entity* player = &level->player;
@@ -426,7 +426,7 @@ function void ResetGame(Context* ctx) {
 			ResetAnim(&player->anim);
 			SetSprite(player, player_idle);
 		}
-		for (size_t enemy_idx = 0; enemy_idx < level->num_enemies; ++enemy_idx) {
+		for (size_t enemy_idx = 0; enemy_idx < level->num_enemies; enemy_idx += 1) {
 			Entity* enemy = &level->enemies[enemy_idx];
 			enemy->state = EntityState_Free;
 			enemy->pos = enemy->start_pos;
@@ -449,7 +449,7 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 	// Find origin
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SpriteFrame* frame = &sd->frames[0];
-	for (size_t cell_idx = 0; cell_idx < frame->num_cells; ++cell_idx) {
+	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (cell->type == SpriteCellType_Origin) {
 			res = cell->offset;
@@ -474,7 +474,7 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
-	for (size_t cell_idx = 0; cell_idx < sf->num_cells; ++cell_idx) {
+	for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
 		SpriteCell* cell = &sf->cells[cell_idx];
 
 		// if (cell->texture) {
@@ -521,7 +521,7 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->num_frames);
 	SpriteFrame* frame = &sd->frames[frame_idx];
-	for (size_t cell_idx = 0; cell_idx < frame->num_cells; ++cell_idx) {
+	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
 		SpriteCell* cell = &frame->cells[cell_idx];
 		if (cell->type == SpriteCellType_Hitbox) {
 			if (dir == 1) {
@@ -540,8 +540,8 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 			}
 
 			// HACK
-			--hitbox->max.x;
-			--hitbox->max.y;
+			hitbox->max.x -= 1;
+			hitbox->max.y -= 1;
 
 			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
 			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
@@ -572,7 +572,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
             if (anim->frame_idx >= (int32_t)num_frames) {
                 if (loop) anim->frame_idx = 0;
                 else {
-                    --anim->frame_idx;
+                    anim->frame_idx -= 1;
                     anim->ended = true;
                 }
             }
@@ -597,7 +597,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
 		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
 
-		for (size_t file_idx = 0; file_idx < (size_t)num_files; ++file_idx) {
+		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
 			char* file = files[file_idx];
 
 			char sprite_path[2048];
@@ -645,7 +645,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
 
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					ASE_Frame frame;
 					SDL_ReadStructChecked(fs, &frame);
 					SDL_assert(frame.magic_number == 0xF1FA);
@@ -653,7 +653,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 					// Would mean this aseprite file is very old.
 					SDL_assert(frame.num_chunks != 0);
 
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; ++chunk_idx) {
+					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 						ASE_ChunkHeader chunk_header;
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -674,7 +674,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 				}
 				sd->layers = ArenaAlloc(&ctx->arena, sd->num_layers, SpriteLayer);
 				
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					if (sd->frames[frame_idx].num_cells > 0) {
 						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
 					}
@@ -684,7 +684,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 				SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
 				layer_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					ASE_Frame frame;
 					SDL_ReadStructChecked(fs, &frame);
 					SDL_assert(frame.magic_number == 0xF1FA);
@@ -692,7 +692,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 					// Would mean this aseprite file is very old.
 					SDL_assert(frame.num_chunks != 0);
 
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; ++chunk_idx) {
+					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 						ASE_ChunkHeader chunk_header;
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -717,7 +717,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 				SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
 				layer_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					size_t cell_idx = 0;
 					ASE_Frame frame;
 					SDL_ReadStructChecked(fs, &frame);
@@ -728,7 +728,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 					sd->frames[frame_idx].dur = ((double)frame.frame_dur)/1000.0;
 
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; ++chunk_idx) {
+					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 						ASE_ChunkHeader chunk_header;
 						SDL_ReadStructChecked(fs, &chunk_header);
 						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
@@ -857,7 +857,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 						case ASE_ChunkType_Tags: {
 							ASE_TagsChunk* chunk = raw_chunk;
 							ASE_Tag* tags = (ASE_Tag*)(chunk+1);
-							for (size_t tag_idx = 0; tag_idx < (size_t)chunk->num_tags; ++tag_idx) {
+							for (size_t tag_idx = 0; tag_idx < (size_t)chunk->num_tags; tag_idx += 1) {
 								ASE_Tag* tag = &tags[tag_idx]; UNUSED(tag);
 							}
 						} break;
@@ -921,11 +921,11 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; --frame_idx) {
+		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
 		if (!res && entity->anim.frame_idx == 0) {
-			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; ++frame_idx) {
+			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) {
 				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
 		}
@@ -967,7 +967,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
 			if (IsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
@@ -977,7 +977,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
 			if (IsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
@@ -990,7 +990,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
 			if (IsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				vertical_collision_happened = true;
@@ -1000,7 +1000,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	} else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
 			if (IsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
@@ -1021,10 +1021,10 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
 		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
-		++grid_pos.y) {
+		grid_pos.y += 1) {
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; 
 			(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE;
-			 ++grid_pos.x) {
+			 grid_pos.x += 1) {
 			if (IsSolid(level, grid_pos)) {
 				Rect tile_rect;
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
@@ -1132,7 +1132,7 @@ function void UpdatePlayer(Context* ctx) {
 		SetSprite(player, player_attack);
 
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-		for (size_t enemy_idx = 0; enemy_idx < num_enemies; ++enemy_idx) {
+		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
 			Entity* enemy = &enemies[enemy_idx];
 			if (EntitiesIntersect(ctx, player, enemy)) {
 				switch (enemy->type) {
@@ -1522,7 +1522,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDeviceQueueCreateInfo* queue_infos = SDL_malloc(ctx->vk.num_queue_family_properties * sizeof(VkDeviceQueueCreateInfo)); SDL_CHECK(queue_infos);
 		size_t num_queue_infos = 0;
 		size_t num_queues = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; ++queue_family_idx) {
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
 			if (ctx->vk.queue_family_properties[queue_family_idx].queueCount == 0) continue;
 			queue_infos[num_queue_infos] = (VkDeviceQueueCreateInfo){
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -1547,8 +1547,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		ctx->vk.queues = ArenaAlloc(&ctx->arena, num_queues, VkQueue);
 		size_t queue_array_idx = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; ++queue_family_idx) {
-			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; ++queue_idx) {
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
+			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; queue_idx += 1) {
 				vkGetDeviceQueue(ctx->vk.device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk.queues[queue_array_idx]);
 				++queue_array_idx;
 			}
@@ -1591,7 +1591,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// VulkanCreateSwapchainImageView
 	{
 		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkImageView);
-		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.num_swapchain_images; ++swapchain_image_idx) {
+		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.num_swapchain_images; swapchain_image_idx += 1) {
 			VkImageViewCreateInfo info = { 
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 				.image = ctx->vk.swapchain_images[swapchain_image_idx],
@@ -1945,7 +1945,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// VulkanCreateFramebuffers
 	{
 		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkFramebuffer);
-		for (size_t i = 0; i < ctx->vk.num_swapchain_images; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
 			VkImageView attachments[] = {
 				ctx->vk.swapchain_image_views[i],
 				ctx->vk.depth_stencil_image_view,
@@ -2023,7 +2023,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkCommandBuffer* command_buffers = SDL_malloc(ctx->vk.num_frames * sizeof(VkCommandBuffer)); SDL_CHECK(command_buffers);
 		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
 
-		for (size_t i = 0; i < ctx->vk.num_frames; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
 			ctx->vk.frames[i].command_buffer = command_buffers[i];			
 		}
 
@@ -2036,7 +2036,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
 
-		for (size_t i = 0; i < ctx->vk.num_frames; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
 		}
@@ -2049,7 +2049,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
 		};
 
-		for (size_t i = 0; i < ctx->vk.num_frames; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
 			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
 		}
 	}
@@ -2063,10 +2063,10 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("SortSprites");
 
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
 			if (sd) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
 					SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 				}
@@ -2109,12 +2109,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		void* data;
 		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory, 0, mem_info.allocationSize, 0, &data));
 		uint8_t* cur = data;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
 			if (sd->path) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
-					for (size_t cell_idx = 0; cell_idx < sf->num_cells; ++cell_idx) {
+					for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
 						SpriteCell* cell = &sf->cells[cell_idx];
 						if (cell->type == SpriteCellType_Sprite) {
 							SDL_assert(cell->buf);
@@ -2136,9 +2136,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		VkDeviceSize size = 0;
 
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; ++level_idx) {
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; ++tile_layer_idx) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->num_tiles * sizeof(Tile);
 			}
@@ -2198,18 +2198,18 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		VkImageMemoryRequirements* mem_req = SDL_calloc(ctx->vk.num_images, sizeof(VkImageMemoryRequirements)); SDL_CHECK(mem_req);
 		size_t i = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
 			if (sd->path) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
-					for (size_t cell_idx = 0; cell_idx < sf->num_cells; ++cell_idx) {
+					for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
 						SpriteCell* cell = &sf->cells[cell_idx];
 						if (cell->type == SpriteCellType_Sprite) {
 							mem_req[i].image = cell->vk_image;
 							SDL_assert(mem_req[i].image);
 							vkGetImageMemoryRequirements(ctx->vk.device, mem_req[i].image, &mem_req[i].memoryRequirements);
-							++i;
+							i += 1;
 						}
 					}
 				}
@@ -2229,7 +2229,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->vk.num_images, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
 
-		for (size_t i = 0; i < ctx->vk.num_images; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
 			allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_req[i].memoryRequirements.alignment);
 			bind_infos[i] = (VkBindImageMemoryInfo){
 				.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
@@ -2240,7 +2240,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
-		for (size_t i = 0; i < ctx->vk.num_images; ++i) {
+		for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
 			bind_infos[i].memory = ctx->vk.image_memory;
 		}
 		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->vk.num_images, bind_infos));
@@ -2324,10 +2324,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; ++tile_layer_idx) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
 				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-				for (size_t i = 0; i < tile_layer->num_tiles; ++i) {
+				for (size_t i = 0; i < tile_layer->num_tiles; i += 1) {
 					tile_layer->tiles[i].src.x = -1;
 					tile_layer->tiles[i].src.x = -1;
 					tile_layer->tiles[i].dst.x = -1;
@@ -2581,7 +2581,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 					UpdatePlayer(ctx);
 					size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-					for (size_t enemy_idx = 0; enemy_idx < num_enemies; ++enemy_idx) {
+					for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
 						Entity* enemy = &enemies[enemy_idx];
 						if (enemy->type == EntityType_Boar) {
 							UpdateBoar(ctx, enemy);
@@ -2644,12 +2644,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; ++sprite_idx) {
+			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 				SpriteDesc* sd = &ctx->sprites[sprite_idx];
 				if (sd->path) {
-					for (size_t frame_idx = 0; frame_idx < sd->num_frames; ++frame_idx) {
+					for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 						SpriteFrame* sf = &sd->frames[frame_idx];
-						for (size_t cell_idx = 0; cell_idx < sf->num_cells; ++cell_idx) {
+						for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
 							SpriteCell* cell = &sf->cells[cell_idx];
 							if (cell->type == SpriteCellType_Sprite) {
 								if (!ctx->vk.staged) {
@@ -2829,7 +2829,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
 
 			size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-			for (size_t enemy_idx = 0; enemy_idx < num_enemies; ++enemy_idx) {
+			for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
 				Entity* enemy = &enemies[enemy_idx];
 				DrawEntity(ctx, enemy);
 			}
@@ -2856,11 +2856,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_FRect* tiles_to_draw = ArenaAlloc(&ctx->temp, level->size.x*level->size.y/TILE_SIZE, SDL_FRect);
 			size_t num_tiles_to_draw = 0;
 
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; ++tile_layer_idx) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				size_t num_tiles;
 				Tile* tiles = GetLayerTiles(level, tile_layer_idx, &num_tiles);
 				
-				for (size_t i = 0; i < num_tiles; ++i) {
+				for (size_t i = 0; i < num_tiles; i += 1) {
 					if (!TileIsValid(tiles[i])) continue;
 
 					tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect){
@@ -2871,7 +2871,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					};
 
 					size_t j;
-					for (j = i + 1; j < num_tiles; ++j) {
+					for (j = i + 1; j < num_tiles; j += 1) {
 						SDL_assert(TileIsValid(tiles[j]));				
 						if (tiles[j].src.x != tiles[i].src.x || tiles[j].src.y != tiles[i].src.y) break;
 						tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect){
@@ -2922,7 +2922,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			Level* level = &ctx->levels[0]; // TODO
 			ivec2s dst = {0, 0};
-			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; ++i) {
+			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; i += 1) {
 				if (level->tiles[i]) {
 					SDL_FRect rect = {
 						(float)dst.x,
