@@ -2744,8 +2744,24 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// Draw
 		{
-			vkCmdSetViewport(cb, 0, 1, &ctx->vk.viewport);
-			vkCmdSetScissor(cb, 0, 1, &ctx->vk.scissor);
+			{
+				uint32_t first_viewport = 0;
+				uint32_t n_viewports = 1;
+				vkCmdSetViewport(cb, first_viewport, n_viewports, &ctx->vk.viewport);
+			}
+			{
+				uint32_t first_scissor = 0;
+				uint32_t n_scissors = 1;
+				vkCmdSetScissor(cb, first_scissor, n_scissors, &ctx->vk.scissor);
+			}
+			{
+				uint32_t first_set = 0;
+				uint32_t n_descriptor_sets = 1;
+				uint32_t n_dynamic_offsets = 0;
+				const uint32_t* dynamic_offsets = NULL;
+				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, first_set, n_descriptor_sets, &ctx->vk.descriptor_set, n_dynamic_offsets, dynamic_offsets);
+			}
+
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
 			// TODO: Draw tiles.
