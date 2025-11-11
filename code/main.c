@@ -2139,189 +2139,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanCreateStagingBuffer
-	{
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
-				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				ctx->vk.staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
-			}
-		}
-
-		uint32_t queue_family_idx = 0;
-		VkBufferCreateInfo buffer_info = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.staging_buffer.size,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-
-			// TODO
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &queue_family_idx,
-		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer.handle));
-
-		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer.handle, &mem_req);
-
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VkMemoryAllocateInfo mem_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer.memory));
-
-		void* staging_buffer_stream_ptr;
-		size_t staging_buffer_stream_size;
-		{
-			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.staging_buffer_stream); SDL_CHECK(props);
-			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_MEMORY_POINTER, NULL);
-			SDL_assert(staging_buffer_stream_ptr); 
-			staging_buffer_stream_size = (size_t)SDL_GetNumberProperty(props, SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER, 0);
-			SDL_assert(staging_buffer_stream_size);
-			SDL_DestroyProperties(props);
-		}
-
-		void* data;
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
-		uint8_t* cur = data;
-		SDL_memcpy(cur, staging_buffer_stream_ptr, staging_buffer_stream_size);
-		cur += staging_buffer_stream_size;
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
-				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				SDL_memcpy(cur, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
-				cur += sizeof(Tile)*tile_layer->num_tiles;
-			}
-		}
-		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory);
-
-		SDL_CHECK(SDL_CloseIO(ctx->vk.staging_buffer_stream));
-
-		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer.handle, ctx->vk.staging_buffer.memory, memory_offset));
-	}
-
-	// VulkanAllocateAndBindImageMemory
-	{
-		// TODO: Uncomment this. It's not technically necessary, but it may lead to less memory getting allocated.
-		// The reason I commented it out is because it causes a segmentation fault.
-		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
-
-		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
-		VkImage* images = VulkanGetSpriteCellsImages(ctx);
-		VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0]);
-		VkMemoryAllocateInfo allocate_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
-
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-			allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
-			bind_infos[i] = (VkBindImageMemoryInfo){
-				.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-				.image = images[i],
-				.memoryOffset = allocate_info.allocationSize,
-			};
-			allocate_info.allocationSize += mem_reqs[i].size;
-		}
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
-
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-			bind_infos[i].memory = ctx->vk.image_memory;
-		}
-		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
-
-		// VulkanCreateImageMemoryBarriers
-		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
-		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
-		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, VkImageMemoryBarrier);
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-			VkImageSubresourceRange subresource_range = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.baseMipLevel = 0,
-				.levelCount = 1,
-				.baseArrayLayer = 0,
-				.layerCount = 1,
-			};
-
-			ctx->vk.image_memory_barriers_before[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
-
-			ctx->vk.image_memory_barriers_after[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
-
-			ctx->vk.image_memory_barriers[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
-		}
-
-		SDL_free(bind_infos);
-		SDL_free(mem_reqs);
-		SDL_free(images);
-	}
-
-	// VulkanCreateVertexBufferStagingBuffer
-	{
-		ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity); // the player
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity)*level->num_enemies;
-		}
-
-		uint32_t queue_family_idx = 0;
-		VkBufferCreateInfo buffer_info = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.vertex_buffer_staging_buffer.size,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-
-			// TODO
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &queue_family_idx,
-		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.handle));
-
-		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, &mem_req);
-
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VkMemoryAllocateInfo mem_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.memory));
-
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.memory, 0, mem_info.allocationSize, 0, &ctx->vk.vertex_buffer_staging_buffer.mapped));
-
-		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer_staging_buffer.memory, memory_offset));
-	}
-
 	// LoadLevels
 	{
 		SPALL_BUFFER_BEGIN_NAME("LoadLevels");
@@ -2505,6 +2322,189 @@ int32_t main(int32_t argc, char* argv[]) {
 		cJSON_Delete(head);
 
 		SPALL_BUFFER_END();
+	}
+
+	// VulkanCreateStagingBuffer
+	{
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				ctx->vk.staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
+			}
+		}
+
+		uint32_t queue_family_idx = 0;
+		VkBufferCreateInfo buffer_info = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.size = ctx->vk.staging_buffer.size,
+			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+
+			// TODO
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &queue_family_idx,
+		};
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer.handle));
+
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer.handle, &mem_req);
+
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VkMemoryAllocateInfo mem_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer.memory));
+
+		void* staging_buffer_stream_ptr;
+		size_t staging_buffer_stream_size;
+		{
+			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.staging_buffer_stream); SDL_CHECK(props);
+			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_MEMORY_POINTER, NULL);
+			SDL_assert(staging_buffer_stream_ptr); 
+			staging_buffer_stream_size = (size_t)SDL_GetNumberProperty(props, SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER, 0);
+			SDL_assert(staging_buffer_stream_size);
+			SDL_DestroyProperties(props);
+		}
+
+		void* data;
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
+		uint8_t* cur = data;
+		SDL_memcpy(cur, staging_buffer_stream_ptr, staging_buffer_stream_size);
+		cur += staging_buffer_stream_size;
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				SDL_memcpy(cur, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
+				cur += sizeof(Tile)*tile_layer->num_tiles;
+			}
+		}
+		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory);
+
+		SDL_CHECK(SDL_CloseIO(ctx->vk.staging_buffer_stream));
+
+		VkDeviceSize memory_offset = 0;
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer.handle, ctx->vk.staging_buffer.memory, memory_offset));
+	}
+
+	// VulkanAllocateAndBindImageMemory
+	{
+		// TODO: Uncomment this. It's not technically necessary, but it may lead to less memory getting allocated.
+		// The reason I commented it out is because it causes a segmentation fault.
+		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
+
+		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
+		VkImage* images = VulkanGetSpriteCellsImages(ctx);
+		VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0]);
+		VkMemoryAllocateInfo allocate_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
+
+		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+			allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
+			bind_infos[i] = (VkBindImageMemoryInfo){
+				.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+				.image = images[i],
+				.memoryOffset = allocate_info.allocationSize,
+			};
+			allocate_info.allocationSize += mem_reqs[i].size;
+		}
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
+
+		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+			bind_infos[i].memory = ctx->vk.image_memory;
+		}
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
+
+		// VulkanCreateImageMemoryBarriers
+		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
+		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
+		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, VkImageMemoryBarrier);
+		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+			VkImageSubresourceRange subresource_range = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			};
+
+			ctx->vk.image_memory_barriers_before[i] = (VkImageMemoryBarrier){
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = 0,
+				.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.image = images[i],
+				.subresourceRange = subresource_range,
+			};
+
+			ctx->vk.image_memory_barriers_after[i] = (VkImageMemoryBarrier){
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.image = images[i],
+				.subresourceRange = subresource_range,
+			};
+
+			ctx->vk.image_memory_barriers[i] = (VkImageMemoryBarrier){
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = 0,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.image = images[i],
+				.subresourceRange = subresource_range,
+			};
+		}
+
+		SDL_free(bind_infos);
+		SDL_free(mem_reqs);
+		SDL_free(images);
+	}
+
+	// VulkanCreateVertexBufferStagingBuffer
+	{
+		ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity); // the player
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+			Level* level = &ctx->levels[level_idx];
+			ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity)*level->num_enemies;
+		}
+
+		uint32_t queue_family_idx = 0;
+		VkBufferCreateInfo buffer_info = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.size = ctx->vk.vertex_buffer_staging_buffer.size,
+			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+
+			// TODO
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &queue_family_idx,
+		};
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.handle));
+
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, &mem_req);
+
+		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VkMemoryAllocateInfo mem_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = memory_type_idx,
+		};
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.memory));
+
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.memory, 0, mem_info.allocationSize, 0, &ctx->vk.vertex_buffer_staging_buffer.mapped));
+
+		VkDeviceSize memory_offset = 0;
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer_staging_buffer.memory, memory_offset));
 	}
 
 	// InitReplayFrames
