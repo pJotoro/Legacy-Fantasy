@@ -181,38 +181,3 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     SDL_free(data);
     return res;
 }
-
-function void Deduplicate(void* buf, size_t num_elements, size_t element_size) {
-    SDL_assert(buf && num_elements > 0 && element_size > 0);
-    void* buf2 = SDL_malloc(num_elements * element_size); SDL_CHECK(buf2);
-#ifdef _DEBUG
-    SDL_memset(buf2, 0xcd, num_elements * element_size);
-#endif
-
-    // just for convenience
-    uint8_t* bytes = buf;
-    uint8_t* bytes2 = buf2;
-    bool swap = false;
-
-    for (size_t i = 0; i < num_elements; i += 1) {
-        SDL_memcpy(&bytes2[i*element_size], &bytes[i*element_size], element_size);
-        for (size_t j = i + 1; j < num_elements; j += 1) {
-            if (SDL_memcmp(&bytes[i*element_size], &bytes[j*element_size], element_size) != 0) {
-                SDL_memcpy(&bytes2[j*element_size], &bytes[j*element_size], element_size);
-            }
-        }
-        swap = !swap;
-        if (swap) {
-            bytes = buf2;
-            bytes2 = buf;
-        } else {
-            bytes = buf;
-            bytes2 = buf2;
-        }
-    }
-
-    if (swap) {
-        SDL_memcpy(buf, buf2, num_elements * element_size);
-    }
-    SDL_free(buf2);
-}

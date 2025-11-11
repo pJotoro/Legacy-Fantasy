@@ -255,6 +255,12 @@ typedef struct VulkanFrame {
 
 #define PIPELINE_COUNT 2
 
+typedef struct VulkanBuffer {
+	VkBuffer handle;
+	VkDeviceSize size;
+	VkDeviceMemory memory;
+} VulkanBuffer;
+
 typedef struct Vulkan {
 	VkInstance instance;
 
@@ -290,8 +296,11 @@ typedef struct Vulkan {
 	VkPipeline pipelines[PIPELINE_COUNT];
 	VkPipelineCache pipeline_cache;
 	VkRenderPass render_pass;
+	VkSampler sampler;
 
 	VkCommandPool command_pool;
+
+	VkDescriptorPool descriptor_pool;
 	VkDescriptorSet descriptor_set;
 
 	VkViewport viewport;
@@ -300,30 +309,18 @@ typedef struct Vulkan {
 	VkImage depth_stencil_image;
 	VkDeviceMemory depth_stencil_image_memory;
 	VkImageView depth_stencil_image_view;
-
-	VkSampler sampler;
-
-	VkDescriptorPool descriptor_pool;
 	
 	VulkanFrame* frames; size_t num_frames;
 	size_t current_frame;
 
-	VkBuffer staging_buffer; 
-	VkDeviceSize staging_buffer_size;
-	VkDeviceMemory staging_buffer_memory;
-
-	VkBuffer vertex_buffer;
-	VkDeviceSize vertex_buffer_size;
-	VkDeviceMemory vertex_buffer_memory;
-
-	VkBuffer index_buffer;
-	VkDeviceSize index_buffer_size;
-	VkDeviceMemory index_buffer_memory;
-
-	size_t num_images;
-	bool staged;
+	VulkanBuffer staging_buffer; // invalid after first frame
+	VulkanBuffer vertex_buffer;
+	VulkanBuffer vertex_buffer_staging_buffer;
 
 	VkDeviceMemory image_memory;
+	size_t num_images;
+
+	bool staged;
 } Vulkan;
 
 function uint32_t VulkanGetMemoryTypeIdxWithProperties(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
@@ -788,7 +785,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 
 										// VulkanIncrementStagingBufferSize
 										{
-											ctx->vk.staging_buffer_size += (VkDeviceSize)dst_buf_size;
+											ctx->vk.staging_buffer.size += (VkDeviceSize)dst_buf_size;
 											++ctx->vk.num_images;
 										}
 
@@ -1357,40 +1354,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 #endif
 
-	// UnitTestDeduplicate
-	{
-		Tile tiles[] = {
-			{{20, 30}, {100, 200}},
-			{{10, 6}, {1010101, 200}},
-			{{9, 30}, {100, 200}},
-			{{10, 6}, {1010101, 200}},
-			{{20, 30}, {100, 200}},
-			{{20, 30}, {100, 200}},
-			{{200, 30}, {234532, 200}},
-			{{9, 30}, {100, 200}},
-			{{20, 30}, {100, 200}},
-			{{20, 1}, {100, 200}},
-			{{10, 6}, {1010101, 200}},
-			{{20, 30}, {100, 200}},
-			{{200, 30}, {234532, 200}},
-			{{9, 30}, {100, 200}},
-			{{20, 4}, {100, 200}},
-			{{20, 30}, {100, 200}},
-		};
-
-		Tile answer[] = {
-			{{20, 30}, {100, 200}},
-			{{10, 6}, {1010101, 200}},
-			{{9, 30}, {100, 200}},
-			{{200, 30}, {234532, 200}},
-			{{20, 1}, {100, 200}},
-			{{20, 4}, {100, 200}},
-		};
-
-		Deduplicate(tiles, SDL_arraysize(tiles), sizeof(Tile));
-		SDL_assert(SDL_memcmp(tiles, answer, SDL_arraysize(answer) * sizeof(Tile)) == 0);
-	}
-
 	// CreateWindow
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
@@ -1542,9 +1505,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		uint32_t count;
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, NULL));
-		ctx->vk.surface_formats = ArenaAlloc(&ctx->arena, count, VkSurfaceFormatKHR);
+		ctx->vk.num_surface_formats = (size_t)count;
+		ctx->vk.surface_formats = ArenaAlloc(&ctx->arena, ctx->vk.num_surface_formats, VkSurfaceFormatKHR);
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, ctx->vk.surface_formats));
-		ctx->vk.num_surface_formats = (size_t)ctx->vk.surface_formats;
 	}
 
 	// VulkanCreateDeviceAndGetDeviceQueues
@@ -1573,7 +1536,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				.queueCount = ctx->vk.queue_family_properties[queue_family_idx].queueCount,
 				.pQueuePriorities = g_queue_priorities,
 			};
-			++num_queue_infos;
+			num_queue_infos += 1;
 			num_queues += (size_t)ctx->vk.queue_family_properties[queue_family_idx].queueCount;
 		}
 
@@ -2205,24 +2168,24 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				ctx->vk.staging_buffer_size += tile_layer->num_tiles * sizeof(Tile);
+				ctx->vk.staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 			}
 		}
 
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.staging_buffer_size,
+			.size = ctx->vk.staging_buffer.size,
 			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
 			// TODO
 			.queueFamilyIndexCount = 1,
 			.pQueueFamilyIndices = &queue_family_idx,
 		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer));
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer.handle));
 
 		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer, &mem_req);
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer.handle, &mem_req);
 
 		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkMemoryAllocateInfo mem_info = {
@@ -2230,10 +2193,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			.allocationSize = mem_req.size,
 			.memoryTypeIndex = memory_type_idx,
 		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer_memory));
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer.memory));
 
 		void* data;
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory, 0, mem_info.allocationSize, 0, &data));
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
 		uint8_t* cur = data;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
@@ -2252,10 +2215,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 		}
-		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer_memory);
+		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory);
 
 		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer, ctx->vk.staging_buffer_memory, memory_offset));
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer.handle, ctx->vk.staging_buffer.memory, memory_offset));
 	}
 
 	// VulkanAllocateAndBindImageMemory
@@ -2742,7 +2705,7 @@ int32_t main(int32_t argc, char* argv[]) {
 										.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 										.imageExtent = {(uint32_t)cell->size.x, (uint32_t)cell->size.y, 1},
 									};
-									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 									VkImageMemoryBarrier barrier_after = {
 										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
