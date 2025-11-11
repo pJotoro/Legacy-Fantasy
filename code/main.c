@@ -137,12 +137,11 @@ typedef struct SpriteCell {
 	uint32_t frame_idx;
 	int32_t z_idx;
 	SpriteCellType type;
-
-	// NOTE: This gets freed after getting copied to vk_image.
 	void* buf; // buf_size = sizeof(uint32_t)*size.x*size.y
 	
 	VkImage vk_image;
-	VkImageView vk_image_view;
+	// VkImageView vk_image_view;
+	VkMemoryRequirements vk_mem_req;
 } SpriteCell;
 
 typedef struct SpriteFrame {
@@ -314,12 +313,19 @@ typedef struct Vulkan {
 	VulkanFrame* frames; size_t num_frames;
 	size_t current_frame;
 
-	VulkanBuffer staging_buffer; // invalid after first frame
+	// invalid after startup
+	VulkanBuffer staging_buffer;
+
 	VulkanBuffer vertex_buffer;
 	VulkanBuffer vertex_buffer_staging_buffer;
 
 	VkDeviceMemory image_memory;
-	size_t num_images;
+
+	// invalid after startup
+	VkImageMemoryBarrier* image_memory_barriers_before;
+	VkImageMemoryBarrier* image_memory_barriers_after;
+	
+	VkImageMemoryBarrier* image_memory_barriers;
 
 	bool staged;
 } Vulkan;
@@ -376,6 +382,13 @@ typedef struct Context {
 	bool running;
 
 	SpriteDesc sprites[MAX_SPRITES];
+	
+	// NOTE: We don't *technically* need this.
+	// We *could* just loop through the SpriteDesc structs every single time.
+	// It's just super annoying. So instead, we just fetch it all once into
+	// this array and then access it here for convenience. It doesn't contain
+	// all the sprite cells, but only the ones with the flag SpriteCellType_Sprite.
+	SpriteCell* sprite_cells; size_t num_sprite_cells;
 
 	ReplayFrame* replay_frames; 
 	size_t replay_frame_idx; 
@@ -783,12 +796,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 										SPALL_BUFFER_END();
 										SDL_assert(res > 0);
 										cell.buf = dst_buf;
-
-										// VulkanIncrementStagingBufferSize
-										{
-											ctx->vk.staging_buffer.size += (VkDeviceSize)dst_buf_size;
-											++ctx->vk.num_images;
-										}
+										ctx->vk.staging_buffer.size += (VkDeviceSize)dst_buf_size;
 
 										uint32_t queue_family_idx = 0;
 										VkImageCreateInfo image_info = {
@@ -806,6 +814,8 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 											.pQueueFamilyIndices = &queue_family_idx,
 										};
 										VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
+										vkGetImageMemoryRequirements(ctx->vk.device, cell.vk_image, &cell.vk_mem_req);
+										ctx->num_sprite_cells += 1;
 
 										// VkImageViewCreateInfo image_view_info = {
 										// 	.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -2066,7 +2076,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 	}
 
-	// SortSprites
+	// SortSpriteCells
 	{
 		SPALL_BUFFER_BEGIN_NAME("SortSprites");
 
@@ -2081,6 +2091,27 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		SPALL_BUFFER_END();
+	}
+
+	// GetSpriteCells
+	{
+		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
+		size_t i = 0;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
+			if (sd) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+					SpriteFrame* sf = &sd->frames[frame_idx];
+					for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
+						SpriteCell* cell = &sf->cells[cell_idx];
+						if (cell->type == SpriteCellType_Sprite) {
+							ctx->sprite_cells[i++] = *cell;
+						}
+					}
+				}
+			}
+		}
+		SDL_assert(i == ctx->num_sprite_cells);
 	}
 
 	// VulkanCreateStagingBuffer
@@ -2152,27 +2183,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanAllocateAndBindImageMemory
 	{
-		VkImageMemoryRequirements* mem_req = SDL_calloc(ctx->vk.num_images, sizeof(VkImageMemoryRequirements)); SDL_CHECK(mem_req);
-		size_t i = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-			SpriteDesc* sd = &ctx->sprites[sprite_idx];
-			if (sd->path) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					SpriteFrame* sf = &sd->frames[frame_idx];
-					for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
-						SpriteCell* cell = &sf->cells[cell_idx];
-						if (cell->type == SpriteCellType_Sprite) {
-							mem_req[i].image = cell->vk_image;
-							SDL_assert(mem_req[i].image);
-							vkGetImageMemoryRequirements(ctx->vk.device, mem_req[i].image, &mem_req[i].memoryRequirements);
-							i += 1;
-						}
-					}
-				}
-			}
-		}
-		SDL_assert(i == ctx->vk.num_images);
-
 		// TODO: Uncomment this. It's not technically necessary, but it may lead to less memory getting allocated.
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->vk.num_images, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
@@ -2265,6 +2275,45 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer.memory));
 		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer.handle, ctx->vk.vertex_buffer.memory, 0));
+	}
+
+	// VulkanCreateImageMemoryBarriers
+	{
+		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->vk.num_images*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
+		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->vk.num_images*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
+		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_images, VkImageMemoryBarrier);
+
+		for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
+			ctx->vk.image_memory_barriers_before[i] = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = 0,
+				.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.image = cell->vk_image,
+				.subresourceRange = subresource_range,
+			};
+
+			ctx->vk.image_memory_barriers_after[i] = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.image = cell->vk_image,
+				.subresourceRange = subresource_range,
+			};
+
+			ctx->vk.image_memory_barriers[i] = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+				.srcAccessMask = 0,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.image = cell->vk_image,
+				.subresourceRange = subresource_range,
+			};
+		}
 	}
 
 	// LoadLevels
@@ -2662,15 +2711,15 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-				SpriteDesc* sd = &ctx->sprites[sprite_idx];
-				if (sd->path) {
-					for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-						SpriteFrame* sf = &sd->frames[frame_idx];
-						for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
-							SpriteCell* cell = &sf->cells[cell_idx];
-							if (cell->type == SpriteCellType_Sprite) {
-								if (!ctx->vk.staged) {
+			if (!ctx->vk.staged) {
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+					SpriteDesc* sd = &ctx->sprites[sprite_idx];
+					if (sd->path) {
+						for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+							SpriteFrame* sf = &sd->frames[frame_idx];
+							for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
+								SpriteCell* cell = &sf->cells[cell_idx];
+								if (cell->type == SpriteCellType_Sprite) {
 									VkImageSubresourceRange subresource_range = {
 										.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 										.baseMipLevel = 0,
@@ -2679,15 +2728,7 @@ int32_t main(int32_t argc, char* argv[]) {
 										.layerCount = 1,
 									};
 
-									VkImageMemoryBarrier barrier_before = {
-										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-										.srcAccessMask = 0,
-										.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-										.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-										.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-										.image = cell->vk_image,
-										.subresourceRange = subresource_range,
-									};
+									
 									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier_before);
 
 									VkBufferImageCopy region = {
@@ -2698,44 +2739,24 @@ int32_t main(int32_t argc, char* argv[]) {
 									};
 									vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-									VkImageMemoryBarrier barrier_after = {
-										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-										.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-										.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-										.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-										.image = cell->vk_image,
-										.subresourceRange = subresource_range,
-									};
+									
 									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier_after);
-								} else {
-									VkImageSubresourceRange subresource_range = {
-										.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-										.baseMipLevel = 0,
-										.levelCount = 1,
-										.baseArrayLayer = 0,
-										.layerCount = 1,
-									};
-
-									VkImageMemoryBarrier barrier = {
-										.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-										.srcAccessMask = 0,
-										.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-										.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-										.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-										.image = cell->vk_image,
-										.subresourceRange = subresource_range,
-									};
-									vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
 								}
-								
 							}
-
 						}
-
 					}
-
 				}
+			} else {
+				VkImageSubresourceRange subresource_range = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.baseMipLevel = 0,
+					.levelCount = 1,
+					.baseArrayLayer = 0,
+					.layerCount = 1,
+				};
+
+				
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
 			}
 			ctx->vk.staged = true;
 
