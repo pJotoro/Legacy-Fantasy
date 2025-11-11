@@ -2216,7 +2216,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.staging_buffer.size,
+			.size = ctx->vk.vertex_buffer_staging_buffer.size,
 			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
 			// TODO
@@ -2243,84 +2243,29 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	// VulkanCreateVertexBuffer
-	#if 0
 	{
-		size_t tile_vertices_duplicated_size = 0;
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
-				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				tile_vertices_duplicated_size += tile_layer->num_tiles * sizeof(Tile);
-			}
-		}
-		Tile* tile_vertices_duplicated = SDL_malloc(tile_vertices_duplicated_size); SDL_CHECK(tile_vertices_duplicated);
-		size_t i = 0;
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
-				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				SDL_memcpy(&tile_vertices_duplicated[i], tile_layer->tiles, tile_layer->num_tiles * sizeof(Tile));
-				i += tile_layer->num_tiles;
-			}
-		}
-
-
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
-			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
-				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				ctx->vk.vertex_buffer_size += tile_layer->num_tiles * sizeof(Tile);
-			}
-			ctx->vk.vertex_buffer_size += level->num_enemies * sizeof(EntityVertex);
-		}
-
-		VkBufferCreateInfo index_buffer_info = { 
+		ctx->vk.vertex_buffer.size = ctx->vk.vertex_buffer_staging_buffer.size;
+		VkBufferCreateInfo buffer_info = { 
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->indices.size() * sizeof(ctx->indices[0]),
-			.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-		};
-		
-		VK_CHECK(vkCreateBuffer(ctx->vk_device, &index_buffer_info, NULL, &ctx->vk.index_buffer));
-
-		VkMemoryRequirements index_buffer_mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.index_buffer, &index_buffer_mem_req);
-
-		VkMemoryAllocateInfo index_buffer_mem_info = { 
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, 
-			.allocationSize = index_buffer_mem_req.size,
-			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &index_buffer_mem_req),
-		};
-		
-		VK_CHECK(vkAllocateMemory(ctx->vk_device, &mem_info, nullptr, &ctx->vk_index_buffer_memory));
-		VK_CHECK(vkBindBufferMemory(ctx->vk_device, ctx->vk_index_buffer, ctx->vk_index_buffer_memory, 0));
-
-
-
-		VkBufferCreateInfo vertex_buffer_info = { 
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.vertex_buffer_size,
+			.size = ctx->vk.vertex_buffer.size,
 			.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 		
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &vertex_buffer_info, NULL, &ctx->vk.vertex_buffer));
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer.handle));
 
-		VkMemoryRequirements vertex_buffer_mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer, &vertex_buffer_mem_req);
+		VkMemoryRequirements mem_req;
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer.handle, &mem_req);
 
-		VkMemoryAllocateInfo vertex_buffer_mem_info = { 
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = vertex_buffer_mem_req.size,
-			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &vertex_buffer_mem_req),
+		VkMemoryAllocateInfo mem_info = { 
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, 
+			.allocationSize = mem_req.size,
+			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req),
 		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &vertex_buffer_mem_info, NULL, &ctx->vk.vertex_buffer_memory));
-
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer, ctx->vk.vertex_buffer_memory, 0));
-
-		SDL_free(tile_vertices_duplicated);
+		
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer.memory));
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer.handle, ctx->vk.vertex_buffer.memory, 0));
 	}
-	#endif
 
 	// LoadLevels
 	{
