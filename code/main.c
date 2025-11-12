@@ -2339,7 +2339,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_assert(staging_buffer_stream_size != -1);
 		}
 		ctx->vk.staging_buffer.size += (size_t)staging_buffer_stream_size;
-		
+
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2721,12 +2721,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			if (!ctx->vk.staged) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 
 				VkBufferImageCopy region = {
 					.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 				};
 				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, &region);
+
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 			} else {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
 			}
