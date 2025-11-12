@@ -2474,7 +2474,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateVertexBufferStagingBuffer
 	{
-		ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity); // the player
+		ctx->vk.vertex_buffer_staging_buffer.size = sizeof(Entity); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity)*level->num_enemies;
@@ -2694,8 +2694,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	 		ctx->dt_accumulator -= dt;
 		}
 		
-		SDL_Log("Times updated: %llu", times_updated);
-		
+		// CopyEntitiesToVertexBufferStagingBufferMappedMemory
+		{
+			SDL_memcpy(ctx->vk.vertex_buffer_staging_buffer.mapped, GetPlayer(ctx), sizeof(Entity));
+			size_t num_enemies;
+			Entity* enemies = GetEnemies(ctx, &num_enemies);
+			SDL_memcpy((void*)((uintptr_t)ctx->vk.vertex_buffer_staging_buffer.mapped + sizeof(Entity)), enemies, num_enemies * sizeof(Entity));
+		}
 
 		uint32_t image_idx;
 		VkCommandBuffer cb;
@@ -2729,12 +2734,45 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 			} else {
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
+				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.buffer = ctx->vk.vertex_buffer_staging_buffer.handle,
+						.size = ctx->vk.vertex_buffer_staging_buffer.size,
+					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.buffer = ctx->vk.vertex_buffer.handle,
+						.size = ctx->vk.vertex_buffer.size,
+					},
+				};
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
+
+				size_t num_enemies;
+				GetEnemies(ctx, &num_enemies);
+				VkBufferCopy region = {
+					.size = sizeof(Entity) + num_enemies*sizeof(Entity),
+				};
+				vkCmdCopyBuffer(cb, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+
+				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+						.buffer = ctx->vk.vertex_buffer.handle,
+						.size = ctx->vk.vertex_buffer.size,
+					},
+				};
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
 			}
 			ctx->vk.staged = true;
 
 			{
-
 				VkClearValue clear_values[2];
 				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
 				clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
@@ -2765,6 +2803,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				uint32_t first_scissor = 0;
 				uint32_t num_scissors = 1;
 				vkCmdSetScissor(cb, first_scissor, num_scissors, &ctx->vk.scissor);
+			}
+			{
+				uint32_t first_binding = 0;
+				uint32_t binding_count = 1;
+				VkDeviceSize offset = 0;
+				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
 			}
 			{
 				uint32_t first_set = 0;
