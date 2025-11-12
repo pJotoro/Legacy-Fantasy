@@ -116,10 +116,6 @@ typedef int64_t ssize_t;
 
 #define MIN_FPS 15
 
-// 1/60/6
-// So basically, if we are running at perfect 60 fps, then the physics will update 6 times per second.
-#define dt 0.00277777777777777777777777777777777777777777777778
-
 typedef struct SpriteLayer {
 	char* name;
 } SpriteLayer;
@@ -164,7 +160,7 @@ typedef struct Sprite {
 typedef struct Anim {
 	Sprite sprite;
 	int32_t frame_idx;
-	double dt_accumulator;
+	float dt_accumulator;
 	bool ended;
 } Anim;
 
@@ -355,10 +351,6 @@ typedef struct Context {
 
 	bool left_mouse_pressed;
 	vec2s mouse_pos;
-
-	SDL_Time time;
-	double dt_accumulator;
-	double refresh_rate;
 	
 	Level* levels; size_t num_levels;
 	size_t level_idx;
@@ -396,6 +388,8 @@ static Sprite boar_attack;
 static Sprite boar_hit;
 
 static Sprite spr_tiles;
+
+static float dt;
 
 function EntityVertex* GetEntityVertices(Level* level, size_t* num_entity_vertices) {
 	SDL_assert(num_entity_vertices);
@@ -453,7 +447,6 @@ function bool VulkanGetSpriteCellsImagesCallback(Context* ctx, SpriteCell* cell,
     return true;
 }
 
-// TODO: Remove this. There's no reason not to just loop through yourself using the callback.
 function VkImage* VulkanGetSpriteCellsImages(Context* ctx) {
 	VkImage* images = SDL_malloc(ctx->num_sprite_cells * sizeof(VkImage)); SDL_CHECK(images);
 	EnumerateSpriteCells(ctx, VulkanGetSpriteCellsImagesCallback, images);
@@ -1033,7 +1026,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	Level* level = GetCurrentLevel(ctx);
 	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
 
-	entity->vel = glms_vec2_add(entity->vel, acc);
+	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
 	if (entity->state == EntityState_Free) {
 		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
@@ -1091,7 +1084,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 		}
 	}
 
-    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, vel);
+    entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
     entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 
@@ -1431,6 +1424,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_DisplayID display = SDL_GetPrimaryDisplay();
 		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
+		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
 	#if !FULLSCREEN
 		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY); SDL_CHECK(ctx->window);
 	#else
@@ -1805,8 +1799,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDescriptorSetLayout
 	{
-		// TODO: Is there anything else I want to put in here? Should I have a different pipline layout for different graphics pipelines?
-
 		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -2008,7 +2000,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			{
 				.binding = 0,
 				.stride = sizeof(Tile),
-				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE, // TODO: Figure out instance rendering.
+				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
 			},
 		};
 		VkVertexInputAttributeDescription tile_vertex_attributes[] = {
@@ -2414,7 +2406,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
-		// TODO: Is it really reasonable to assume that every image will have the same memory type bits? They do on my machine, but what about on a different machine?
 		VkImage* images = VulkanGetSpriteCellsImages(ctx);
 		VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
 		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0]);
@@ -2560,180 +2551,173 @@ int32_t main(int32_t argc, char* argv[]) {
 	ResetGame(ctx);
 
 	ctx->running = true;
-	while (ctx->running) {
-		size_t times_updated = 0;
-		while (ctx->dt_accumulator > dt && times_updated < 8) {	// TODO
-			++times_updated;		
-			// GetInput
-			{
-				SPALL_BUFFER_BEGIN_NAME("GetInput");
+	while (ctx->running) {	
+		// GetInput
+		{
+			SPALL_BUFFER_BEGIN_NAME("GetInput");
 
-				if (!ctx->gamepad) {
-					int32_t joystick_count = 0;
-					SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
-					if (joystick_count != 0) {
-						ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
-					}
+			if (!ctx->gamepad) {
+				int32_t joystick_count = 0;
+				SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
+				if (joystick_count != 0) {
+					ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
 				}
+			}
 
-				ctx->button_jump = false;
-				ctx->button_jump_released = false;
-				ctx->button_attack = false;
-				ctx->left_mouse_pressed = false;
+			ctx->button_jump = false;
+			ctx->button_jump_released = false;
+			ctx->button_attack = false;
+			ctx->left_mouse_pressed = false;
 
-				SDL_Event event;
-				while (SDL_PollEvent(&event)) {
-					switch (event.type) {
-					case SDL_EVENT_KEY_DOWN:
-						if (event.key.key == SDLK_ESCAPE) {
-							ctx->running = false;
-						}
-						if (!ctx->gamepad) {
-							switch (event.key.key) {
-							case SDLK_SPACE:
-								ctx->paused = !ctx->paused;
-								break;
-							case SDLK_0:
-								break;
-							case SDLK_X:
-								ctx->button_attack = true;
-								break;
-							case SDLK_LEFT:
-								if (!event.key.repeat) {
-									ctx->button_left = 1;
-								}
-								if (ctx->paused) {
-									//SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
-								}
-								break;
-							case SDLK_RIGHT:
-								if (!event.key.repeat) {
-									ctx->button_right = 1;
-								}
-								if (ctx->paused) {
-									//SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
-								}
-								break;
-							case SDLK_UP:
-								if (!event.key.repeat) {
-									ctx->button_jump = true;
-								}
-								break;
-							case SDLK_DOWN:
-								break;
-							case SDLK_R:
-								ResetGame(ctx);
-								break;
-							}
-						}
-						break;
-					case SDL_EVENT_MOUSE_MOTION:
-						ctx->mouse_pos.x = event.motion.x;
-						ctx->mouse_pos.y = event.motion.y;
-						break;
-					case SDL_EVENT_MOUSE_BUTTON_DOWN:
-						if (event.button.button == SDL_BUTTON_LEFT) {
-							ctx->left_mouse_pressed = true;
-						}
-						break;
-					case SDL_EVENT_KEY_UP:
-						if (!ctx->gamepad) {
-							switch (event.key.key) {
-							case SDLK_LEFT:
-								ctx->button_left = 0;
-								break;
-							case SDLK_RIGHT:
-								ctx->button_right = 0;
-								break;
-							case SDLK_UP:
-								ctx->button_jump_released = true;
-								break;
-							}					
-						}
-						break;
-					case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-						switch (event.gaxis.axis) {
-						case SDL_GAMEPAD_AXIS_LEFTX:
-							ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
+			SDL_Event event;
+			while (SDL_PollEvent(&event)) {
+				switch (event.type) {
+				case SDL_EVENT_KEY_DOWN:
+					if (event.key.key == SDLK_ESCAPE) {
+						ctx->running = false;
+					}
+					if (!ctx->gamepad) {
+						switch (event.key.key) {
+						case SDLK_SPACE:
+							ctx->paused = !ctx->paused;
 							break;
-						case SDL_GAMEPAD_AXIS_LEFTY:
-							ctx->gamepad_left_stick.y = NormInt16(event.gaxis.value);
+						case SDLK_0:
 							break;
-						}
-						break;
-					case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-						switch (event.gbutton.button) {
-						case SDL_GAMEPAD_BUTTON_SOUTH:
-							ctx->button_jump = true;
-							break;
-						case SDL_GAMEPAD_BUTTON_WEST:
+						case SDLK_X:
 							ctx->button_attack = true;
 							break;
-						}
-						break;
-					case SDL_EVENT_GAMEPAD_BUTTON_UP:
-						switch (event.gbutton.button) {
-						case SDL_GAMEPAD_BUTTON_SOUTH:
-							ctx->button_jump_released = true;
+						case SDLK_LEFT:
+							if (!event.key.repeat) {
+								ctx->button_left = 1;
+							}
+							if (ctx->paused) {
+								//SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
+							}
+							break;
+						case SDLK_RIGHT:
+							if (!event.key.repeat) {
+								ctx->button_right = 1;
+							}
+							if (ctx->paused) {
+								//SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
+							}
+							break;
+						case SDLK_UP:
+							if (!event.key.repeat) {
+								ctx->button_jump = true;
+							}
+							break;
+						case SDLK_DOWN:
+							break;
+						case SDLK_R:
+							ResetGame(ctx);
 							break;
 						}
+					}
+					break;
+				case SDL_EVENT_MOUSE_MOTION:
+					ctx->mouse_pos.x = event.motion.x;
+					ctx->mouse_pos.y = event.motion.y;
+					break;
+				case SDL_EVENT_MOUSE_BUTTON_DOWN:
+					if (event.button.button == SDL_BUTTON_LEFT) {
+						ctx->left_mouse_pressed = true;
+					}
+					break;
+				case SDL_EVENT_KEY_UP:
+					if (!ctx->gamepad) {
+						switch (event.key.key) {
+						case SDLK_LEFT:
+							ctx->button_left = 0;
+							break;
+						case SDLK_RIGHT:
+							ctx->button_right = 0;
+							break;
+						case SDLK_UP:
+							ctx->button_jump_released = true;
+							break;
+						}					
+					}
+					break;
+				case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+					switch (event.gaxis.axis) {
+					case SDL_GAMEPAD_AXIS_LEFTX:
+						ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
 						break;
-					case SDL_EVENT_QUIT:
-						ctx->running = false;
+					case SDL_GAMEPAD_AXIS_LEFTY:
+						ctx->gamepad_left_stick.y = NormInt16(event.gaxis.value);
 						break;
-					}		
-				}
+					}
+					break;
+				case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+					switch (event.gbutton.button) {
+					case SDL_GAMEPAD_BUTTON_SOUTH:
+						ctx->button_jump = true;
+						break;
+					case SDL_GAMEPAD_BUTTON_WEST:
+						ctx->button_attack = true;
+						break;
+					}
+					break;
+				case SDL_EVENT_GAMEPAD_BUTTON_UP:
+					switch (event.gbutton.button) {
+					case SDL_GAMEPAD_BUTTON_SOUTH:
+						ctx->button_jump_released = true;
+						break;
+					}
+					break;
+				case SDL_EVENT_QUIT:
+					ctx->running = false;
+					break;
+				}		
+			}
 
-				if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) {
-					ctx->gamepad_left_stick.x = 0.0f;
+			if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) {
+				ctx->gamepad_left_stick.x = 0.0f;
+			}
+
+			SPALL_BUFFER_END();
+		}
+		if (!ctx->paused) {
+			// UpdateGame
+			{
+				SPALL_BUFFER_BEGIN_NAME("UpdateGame");
+
+				UpdatePlayer(ctx);
+				size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
+				for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+					Entity* enemy = &enemies[enemy_idx];
+					if (enemy->type == EntityType_Boar) {
+						UpdateBoar(ctx, enemy);
+					}
 				}
 
 				SPALL_BUFFER_END();
 			}
+
 		#if 0
-			if (!ctx->paused) {
-				// UpdateGame
-				{
-					SPALL_BUFFER_BEGIN_NAME("UpdateGame");
+			// RecordReplayFrame
+			{
+				SPALL_BUFFER_BEGIN_NAME("RecordReplayFrame");
 
-					UpdatePlayer(ctx);
-					size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-					for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
-						Entity* enemy = &enemies[enemy_idx];
-						if (enemy->type == EntityType_Boar) {
-							UpdateBoar(ctx, enemy);
-						}
-					}
-
-					SPALL_BUFFER_END();
-				}
+				ReplayFrame replay_frame = {0};
 				
-				// RecordReplayFrame
-				{
-					SPALL_BUFFER_BEGIN_NAME("RecordReplayFrame");
-
-					ReplayFrame replay_frame = {0};
+				Level* level = GetCurrentLevel(ctx);
+				replay_frame.player = level->player;
+				replay_frame.enemies = SDL_malloc(level->num_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
+				SDL_memcpy(replay_frame.enemies, level->enemies, level->num_enemies * sizeof(Entity));
+				replay_frame.num_enemies = level->num_enemies;
 					
-					Level* level = GetCurrentLevel(ctx);
-					replay_frame.player = level->player;
-					replay_frame.enemies = SDL_malloc(level->num_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
-					SDL_memcpy(replay_frame.enemies, level->enemies, level->num_enemies * sizeof(Entity));
-					replay_frame.num_enemies = level->num_enemies;
-						
-					ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
-					if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
-						ctx->c_replay_frames *= 8;
-						ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
-					}
-					ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
-
-					SPALL_BUFFER_END();
+				ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
+				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
+					ctx->c_replay_frames *= 8;
+					ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 				}
+				ctx->replay_frame_idx_max = SDL_max(ctx->replay_frame_idx_max, ctx->replay_frame_idx);
+
+				SPALL_BUFFER_END();
 			}
-
-			#endif
-
-	 		ctx->dt_accumulator -= dt;
+		#endif
 		}
 		
 		// CopyEntitiesToVertexBufferStagingBufferMappedMemory
@@ -2826,7 +2810,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					.renderArea = { .extent = ctx->vk.swapchain_info.imageExtent },
 					.clearValueCount = SDL_arraysize(clear_values),
 					.pClearValues = clear_values,
-
 				};
 				vkCmdBeginRenderPass(cb, &info, VK_SUBPASS_CONTENTS_INLINE);
 			}
@@ -2908,22 +2891,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			blah = true;
 		} else {
 			raddbg_break();
-		}
-
-		// UpdateTime
-		{			
-			SPALL_BUFFER_BEGIN_NAME("UpdateTime");
-
-			SDL_Time current_time;
-			SDL_CHECK(SDL_GetCurrentTime(&current_time));
-			SDL_Time dt_int = current_time - ctx->time;
-			const double NANOSECONDS_IN_SECOND = 1000000000.0;
-			double dt_double = (double)dt_int / NANOSECONDS_IN_SECOND;
-
-			ctx->dt_accumulator = SDL_min(ctx->dt_accumulator + dt_double, 1.0/((double)MIN_FPS)); // TODO
-			ctx->time = current_time;
-
-			SPALL_BUFFER_END();
 		}
 
 	#if 0
