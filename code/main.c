@@ -395,6 +395,21 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
+function EntityVertex* GetEntityVertices(Level* level, size_t* num_entity_vertices) {
+	SDL_assert(num_entity_vertices);
+	*num_entity_vertices = 1 + level->num_enemies;
+	EntityVertex* res = SDL_malloc((*num_entity_vertices) * sizeof(EntityVertex)); SDL_CHECK(res);
+	res[0].pos = level->player.pos;
+	res[0].dir = level->player.dir;
+	res[0].frame_idx = level->player.anim.frame_idx;
+	for (size_t i = 0; i < level->num_enemies; i += 1) {
+		res[i+1].pos = level->enemies[i].pos;
+		res[i+1].dir = level->enemies[i].dir;
+		res[i+1].frame_idx = level->enemies[i].anim.frame_idx;
+	}
+	return res;
+}
+
 typedef bool (*EnumerateSpriteCellsCallback)(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data);
 
 function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback callback, void* user_data) {
@@ -2721,10 +2736,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// CopyEntitiesToVertexBufferStagingBufferMappedMemory
 		{
-			SDL_memcpy(ctx->vk.vertex_buffer_staging_buffer.mapped, GetPlayer(ctx), sizeof(Entity));
-			size_t num_enemies;
-			Entity* enemies = GetEnemies(ctx, &num_enemies);
-			SDL_memcpy((void*)((uintptr_t)ctx->vk.vertex_buffer_staging_buffer.mapped + sizeof(Entity)), enemies, num_enemies * sizeof(Entity));
+			size_t num_entity_vertices;
+			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
+			SDL_memcpy(ctx->vk.vertex_buffer_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
+			SDL_free(entity_vertices);
 		}
 
 		uint32_t image_idx;
@@ -2901,8 +2916,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SPALL_BUFFER_END();
 		}
-
-		SDL_TriggerBreakpoint();
 
 	#if 0
 		// DrawEntities
