@@ -2742,6 +2742,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
 
+			// VulkanBeginCommandBuffer
 			{
 				VkCommandBufferBeginInfo info = {
 					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -2750,6 +2751,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
+			// VulkanSendImageDataAndTileVerticesToGPU (only happens once)
 			if (!ctx->vk.staged) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
 
@@ -2761,7 +2763,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 			} else {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
+			}
+			ctx->vk.staged = true;
 
+			// VulkanSendEntityVerticesToGPU (happens every frame)
+			{
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2796,8 +2802,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 			}
-			ctx->vk.staged = true;
 
+			// VulkanBeginRenderPass
 			{
 				VkClearValue clear_values[2];
 				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
