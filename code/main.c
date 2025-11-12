@@ -2326,6 +2326,20 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateStagingBuffer
 	{
+		void* staging_buffer_stream_ptr;
+		{
+			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.staging_buffer_stream); SDL_CHECK(props);	
+			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
+			SDL_assert(staging_buffer_stream_ptr); 
+			SDL_DestroyProperties(props);
+		}
+		int64_t staging_buffer_stream_size;
+		{
+			staging_buffer_stream_size = SDL_TellIO(ctx->vk.staging_buffer_stream);
+			SDL_assert(staging_buffer_stream_size != -1);
+		}
+		ctx->vk.staging_buffer.size += (size_t)staging_buffer_stream_size;
+		
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2357,17 +2371,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer.memory));
 
-		void* staging_buffer_stream_ptr;
-		size_t staging_buffer_stream_size;
-		{
-			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.staging_buffer_stream); SDL_CHECK(props);
-			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_MEMORY_POINTER, NULL);
-			SDL_assert(staging_buffer_stream_ptr); 
-			staging_buffer_stream_size = (size_t)SDL_GetNumberProperty(props, SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER, 0);
-			SDL_assert(staging_buffer_stream_size);
-			SDL_DestroyProperties(props);
-		}
-
 		void* data;
 		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
 		uint8_t* cur = data;
@@ -2391,7 +2394,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanAllocateAndBindImageMemory
 	{
-		// TODO: Uncomment this. It's not technically necessary, but it may lead to less memory getting allocated.
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
