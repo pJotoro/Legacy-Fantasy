@@ -310,12 +310,28 @@ typedef struct Vulkan {
 	VulkanFrame* frames; size_t num_frames;
 	size_t current_frame;
 
-	// invalid after startup
-	VulkanBuffer staging_buffer;
-	SDL_IOStream* staging_buffer_stream; // The data in this will be copied over to the staging buffer.
+	/*
+	Memory layout:
+		uint32_t raw_image_data[][];
+		Tile tiles[];
+	*/
+	VulkanBuffer static_staging_buffer;
+	SDL_IOStream* static_staging_buffer_stream; // The data in this will be copied over to the staging buffer.
+	
+	/*
+	Memory layout:
+		EntityVertex player;
+		EntityVertex enemies[];
+	*/
+	VulkanBuffer dynamic_staging_buffer;
 
+	/*
+	Memory layout:
+		EntityVertex player;
+		EntityVertex enemies[];
+		Tile tiles[];
+	*/
 	VulkanBuffer vertex_buffer;
-	VulkanBuffer vertex_buffer_staging_buffer;
 
 	VkDeviceMemory image_memory;
 
@@ -434,7 +450,7 @@ function bool VulkanCopyBufferToImageCallback(Context* ctx, SpriteCell* cell, si
 	VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
 
 	region->imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1};
-	vkCmdCopyBufferToImage(cb, ctx->vk.staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, region);
+	vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, region);
 	region->bufferOffset += cell->size.x*cell->size.y * sizeof(uint32_t);
 
 	return true;
@@ -848,7 +864,7 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 											SPALL_BUFFER_END();
 											SDL_assert(res > 0);
 
-											SDL_WriteIO(ctx->vk.staging_buffer_stream, dst_buf, dst_buf_size);
+											SDL_WriteIO(ctx->vk.static_staging_buffer_stream, dst_buf, dst_buf_size);
 											SDL_free(dst_buf);
 										}
 
@@ -2127,7 +2143,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 	// LoadSprites
 	{
-		ctx->vk.staging_buffer_stream = SDL_IOFromDynamicMem(); SDL_CHECK(ctx->vk.staging_buffer_stream);
+		ctx->vk.static_staging_buffer_stream = SDL_IOFromDynamicMem(); SDL_CHECK(ctx->vk.static_staging_buffer_stream);
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 	}
 
@@ -2333,44 +2349,44 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanCreateStagingBuffer
+	// VulkanCreateStaticStagingBuffer
 	{
 		void* staging_buffer_stream_ptr;
 		{
-			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.staging_buffer_stream); SDL_CHECK(props);	
+			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.static_staging_buffer_stream); SDL_CHECK(props);	
 			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
 			SDL_assert(staging_buffer_stream_ptr); 
 			SDL_DestroyProperties(props);
 		}
 		int64_t staging_buffer_stream_size;
 		{
-			staging_buffer_stream_size = SDL_TellIO(ctx->vk.staging_buffer_stream);
+			staging_buffer_stream_size = SDL_TellIO(ctx->vk.static_staging_buffer_stream);
 			SDL_assert(staging_buffer_stream_size != -1);
 		}
-		ctx->vk.staging_buffer.size += (size_t)staging_buffer_stream_size;
+		ctx->vk.static_staging_buffer.size += (size_t)staging_buffer_stream_size;
 
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				ctx->vk.staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
+				ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 			}
 		}
 
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.staging_buffer.size,
+			.size = ctx->vk.static_staging_buffer.size,
 			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
 			// TODO
 			.queueFamilyIndexCount = 1,
 			.pQueueFamilyIndices = &queue_family_idx,
 		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.staging_buffer.handle));
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.static_staging_buffer.handle));
 
 		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.staging_buffer.handle, &mem_req);
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.static_staging_buffer.handle, &mem_req);
 
 		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkMemoryAllocateInfo mem_info = {
@@ -2378,10 +2394,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			.allocationSize = mem_req.size,
 			.memoryTypeIndex = memory_type_idx,
 		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.staging_buffer.memory));
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.static_staging_buffer.memory));
 
 		void* data;
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
 		uint8_t* cur = data;
 		SDL_memcpy(cur, staging_buffer_stream_ptr, staging_buffer_stream_size);
 		cur += staging_buffer_stream_size;
@@ -2393,12 +2409,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				cur += sizeof(Tile)*tile_layer->num_tiles;
 			}
 		}
-		vkUnmapMemory(ctx->vk.device, ctx->vk.staging_buffer.memory);
+		vkUnmapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory);
 
-		SDL_CHECK(SDL_CloseIO(ctx->vk.staging_buffer_stream));
+		SDL_CHECK(SDL_CloseIO(ctx->vk.static_staging_buffer_stream));
 
 		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.staging_buffer.handle, ctx->vk.staging_buffer.memory, memory_offset));
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.static_staging_buffer.handle, ctx->vk.static_staging_buffer.memory, memory_offset));
 	}
 
 	// VulkanAllocateAndBindImageMemory
@@ -2480,28 +2496,28 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_free(images);
 	}
 
-	// VulkanCreateVertexBufferStagingBuffer
+	// VulkanCreateDynamicStagingBuffer
 	{
-		ctx->vk.vertex_buffer_staging_buffer.size = sizeof(Entity); // the player
+		ctx->vk.dynamic_staging_buffer.size = sizeof(Entity); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			ctx->vk.vertex_buffer_staging_buffer.size += sizeof(Entity)*level->num_enemies;
+			ctx->vk.dynamic_staging_buffer.size += sizeof(Entity)*level->num_enemies;
 		}
 
 		uint32_t queue_family_idx = 0;
 		VkBufferCreateInfo buffer_info = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.vertex_buffer_staging_buffer.size,
+			.size = ctx->vk.dynamic_staging_buffer.size,
 			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
 			// TODO
 			.queueFamilyIndexCount = 1,
 			.pQueueFamilyIndices = &queue_family_idx,
 		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.handle));
+		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.dynamic_staging_buffer.handle));
 
 		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, &mem_req);
+		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, &mem_req);
 
 		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VkMemoryAllocateInfo mem_info = {
@@ -2509,17 +2525,25 @@ int32_t main(int32_t argc, char* argv[]) {
 			.allocationSize = mem_req.size,
 			.memoryTypeIndex = memory_type_idx,
 		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer_staging_buffer.memory));
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.dynamic_staging_buffer.memory));
 
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.memory, 0, mem_info.allocationSize, 0, &ctx->vk.vertex_buffer_staging_buffer.mapped));
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.memory, 0, mem_info.allocationSize, 0, &ctx->vk.dynamic_staging_buffer.mapped));
 
 		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer_staging_buffer.memory, memory_offset));
+		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.dynamic_staging_buffer.memory, memory_offset));
 	}
 
 	// VulkanCreateVertexBuffer
 	{
-		ctx->vk.vertex_buffer.size = ctx->vk.vertex_buffer_staging_buffer.size;
+		ctx->vk.vertex_buffer.size = ctx->vk.dynamic_staging_buffer.size;
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+			Level* level = &ctx->levels[level_idx];
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				ctx->vk.vertex_buffer.size += tile_layer->num_tiles*sizeof(Tile);
+			}
+		}
+
 		VkBufferCreateInfo buffer_info = { 
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = ctx->vk.vertex_buffer.size,
@@ -2724,7 +2748,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
-			SDL_memcpy(ctx->vk.vertex_buffer_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
+			SDL_memcpy(ctx->vk.dynamic_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
 			SDL_free(entity_vertices);
 		}
 
@@ -2751,9 +2775,18 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			// VulkanSendImageDataAndTileVerticesToGPU (only happens once)
+			// VulkanUploadStaticStagingBuffer
 			if (!ctx->vk.staged) {
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
+				VkBufferMemoryBarrier buffer_memory_barriers[] = {
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.buffer = ctx->vk.static_staging_buffer.handle,
+						.size = ctx->vk.static_staging_buffer.size,
+					},
+				};
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers), buffer_memory_barriers, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
 
 				VkBufferImageCopy region = {
 					.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
@@ -2761,20 +2794,22 @@ int32_t main(int32_t argc, char* argv[]) {
 				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, &region);
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
+
+
 			} else {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
 			}
 			ctx->vk.staged = true;
 
-			// VulkanSendEntityVerticesToGPU (happens every frame)
+			// VulkanUploadDynamicStagingBuffer
 			{
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
 						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-						.buffer = ctx->vk.vertex_buffer_staging_buffer.handle,
-						.size = ctx->vk.vertex_buffer_staging_buffer.size,
+						.buffer = ctx->vk.dynamic_staging_buffer.handle,
+						.size = ctx->vk.dynamic_staging_buffer.size,
 					},
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2789,7 +2824,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				VkBufferCopy region = {
 					.size = ctx->vk.vertex_buffer.size,
 				};
-				vkCmdCopyBuffer(cb, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+				vkCmdCopyBuffer(cb, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
