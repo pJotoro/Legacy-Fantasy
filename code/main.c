@@ -2808,7 +2808,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 			}
 			ctx->vk.staged = true;
 
@@ -2899,6 +2899,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkQueuePresentKHR(ctx->vk.graphics_queue, &present_info));
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
+		}
+
+		static bool blah = false;
+		if (!blah) {
+			blah = true;
+		} else {
+			SDL_TriggerBreakpoint();
 		}
 
 		// UpdateTime
