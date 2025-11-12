@@ -18,9 +18,11 @@
 
 #include <Volk/volk.h>
 
-#ifdef _DEBUG
-#include <raddbg_markup.h>
+#ifndef _DEBUG
+#define RADDBG_MARKUP_STUBS
 #endif
+#define RADDBG_MARKUP_IMPLEMENTATION
+#include <raddbg_markup.h>
 
 #if ENABLE_PROFILING
 #include <spall/spall.h>
@@ -2905,7 +2907,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (!blah) {
 			blah = true;
 		} else {
-			SDL_TriggerBreakpoint();
+			raddbg_break();
 		}
 
 		// UpdateTime
