@@ -2822,7 +2822,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
 				VkBufferCopy region = {
-					.size = ctx->vk.vertex_buffer.size,
+					.size = ctx->vk.dynamic_staging_buffer.size,
 				};
 				vkCmdCopyBuffer(cb, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
 
