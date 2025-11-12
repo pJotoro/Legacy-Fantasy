@@ -2759,6 +2759,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 			} else {
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
+
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2770,30 +2772,28 @@ int32_t main(int32_t argc, char* argv[]) {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
-				size_t num_enemies;
-				GetEnemies(ctx, &num_enemies);
 				VkBufferCopy region = {
-					.size = sizeof(Entity) + num_enemies*sizeof(Entity),
+					.size = ctx->vk.vertex_buffer.size,
 				};
 				vkCmdCopyBuffer(cb, ctx->vk.vertex_buffer_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 			}
 			ctx->vk.staged = true;
 
