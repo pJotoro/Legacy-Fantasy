@@ -2412,6 +2412,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		vkUnmapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory);
 
 		SDL_CHECK(SDL_CloseIO(ctx->vk.static_staging_buffer_stream));
+		ctx->vk.static_staging_buffer_stream = NULL;
 
 		VkDeviceSize memory_offset = 0;
 		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.static_staging_buffer.handle, ctx->vk.static_staging_buffer.memory, memory_offset));
