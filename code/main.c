@@ -337,10 +337,9 @@ typedef struct Vulkan {
 
 	VkDeviceMemory image_memory;
 
-	// invalid after startup
-	VkImageMemoryBarrier* image_memory_barriers_before;
-	VkImageMemoryBarrier* image_memory_barriers_after;
-	
+	size_t num_image_memory_barriers;
+	VkImageMemoryBarrier* image_memory_barriers_before; // invalid after startup
+	VkImageMemoryBarrier* image_memory_barriers_after;  // invalid after startup
 	VkImageMemoryBarrier* image_memory_barriers;
 
 	bool staged;
@@ -446,7 +445,7 @@ function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback ca
     }
 }
 
-function bool VulkanCopyBufferToImageCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
+function bool VulkanCopyStaticStagingBufferToImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
 	UNUSED(sprite_cell_idx);
 	UNUSED(user_data);
 	VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
@@ -2456,10 +2455,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		// VulkanCreateImageMemoryBarriers
-		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
-		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
-		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, VkImageMemoryBarrier);
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+		ctx->vk.num_image_memory_barriers = ctx->num_sprite_cells;
+		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->vk.num_image_memory_barriers*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
+		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->vk.num_image_memory_barriers*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
+		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
+		for (size_t i = 0; i < ctx->vk.num_image_memory_barriers; i += 1) {
 			VkImageSubresourceRange subresource_range = {
 				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 				.baseMipLevel = 0,
@@ -2786,11 +2786,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			// VulkanUploadStaticStagingBuffer
+			// VulkanCopyStagingBuffers
 			if (!ctx->vk.staged) {
 				ctx->vk.staged = true;
 
-				VkBufferMemoryBarrier buffer_memory_barriers[] = {
+				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
@@ -2798,27 +2798,57 @@ int32_t main(int32_t argc, char* argv[]) {
 						.buffer = ctx->vk.static_staging_buffer.handle,
 						.size = ctx->vk.static_staging_buffer.size,
 					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+						.buffer = ctx->vk.dynamic_staging_buffer.handle,
+						.size = ctx->vk.dynamic_staging_buffer.size,
+					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.buffer = ctx->vk.vertex_buffer.handle,
+						.size = ctx->vk.vertex_buffer.size,
+					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers), buffer_memory_barriers, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
-				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, NULL);
+				// VulkanCopyDynamicStagingBuffer
+				{
+					VkBufferCopy region = {
+						.size = ctx->vk.dynamic_staging_buffer.size,
+					};
+					vkCmdCopyBuffer(cb, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+					ctx->vk.vertex_buffer.write_offset = ctx->vk.dynamic_staging_buffer.size;
+				}
 
-				VkBufferCopy region = {
-					.srcOffset = ctx->vk.static_staging_buffer.read_offset,
-					.dstOffset = ctx->vk.vertex_buffer.write_offset, // TODO: We haven't set vertex_buffer.write_offset yet!
-					.size = ctx->vk.vertex_buffer.size - ctx->vk.dynamic_staging_buffer.size,
+				// VulkanCopyStaticStagingBuffer
+				{
+					EnumerateSpriteCells(ctx, VulkanCopyStaticStagingBufferToImagesCallback, NULL);
+
+					VkBufferCopy region = {
+						.srcOffset = ctx->vk.static_staging_buffer.read_offset,
+						.dstOffset = ctx->vk.vertex_buffer.write_offset,
+						.size = ctx->vk.vertex_buffer.size - ctx->vk.vertex_buffer.write_offset,
+					};
+					vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+				}
+
+				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+						.buffer = ctx->vk.vertex_buffer.handle,
+						.size = ctx->vk.vertex_buffer.size,
+					},
 				};
-				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
-
-
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_after);
 			} else {
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
-			}
-
-			// VulkanUploadDynamicStagingBuffer
-			{
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2852,6 +2882,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
+
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers);
 			}
 
 			// VulkanBeginRenderPass
@@ -2941,6 +2973,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkQueuePresentKHR(ctx->vk.graphics_queue, &present_info));
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
+
+			// VulkanResetBufferOffsets
+			ctx->vk.static_staging_buffer.read_offset = 0;
+			ctx->vk.static_staging_buffer.write_offset = 0;
+			ctx->vk.dynamic_staging_buffer.read_offset = 0;
+			ctx->vk.dynamic_staging_buffer.write_offset = 0;
+			ctx->vk.vertex_buffer.read_offset = 0;
+			ctx->vk.vertex_buffer.write_offset = 0;
 		}
 
 		static bool blah = false;
