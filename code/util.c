@@ -118,7 +118,7 @@ function FORCEINLINE bool IsPowerOf2(VkDeviceSize x) {
     return (x & (x-1)) == 0;
 }
 
-VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize align) {
+function FORCEINLINE VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize align) {
     SDL_assert(IsPowerOf2(align));
     VkDeviceSize p = ptr;
     VkDeviceSize a = align;
@@ -131,7 +131,7 @@ VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize align) {
 
 // TODO: Is it okay to make these static?
 
-int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
     ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
     ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
     if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
@@ -142,7 +142,7 @@ int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
     return 0;
 }
 
-int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
+function int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
     if (a->src.y < b->src.y) return -1;
     if (a->src.y > b->src.y) return 1;
     if (a->src.x < b->src.x) return -1;
@@ -150,7 +150,7 @@ int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
     return -1; // this could be 1, but then the sort would be unstable
 }
 
-int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) {
+function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) {
     SDL_assert(a && b);
     if (a->memoryRequirements.memoryTypeBits < b->memoryRequirements.memoryTypeBits) return -1;
     if (a->memoryRequirements.memoryTypeBits > b->memoryRequirements.memoryTypeBits) return 1;
