@@ -254,7 +254,8 @@ typedef struct VulkanFrame {
 typedef struct VulkanBuffer {
 	VkBuffer handle;
 	VkDeviceSize size;
-	VkDeviceSize offset;
+	VkDeviceSize read_offset;
+	VkDeviceSize write_offset;
 	VkDeviceMemory memory;
 	void* mapped;
 } VulkanBuffer;
@@ -452,12 +453,12 @@ function bool VulkanCopyBufferToImageCallback(Context* ctx, SpriteCell* cell, si
 
 	VkBufferImageCopy region = {
 		.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-		.bufferOffset = ctx->vk.static_staging_buffer.offset,
+		.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
 		.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
 	};
 
 	vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-	ctx->vk.static_staging_buffer.offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+	ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
 
 	return true;
 }
@@ -2398,14 +2399,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		uint8_t* cur = data; // for convenience
 		
 		SDL_memcpy(cur, stream_ptr, stream_size);
-		ctx->vk.static_staging_buffer.offset += stream_size;
+		ctx->vk.static_staging_buffer.write_offset += stream_size;
 
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				SDL_memcpy(cur + ctx->vk.static_staging_buffer.offset, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
-				ctx->vk.static_staging_buffer.offset += sizeof(Tile)*tile_layer->num_tiles;
+				SDL_memcpy(cur + ctx->vk.static_staging_buffer.write_offset, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
+				ctx->vk.static_staging_buffer.write_offset += sizeof(Tile)*tile_layer->num_tiles;
 			}
 		}
 		vkUnmapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory);
@@ -2758,7 +2759,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
 			SDL_memcpy(ctx->vk.dynamic_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
-			ctx->vk.dynamic_staging_buffer.offset = num_entity_vertices * sizeof(EntityVertex);
+			ctx->vk.dynamic_staging_buffer.write_offset = num_entity_vertices * sizeof(EntityVertex);
 			SDL_free(entity_vertices);
 		}
 
@@ -2803,8 +2804,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, NULL);
 
 				VkBufferCopy region = {
-					.srcOffset = ctx->vk.static_staging_buffer.offset,
-					.dstOffset = ctx->vk.vertex_buffer.offset, // TODO: We haven't set vertex_buffer.offset yet!
+					.srcOffset = ctx->vk.static_staging_buffer.read_offset,
+					.dstOffset = ctx->vk.vertex_buffer.write_offset, // TODO: We haven't set vertex_buffer.write_offset yet!
 					.size = ctx->vk.vertex_buffer.size - ctx->vk.dynamic_staging_buffer.size,
 				};
 				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
