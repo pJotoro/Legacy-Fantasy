@@ -2499,10 +2499,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDynamicStagingBuffer
 	{
-		ctx->vk.dynamic_staging_buffer.size = sizeof(Entity); // the player
+		ctx->vk.dynamic_staging_buffer.size = sizeof(EntityVertex); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			ctx->vk.dynamic_staging_buffer.size += sizeof(Entity)*level->num_enemies;
+			ctx->vk.dynamic_staging_buffer.size += sizeof(EntityVertex)*level->num_enemies;
 		}
 
 		uint32_t queue_family_idx = 0;
@@ -2745,11 +2745,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		#endif
 		}
 		
-		// CopyEntitiesToVertexBufferStagingBufferMappedMemory
+		// CopyVerticesToDynamicStagingBuffer
+		VkDeviceSize vertex_buffer_offset;
 		{
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
 			SDL_memcpy(ctx->vk.dynamic_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
+			vertex_buffer_offset = num_entity_vertices * sizeof(EntityVertex); // TODO: Is there a clearer way to do this?
 			SDL_free(entity_vertices);
 		}
 
@@ -2778,6 +2780,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanUploadStaticStagingBuffer
 			if (!ctx->vk.staged) {
+				ctx->vk.staged = true;
+
 				VkBufferMemoryBarrier buffer_memory_barriers[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2794,13 +2798,20 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, &region);
 
+				VkBufferCopy region = {
+					// TODO: Is there a way a more self-documenting way to write this?
+					.srcOffset = region.bufferOffset,
+					.dstOffset = vertex_buffer_offset,
+					.size = ctx->vk.vertex_buffer.size - ctx->vk.dynamic_staging_buffer.size,
+				};
+				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 
 
 			} else {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers);
 			}
-			ctx->vk.staged = true;
 
 			// VulkanUploadDynamicStagingBuffer
 			{
