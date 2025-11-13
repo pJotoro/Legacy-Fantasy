@@ -2546,26 +2546,27 @@ int32_t main(int32_t argc, char* argv[]) {
 				ctx->vk.vertex_buffer.size += tile_layer->num_tiles*sizeof(Tile);
 			}
 		}
+		{
+			VkBufferCreateInfo buffer_info = { 
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.size = ctx->vk.vertex_buffer.size,
+				.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			};
+			VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer.handle));
+		}
+		{
+			VkMemoryRequirements mem_req;
+			vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer.handle, &mem_req);
 
-		VkBufferCreateInfo buffer_info = { 
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.vertex_buffer.size,
-			.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-		};
-		
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.vertex_buffer.handle));
-
-		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.vertex_buffer.handle, &mem_req);
-
-		VkMemoryAllocateInfo mem_info = { 
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, 
-			.allocationSize = mem_req.size,
-			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req),
-		};
-		
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer.memory));
+			VkMemoryAllocateInfo mem_info = { 
+				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, 
+				.allocationSize = mem_req.size,
+				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_req),
+			};
+			
+			VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.vertex_buffer.memory));
+		}
 		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.vertex_buffer.handle, ctx->vk.vertex_buffer.memory, 0));
 	}
 
