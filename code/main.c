@@ -2414,35 +2414,40 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.static_staging_buffer_stream = NULL;
 	}
 
-	// VulkanAllocateAndBindImageMemory
 	{
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
 		VkImage* images = VulkanGetSpriteCellsImages(ctx);
-		VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0]);
-		VkMemoryAllocateInfo allocate_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
 
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-			allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
-			bind_infos[i] = (VkBindImageMemoryInfo){
-				.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-				.image = images[i],
-				.memoryOffset = allocate_info.allocationSize,
+		// VulkanAllocateAndBindImageMemory
+		{
+			VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
+			VkMemoryAllocateInfo allocate_info = {
+				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0]),
 			};
-			allocate_info.allocationSize += mem_reqs[i].size;
-		}
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
+			VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
 
-		for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-			bind_infos[i].memory = ctx->vk.image_memory;
+			for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+				allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
+				bind_infos[i] = (VkBindImageMemoryInfo){
+					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+					.image = images[i],
+					.memoryOffset = allocate_info.allocationSize,
+				};
+				allocate_info.allocationSize += mem_reqs[i].size;
+			}
+			VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
+
+			for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+				bind_infos[i].memory = ctx->vk.image_memory;
+			}
+			VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
+
+			SDL_free(bind_infos);
+			SDL_free(mem_reqs);
 		}
-		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
 
 		// VulkanCreateImageMemoryBarriers
 		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->num_sprite_cells*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
@@ -2488,8 +2493,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 		}
 
-		SDL_free(bind_infos);
-		SDL_free(mem_reqs);
 		SDL_free(images);
 	}
 
