@@ -182,19 +182,6 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     return res;
 }
 
-function uint32_t VulkanGetMemoryTypeIdxWithProperties(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
-    uint32_t memory_type_idx;
-    bool found_memory_type_idx = false;
-    for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; memory_type_idx += 1) {
-        if ((mem_req->memoryTypeBits & (1 << memory_type_idx)) && (vk->physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & properties)) {
-            found_memory_type_idx = true;
-            break;
-        }
-    }
-    SDL_assert(found_memory_type_idx);
-    return memory_type_idx;
-}
-
 function void GetDynamicMemProperties(SDL_IOStream* dynamic_mem, void** out_ptr, size_t* out_size) {
     SDL_assert(dynamic_mem && out_ptr && out_size);
     {
