@@ -418,9 +418,10 @@ function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanB
 		.dstOffset = dst->write_offset,
 		.size = SDL_min(src->size - src->read_offset, dst->size - dst->write_offset),
 	};
+	SDL_assert(region.size != 0);
 	vkCmdCopyBuffer(cb, src->handle, dst->handle, 1, &region);
-	src->read_offset += src->size;
-	dst->write_offset += dst->size;
+	src->read_offset += region.size;
+	dst->write_offset += region.size;
 }
 
 function void VulkanResetBuffer(VulkanBuffer* buffer) {
