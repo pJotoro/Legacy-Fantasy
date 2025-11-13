@@ -194,3 +194,17 @@ function uint32_t VulkanGetMemoryTypeIdxWithProperties(Vulkan* vk, VkMemoryRequi
     SDL_assert(found_memory_type_idx);
     return memory_type_idx;
 }
+
+function void GetDynamicMemProperties(SDL_IOStream* dynamic_mem, void** out_ptr, size_t* out_size) {
+    SDL_assert(dynamic_mem && out_ptr && out_size);
+    {
+        SDL_PropertiesID props = SDL_GetIOProperties(dynamic_mem); SDL_CHECK(props);    
+        *out_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
+        SDL_assert(*out_ptr); 
+        SDL_DestroyProperties(props);
+    }
+    {
+        *out_size = (size_t)SDL_TellIO(dynamic_mem);
+        SDL_assert(*out_size != -1);
+    }
+}

@@ -254,6 +254,7 @@ typedef struct VulkanFrame {
 typedef struct VulkanBuffer {
 	VkBuffer handle;
 	VkDeviceSize size;
+	VkDeviceSize offset;
 	VkDeviceMemory memory;
 	void* mapped;
 } VulkanBuffer;
@@ -2351,20 +2352,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateStaticStagingBuffer
 	{
-		void* staging_buffer_stream_ptr;
-		{
-			SDL_PropertiesID props = SDL_GetIOProperties(ctx->vk.static_staging_buffer_stream); SDL_CHECK(props);	
-			staging_buffer_stream_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
-			SDL_assert(staging_buffer_stream_ptr); 
-			SDL_DestroyProperties(props);
-		}
-		int64_t staging_buffer_stream_size;
-		{
-			staging_buffer_stream_size = SDL_TellIO(ctx->vk.static_staging_buffer_stream);
-			SDL_assert(staging_buffer_stream_size != -1);
-		}
-		ctx->vk.static_staging_buffer.size += (size_t)staging_buffer_stream_size;
+		void* stream_ptr; size_t stream_size;
+		GetDynamicMemProperties(ctx->vk.static_staging_buffer_stream, &stream_ptr, &stream_size);
 
+		ctx->vk.static_staging_buffer.size = stream_size;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2372,50 +2363,55 @@ int32_t main(int32_t argc, char* argv[]) {
 				ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 			}
 		}
+		{
+			uint32_t queue_family_idx = 0;
+			VkBufferCreateInfo buffer_info = {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.size = ctx->vk.static_staging_buffer.size,
+				.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
-		uint32_t queue_family_idx = 0;
-		VkBufferCreateInfo buffer_info = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.static_staging_buffer.size,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-
-			// TODO
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &queue_family_idx,
-		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.static_staging_buffer.handle));
-
-		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.static_staging_buffer.handle, &mem_req);
-
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VkMemoryAllocateInfo mem_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.static_staging_buffer.memory));
+				// TODO
+				.queueFamilyIndexCount = 1,
+				.pQueueFamilyIndices = &queue_family_idx,
+			};
+			VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.static_staging_buffer.handle));
+		}
+		{
+			VkMemoryRequirements mem_req;
+			vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.static_staging_buffer.handle, &mem_req);
+			uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			VkMemoryAllocateInfo mem_info = {
+				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+				.allocationSize = mem_req.size,
+				.memoryTypeIndex = memory_type_idx,
+			};
+			VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.static_staging_buffer.memory));
+		}
 
 		void* data;
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory, 0, mem_info.allocationSize, 0, &data));
-		uint8_t* cur = data;
-		SDL_memcpy(cur, staging_buffer_stream_ptr, staging_buffer_stream_size);
-		cur += staging_buffer_stream_size;
+		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory, 0, ctx->vk.static_staging_buffer.size, 0, &data));
+		uint8_t* cur = data; // for convenience
+		
+		SDL_memcpy(cur, stream_ptr, stream_size);
+		ctx->vk.static_staging_buffer.offset += stream_size;
+
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				SDL_memcpy(cur, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
-				cur += sizeof(Tile)*tile_layer->num_tiles;
+				SDL_memcpy(cur + ctx->vk.static_staging_buffer.offset, tile_layer->tiles, sizeof(Tile)*tile_layer->num_tiles);
+				ctx->vk.static_staging_buffer.offset += sizeof(Tile)*tile_layer->num_tiles;
 			}
 		}
 		vkUnmapMemory(ctx->vk.device, ctx->vk.static_staging_buffer.memory);
 
+		{
+			VkDeviceSize memory_offset = 0;
+			VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.static_staging_buffer.handle, ctx->vk.static_staging_buffer.memory, memory_offset));
+		}
+
 		SDL_CHECK(SDL_CloseIO(ctx->vk.static_staging_buffer_stream));
 		ctx->vk.static_staging_buffer_stream = NULL;
-
-		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.static_staging_buffer.handle, ctx->vk.static_staging_buffer.memory, memory_offset));
 	}
 
 	// VulkanAllocateAndBindImageMemory
@@ -2798,13 +2794,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, &region);
 
-				VkBufferCopy region = {
+				// TODO
+				VkBufferCopy region2 = {
 					// TODO: Is there a way a more self-documenting way to write this?
 					.srcOffset = region.bufferOffset,
 					.dstOffset = vertex_buffer_offset,
 					.size = ctx->vk.vertex_buffer.size - ctx->vk.dynamic_staging_buffer.size,
 				};
-				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
+				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region2);
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 
