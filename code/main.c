@@ -412,10 +412,15 @@ function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* b
 	buffer->write_offset += src_size;
 }
 
-function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkBufferCopy region) {
+function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst) {
+	VkBufferCopy region = {
+		.srcOffset = src->read_offset,
+		.dstOffset = dst->write_offset,
+		.size = SDL_min(src->size - src->read_offset, dst->size - dst->write_offset),
+	};
 	vkCmdCopyBuffer(cb, src->handle, dst->handle, 1, &region);
-	src->read_offset = region.srcOffset + src->size;
-	dst->write_offset = region.dstOffset + dst->size;
+	src->read_offset += src->size;
+	dst->write_offset += dst->size;
 }
 
 function void VulkanResetBuffer(VulkanBuffer* buffer) {
@@ -2754,8 +2759,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
-			SDL_memcpy(ctx->vk.dynamic_staging_buffer.mapped_memory, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
-			ctx->vk.dynamic_staging_buffer.write_offset = num_entity_vertices * sizeof(EntityVertex);
+			VulkanCopyBuffer(num_entity_vertices * sizeof(EntityVertex), entity_vertices, &ctx->vk.dynamic_staging_buffer);
 			SDL_free(entity_vertices);
 		}
 
@@ -2811,15 +2815,11 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkBufferCopy){.size = ctx->vk.dynamic_staging_buffer.size});
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer);
 				
 				EnumerateSpriteCells(ctx, VulkanCopyStaticStagingBufferToImagesCallback, NULL);
 				
-				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, (VkBufferCopy){
-					.srcOffset = ctx->vk.static_staging_buffer.read_offset,
-					.dstOffset = ctx->vk.vertex_buffer.write_offset,
-					.size = ctx->vk.vertex_buffer.size - ctx->vk.vertex_buffer.write_offset,
-				});
+				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
@@ -2852,7 +2852,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkBufferCopy){.size = ctx->vk.dynamic_staging_buffer.size});
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
