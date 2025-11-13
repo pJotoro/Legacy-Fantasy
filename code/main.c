@@ -555,6 +555,17 @@ function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBuffer
 	return res;
 }
 
+function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) {
+	SDL_assert(!buffer->mapped_memory);
+	SDL_assert(buffer->handle);
+	SDL_assert(buffer->memory);
+
+	vkDestroyBuffer(vk->device, buffer->handle, NULL);
+	vkFreeMemory(vk->device, buffer->memory, NULL);
+
+	*buffer = (VulkanBuffer){0};
+}
+
 function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
 	SDL_assert(!buffer->mapped_memory);
 	VK_CHECK(vkMapMemory(vk->device, buffer->memory, buffer->write_offset, buffer->size, 0, &buffer->mapped_memory));
@@ -2806,8 +2817,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanCopyStagingBuffers
 			if (!ctx->vk.staged) {
-				ctx->vk.staged = true;
-
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -2834,9 +2843,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer);
-				
 				EnumerateSpriteCells(ctx, VulkanCopyStaticStagingBufferToImagesCallback, NULL);
-				
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
@@ -2974,8 +2981,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
 
-			// VulkanResetBufferOffsets
-			VulkanResetBuffer(&ctx->vk.static_staging_buffer);
+			if (!ctx->vk.staged) {
+				ctx->vk.staged = true;
+				VulkanDestroyBuffer(&ctx->vk, &ctx->vk.static_staging_buffer);
+			}
 			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
 			VulkanResetBuffer(&ctx->vk.vertex_buffer);		
 		}
