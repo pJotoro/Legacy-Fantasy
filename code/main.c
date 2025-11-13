@@ -447,12 +447,17 @@ function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback ca
 
 function bool VulkanCopyBufferToImageCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
 	UNUSED(sprite_cell_idx);
-	VkBufferImageCopy* region = user_data;
+	UNUSED(user_data);
 	VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
 
-	region->imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1};
-	vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, region);
-	region->bufferOffset += cell->size.x*cell->size.y * sizeof(uint32_t);
+	VkBufferImageCopy region = {
+		.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+		.bufferOffset = ctx->vk.static_staging_buffer.offset,
+		.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+	};
+
+	vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	ctx->vk.static_staging_buffer.offset += cell->size.x*cell->size.y * sizeof(uint32_t);
 
 	return true;
 }
@@ -2749,12 +2754,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		
 		// CopyVerticesToDynamicStagingBuffer
-		VkDeviceSize vertex_buffer_offset;
 		{
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
 			SDL_memcpy(ctx->vk.dynamic_staging_buffer.mapped, entity_vertices, num_entity_vertices * sizeof(EntityVertex));
-			vertex_buffer_offset = num_entity_vertices * sizeof(EntityVertex); // TODO: Is there a clearer way to do this?
+			ctx->vk.dynamic_staging_buffer.offset = num_entity_vertices * sizeof(EntityVertex);
 			SDL_free(entity_vertices);
 		}
 
@@ -2796,19 +2800,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers), buffer_memory_barriers, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_before);
 
-				VkBufferImageCopy region = {
-					.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-				};
-				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, &region);
+				EnumerateSpriteCells(ctx, VulkanCopyBufferToImageCallback, NULL);
 
-				// TODO
-				VkBufferCopy region2 = {
-					// TODO: Is there a way a more self-documenting way to write this?
-					.srcOffset = region.bufferOffset,
-					.dstOffset = vertex_buffer_offset,
+				VkBufferCopy region = {
+					.srcOffset = ctx->vk.static_staging_buffer.offset,
+					.dstOffset = ctx->vk.vertex_buffer.offset, // TODO: We haven't set vertex_buffer.offset yet!
 					.size = ctx->vk.vertex_buffer.size - ctx->vk.dynamic_staging_buffer.size,
 				};
-				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region2);
+				vkCmdCopyBuffer(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.vertex_buffer.handle, 1, &region);
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprite_cells, ctx->vk.image_memory_barriers_after);
 
