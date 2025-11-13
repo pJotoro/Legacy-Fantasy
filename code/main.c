@@ -2503,34 +2503,37 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = &ctx->levels[level_idx];
 			ctx->vk.dynamic_staging_buffer.size += sizeof(EntityVertex)*level->num_enemies;
 		}
+		{
+			uint32_t queue_family_idx = 0;
+			VkBufferCreateInfo buffer_info = {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.size = ctx->vk.dynamic_staging_buffer.size,
+				.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 
-		uint32_t queue_family_idx = 0;
-		VkBufferCreateInfo buffer_info = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = ctx->vk.dynamic_staging_buffer.size,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				// TODO
+				.queueFamilyIndexCount = 1,
+				.pQueueFamilyIndices = &queue_family_idx,
+			};
+			VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.dynamic_staging_buffer.handle));
+		}
+		{
+			VkMemoryRequirements mem_req;
+			vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, &mem_req);
 
-			// TODO
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &queue_family_idx,
-		};
-		VK_CHECK(vkCreateBuffer(ctx->vk.device, &buffer_info, NULL, &ctx->vk.dynamic_staging_buffer.handle));
+			uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			VkMemoryAllocateInfo mem_info = {
+				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+				.allocationSize = mem_req.size,
+				.memoryTypeIndex = memory_type_idx,
+			};
+			VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.dynamic_staging_buffer.memory));
 
-		VkMemoryRequirements mem_req;
-		vkGetBufferMemoryRequirements(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, &mem_req);
-
-		uint32_t memory_type_idx = VulkanGetMemoryTypeIdxWithProperties(&ctx->vk, &mem_req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VkMemoryAllocateInfo mem_info = {
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = mem_req.size,
-			.memoryTypeIndex = memory_type_idx,
-		};
-		VK_CHECK(vkAllocateMemory(ctx->vk.device, &mem_info, NULL, &ctx->vk.dynamic_staging_buffer.memory));
-
-		VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.memory, 0, mem_info.allocationSize, 0, &ctx->vk.dynamic_staging_buffer.mapped));
-
-		VkDeviceSize memory_offset = 0;
-		VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.dynamic_staging_buffer.memory, memory_offset));
+			VK_CHECK(vkMapMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.memory, 0, ctx->vk.dynamic_staging_buffer.size, 0, &ctx->vk.dynamic_staging_buffer.mapped));
+		}
+		{
+			VkDeviceSize memory_offset = 0;
+			VK_CHECK(vkBindBufferMemory(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, ctx->vk.dynamic_staging_buffer.memory, memory_offset));
+		}
 	}
 
 	// VulkanCreateVertexBuffer
