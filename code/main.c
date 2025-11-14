@@ -202,16 +202,27 @@ typedef struct Entity {
 	EntityState state;
 } Entity;
 
-typedef struct EntityVertex {
-	ivec2s pos;
-	int32_t dir;
-	int32_t frame_idx;
-} EntityVertex;
-
 typedef struct Tile {
 	ivec2s src;
 	ivec2s dst;
 } Tile;
+
+typedef struct EntityVertex {
+	ivec2s pos;
+} EntityVertex;
+
+typedef struct EntityInstance {
+	int32_t dir;
+	int32_t frame_idx;
+} EntityInstance;
+
+typedef struct TileVertex {
+	ivec2s dst;
+} TileVertex;
+
+typedef struct TileInstance {
+	ivec2s src;
+} TileInstance;
 
 typedef struct TileLayer {
 	Tile* tiles;
@@ -281,7 +292,6 @@ typedef struct Vulkan {
 
 	VkDevice device;
 
-	// TODO: Swapchain recreation.
 	VkSwapchainKHR swapchain;
 	VkSwapchainCreateInfoKHR swapchain_info;
 
@@ -316,6 +326,7 @@ typedef struct Vulkan {
 	Memory layout:
 		uint32_t raw_image_data[][];
 		Tile tiles[];
+		uint16_t indices[6];
 	*/
 	VulkanBuffer static_staging_buffer;
 	SDL_IOStream* static_staging_buffer_stream; // The data in this will be copied over to the staging buffer.
@@ -334,6 +345,12 @@ typedef struct Vulkan {
 		Tile tiles[];
 	*/
 	VulkanBuffer vertex_buffer;
+
+	/*
+	Memory layout:
+		uint16_t indices[6];
+	*/
+	VulkanBuffer index_buffer;
 
 	VkDeviceMemory image_memory;
 
@@ -410,15 +427,11 @@ static float dt;
 
 function EntityVertex* GetEntityVertices(Level* level, size_t* num_entity_vertices) {
 	SDL_assert(num_entity_vertices);
-	*num_entity_vertices = 1 + level->num_enemies;
+	*num_entity_vertices = (1 + level->num_enemies);
 	EntityVertex* res = SDL_malloc((*num_entity_vertices) * sizeof(EntityVertex)); SDL_CHECK(res);
 	res[0].pos = level->player.pos;
-	res[0].dir = level->player.dir;
-	res[0].frame_idx = level->player.anim.frame_idx;
 	for (size_t i = 0; i < level->num_enemies; i += 1) {
 		res[i+1].pos = level->enemies[i].pos;
-		res[i+1].dir = level->enemies[i].dir;
-		res[i+1].frame_idx = level->enemies[i].anim.frame_idx;
 	}
 	return res;
 }
@@ -578,6 +591,8 @@ function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
 	buffer->write_offset = 0;
 }
 
+// TODO: I find the parameter order here really unnatural. At the same time, it is closer to how Vulkan does things.
+// Should I change it?
 function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) {
 	SDL_assert(buffer->mapped_memory);
 	SDL_assert(buffer->write_offset + src_size <= buffer->size);
@@ -587,11 +602,11 @@ function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* b
 	buffer->write_offset += src_size;
 }
 
-function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst) {
+function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) {
 	VkBufferCopy region = {
 		.srcOffset = src->read_offset,
 		.dstOffset = dst->write_offset,
-		.size = SDL_min(src->size - src->read_offset, dst->size - dst->write_offset),
+		.size = SDL_min(size, SDL_min(src->size - src->read_offset, dst->size - dst->write_offset)),
 	};
 	SDL_assert(region.size != 0);
 	vkCmdCopyBuffer(cb, src->handle, dst->handle, 1, &region);
@@ -2133,7 +2148,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(Tile),
+				.stride = sizeof(Tile), // TODO: As of now, EntityVertex and Tile use the same vertex input binding description. Should we just have one instead?
 				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
 			},
 		};
@@ -2141,14 +2156,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			{
 				.location = 0,
 				.binding = 0,
-				.format = VK_FORMAT_R32G32_SINT,
-				.offset = offsetof(Tile, src),
-			},
-			{
-				.location = 1,
-				.binding = 0,
-				.format = VK_FORMAT_R32G32_SINT,
-				.offset = offsetof(Tile, dst),
+				.format = VK_FORMAT_R32G32B32A32_SINT,
+				.offset = 0,
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo tile_vertex_input_info = { 
@@ -2183,7 +2192,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 0,
 				.binding = 0,
 				.format = VK_FORMAT_R32G32B32A32_SINT,
-				.offset = offsetof(EntityVertex, pos),
+				.offset = 0,
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
@@ -2472,6 +2481,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		void* stream_ptr; size_t stream_size;
 		GetDynamicMemProperties(ctx->vk.static_staging_buffer_stream, &stream_ptr, &stream_size);
 
+		uint16_t indices[] = {0, 1, 2, 2, 3, 0};
+
 		VkDeviceSize size = stream_size;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
@@ -2480,6 +2491,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				size += tile_layer->num_tiles * sizeof(Tile);
 			}
 		}
+		size += SDL_arraysize(indices) * sizeof(uint16_t);
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
@@ -2491,6 +2503,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				VulkanCopyBuffer(sizeof(Tile)*tile_layer->num_tiles, tile_layer->tiles, &ctx->vk.static_staging_buffer);
 			}
 		}
+		VulkanCopyBuffer(SDL_arraysize(indices) * sizeof(uint16_t), indices, &ctx->vk.static_staging_buffer);
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		SDL_CHECK(SDL_CloseIO(ctx->vk.static_staging_buffer_stream));
@@ -2604,6 +2617,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	}
+
+	// VulkanCreateIndexBuffer
+	{
+		size_t size = 6 * sizeof(uint16_t);
+		ctx->vk.index_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 
 	// InitReplayFrames
@@ -2839,12 +2858,20 @@ int32_t main(int32_t argc, char* argv[]) {
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.buffer = ctx->vk.index_buffer.handle,
+						.size = ctx->vk.index_buffer.size,
+					}
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer);
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
 				EnumerateSpriteCells(ctx, VulkanCopyStaticStagingBufferToImagesCallback, NULL);
-				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer);
+				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
+				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.index_buffer, (VkDeviceSize)-1);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
@@ -2853,6 +2880,13 @@ int32_t main(int32_t argc, char* argv[]) {
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
+					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.dstAccessMask = VK_ACCESS_INDEX_READ_BIT,
+						.buffer = ctx->vk.index_buffer.handle,
+						.size = ctx->vk.index_buffer.size,
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
@@ -2877,7 +2911,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer);
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
@@ -2938,7 +2972,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				const uint32_t* dynamic_offsets = NULL;
 				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, first_set, num_descriptor_sets, &ctx->vk.descriptor_set, num_dynamic_offsets, dynamic_offsets);
 			}
-
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
 			// TODO: Draw tiles.
