@@ -329,7 +329,7 @@ typedef struct Vulkan {
 		uint16_t indices[6];
 	*/
 	VulkanBuffer static_staging_buffer;
-	SDL_IOStream* static_staging_buffer_stream; // The data in this will be copied over to the staging buffer.
+	SDL_IOStream* static_staging_buffer_stream; // The data in this will be copied over to the static staging buffer.
 	
 	/*
 	Memory layout:
@@ -352,6 +352,10 @@ typedef struct Vulkan {
 	*/
 	VulkanBuffer index_buffer;
 
+	uint32_t image_memory_type_idx;
+	VkBindImageMemoryInfo* bind_image_memory_infos;
+	VkBufferImageCopy* buffer_image_copies;
+	VkMemoryAllocateInfo image_memory_info;
 	VkDeviceMemory image_memory;
 
 	size_t num_image_memory_barriers;
@@ -458,23 +462,6 @@ function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback ca
     }
 }
 
-function bool VulkanCopyStaticStagingBufferToImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
-	UNUSED(sprite_cell_idx);
-	UNUSED(user_data);
-	VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
-
-	VkBufferImageCopy region = {
-		.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-		.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
-		.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
-	};
-
-	vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-	ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
-
-	return true;
-}
-
 function bool VulkanGetSpriteCellsImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
     UNUSED(ctx);
     VkImage* images = (VkImage*)user_data;
@@ -493,6 +480,10 @@ function bool VulkanGetSpriteCellsMemoryRequirementsCallback(Context* ctx, Sprit
     VkMemoryRequirements* mem_reqs = (VkMemoryRequirements*)user_data;
     mem_reqs[sprite_cell_idx] = cell->vk_mem_req;
     return true;
+}
+
+function void VulkanGetSpriteCellsInfoCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
+
 }
 
 function VkMemoryRequirements* VulkanGetSpriteCellsMemoryRequirements(Context* ctx) {
@@ -2540,8 +2531,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// VulkanAllocateAndBindImageMemory
 		{
-			VkMemoryRequirements* mem_reqs = VulkanGetSpriteCellsMemoryRequirements(ctx);
 			VkMemoryAllocateInfo allocate_info = {
+				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+			};
+			ctx->vk.image_memory_info = (VkMemoryAllocateInfo){
 				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 			};
@@ -2554,6 +2548,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					.image = images[i],
 					.memoryOffset = allocate_info.allocationSize,
 				};
+				ctx->vk.buffer_image_copies[i] = (VkBufferImageCopy){
+					.bufferOffset = allocate_info.memoryOffset,
+					.imageSubresource = ,
+					.imageExtent = 
+				};
+				ctx->vk.
 				allocate_info.allocationSize += mem_reqs[i].size;
 			}
 			VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
@@ -2825,7 +2825,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		#endif
 		}
 		
-		// CopyVerticesToDynamicStagingBuffer
+		// VulkanCopyVerticesToDynamicStagingBuffer
 		{
 			size_t num_entity_vertices;
 			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
@@ -2895,7 +2895,31 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
-				EnumerateSpriteCells(ctx, VulkanCopyStaticStagingBufferToImagesCallback, NULL);
+				function bool VulkanCopyStaticStagingBufferToImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
+					UNUSED(sprite_cell_idx);
+					UNUSED(user_data);
+					VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
+
+					VkBufferImageCopy region = {
+						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+						.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
+						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+					};
+
+					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, cell->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+					ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+
+					return true;
+				}
+				for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+					VkBufferImageCopy region = {
+						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+						.bufferOffset = ctx->vk.bind_image_memory_infos[i].offset,
+						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+					};
+					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.bind_image_memory_infos[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+				}
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.index_buffer, (VkDeviceSize)-1);
 
