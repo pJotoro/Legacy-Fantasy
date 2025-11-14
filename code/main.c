@@ -2148,15 +2148,26 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(Tile), // TODO: As of now, EntityVertex and Tile use the same vertex input binding description. Should we just have one instead?
+				.stride = sizeof(TileVertex),
 				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+			},
+			{
+				.binding = 1,
+				.stride = sizeof(TileInstance),
+				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
 		VkVertexInputAttributeDescription tile_vertex_attributes[] = {
 			{
 				.location = 0,
 				.binding = 0,
-				.format = VK_FORMAT_R32G32B32A32_SINT,
+				.format = VK_FORMAT_R32G32_SINT,
+				.offset = 0,
+			},
+			{
+				.location = 1,
+				.binding = 1,
+				.format = VK_FORMAT_R32G32_SINT,
 				.offset = 0,
 			},
 		};
@@ -2186,12 +2197,23 @@ int32_t main(int32_t argc, char* argv[]) {
 				.stride = sizeof(EntityVertex),
 				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
 			},
+			{
+				.binding = 1,
+				.stride = sizeof(EntityInstance),
+				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
+			},
 		};
 		VkVertexInputAttributeDescription entity_vertex_attributes[] = {
 			{
 				.location = 0,
 				.binding = 0,
-				.format = VK_FORMAT_R32G32B32A32_SINT,
+				.format = VK_FORMAT_R32G32_SINT,
+				.offset = 0,
+			},
+			{
+				.location = 1,
+				.binding = 1,
+				.format = VK_FORMAT_R32G32_SINT,
 				.offset = 0,
 			},
 		};
