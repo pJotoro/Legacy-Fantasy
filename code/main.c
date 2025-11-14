@@ -2617,10 +2617,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDynamicStagingBuffer
 	{
-		size_t size = sizeof(EntityVertex); // the player
+		size_t size = sizeof(EntityVertex) + sizeof(EntityInstance); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += sizeof(EntityVertex)*level->num_enemies;
+			size += (sizeof(EntityVertex) + sizeof(EntityInstance))*level->num_enemies;
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -2629,13 +2629,13 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateVertexBuffer
 	{
-		size_t size = sizeof(EntityVertex); // the player
+		size_t size = sizeof(EntityVertex) + sizeof(EntityInstance); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += sizeof(EntityVertex)*level->num_enemies;
+			size += (sizeof(EntityVertex) + sizeof(EntityInstance)) * level->num_enemies;
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				size += tile_layer->num_tiles*sizeof(Tile);
+				size += (sizeof(TileVertex) + sizeof(TileInstance)) * tile_layer->num_tiles;
 			}
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -2844,6 +2844,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkResetFences(ctx->vk.device, 1, &ctx->vk.frames[ctx->vk.current_frame].fence_in_flight));
 
 			VK_CHECK(vkAcquireNextImageKHR(ctx->vk.device, ctx->vk.swapchain, UINT64_MAX, ctx->vk.frames[ctx->vk.current_frame].sem_image_available, VK_NULL_HANDLE, &image_idx));
+			if (image_idx == 0 && ctx->vk.staged && ctx->vk.static_staging_buffer.handle) {
+				VulkanDestroyBuffer(&ctx->vk, &ctx->vk.static_staging_buffer);
+			}
 
 			cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
 
@@ -2858,6 +2861,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanCopyStagingBuffers
 			if (!ctx->vk.staged) {
+				ctx->vk.staged = true;
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -3036,10 +3040,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
 
-			if (!ctx->vk.staged) {
-				ctx->vk.staged = true;
-				VulkanDestroyBuffer(&ctx->vk, &ctx->vk.static_staging_buffer);
-			}
 			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
 			VulkanResetBuffer(&ctx->vk.vertex_buffer);		
 		}
