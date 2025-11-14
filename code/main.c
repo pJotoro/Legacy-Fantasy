@@ -2992,6 +2992,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
 			}
 			{
+				VkDeviceSize offset = 0;
+				vkCmdBindIndexBuffer(cb, ctx->vk.index_buffer.handle, offset, VK_INDEX_TYPE_UINT16);
+			}
+			{
 				uint32_t first_set = 0;
 				uint32_t num_descriptor_sets = 1;
 				uint32_t num_dynamic_offsets = 0;
