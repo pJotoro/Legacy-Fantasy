@@ -137,6 +137,7 @@ typedef uint32_t SpriteCellType;
 typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
+	void* buf; // invalid after Vulkan images have been created
 	SpriteCellType type;
 	int32_t z_idx;
 } SpriteCell;
@@ -2070,7 +2071,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
-		// AllocateSpriteArrays
 		ctx->sprite_layers = ArenaAlloc(&ctx->arena, ctx->num_sprite_layers, SpriteLayer);
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
@@ -2120,101 +2120,39 @@ int32_t main(int32_t argc, char* argv[]) {
 							.offset.y = chunk->y,
 							.z_idx = chunk->z_idx,
 						};
+
 						SDL_assert(chunk->type == ASE_CellType_CompressedImage);
-						switch (chunk->type) {
-							case ASE_CellType_Raw: {
-							} break;
-							case ASE_CellType_Linked: {
-							} break;
-							case ASE_CellType_CompressedImage: {
-								cell.size.x = chunk->compressed_image.w;
-								cell.size.y = chunk->compressed_image.h;
+						cell.size.x = chunk->compressed_image.w;
+						cell.size.y = chunk->compressed_image.h;
 
-								if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
-									cell.type = SpriteCellType_Hitbox;
-								} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Origin") == 0) {
-									cell.type = SpriteCellType_Origin;
-								} else {
-									// DecompressImageAndWriteToStream
-									{
-										// It's the zero-sized array at the end of ASE_CellChunk.
-										size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
-										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
+						if (SDL_strcmp(ctx->sprite_layers[layer_idx].name, "Hitbox") == 0) {
+							cell.type = SpriteCellType_Hitbox;
+						} else if (SDL_strcmp(ctx->sprite_layers[layer_idx].name, "Origin") == 0) {
+							cell.type = SpriteCellType_Origin;
+						} else {
+							size_t buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
+							cell.buf = SDL_malloc(buf_size); SDL_CHECK(cell.buf);
+							
+							// It's the zero-sized array at the end of ASE_CellChunk.
+							size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
+							void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-										size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
-										void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
-
-										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
-										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
-										SPALL_BUFFER_END();
-										SDL_assert(res > 0);
-
-										SDL_WriteIO(ctx->vk.static_staging_buffer_stream, dst_buf, dst_buf_size);
-										SDL_free(dst_buf);
-									}
-
-									uint32_t queue_family_idx = 0;
-									VkImageCreateInfo image_info = {
-										.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-										.imageType = VK_IMAGE_TYPE_2D,
-										.format = VK_FORMAT_R8G8B8A8_SRGB,
-										.extent = {cell.size.x, cell.size.y, 1},
-										.mipLevels = 1,
-										.arrayLayers = 1,
-										.samples = VK_SAMPLE_COUNT_1_BIT,
-										.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,
-
-										// TODO
-										.queueFamilyIndexCount = 1,
-										.pQueueFamilyIndices = &queue_family_idx,
-									};
-									VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
-									vkGetImageMemoryRequirements(ctx->vk.device, cell.vk_image, &cell.vk_mem_req);
-
-									ctx->num_sprite_cells += 1;
-
-									// VkImageViewCreateInfo image_view_info = {
-									// 	.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-									// 	.image = cell.vk_image,
-									// 	.viewType = VK_IMAGE_VIEW_TYPE_2D,
-									// 	.format = image_info.format,
-									// 	.subresourceRange = {
-									// 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
-									// 		.baseMipLevel = 0, 
-									// 		.levelCount = 1,
-									// 		.baseArrayLayer = 0, 
-									// 		.layerCount = 1,
-									// 	},
-									// };
-									// VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
-								}
-							} break;
-							case ASE_CellType_CompressedTilemap: {
-							} break;
+							SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
+							size_t res = INFL_ZInflate(cell.buf, buf_size, src_buf, src_buf_size);
+							SPALL_BUFFER_END();
+							SDL_assert(res > 0);
 						}
-						sd->frames[frame_idx].cells[cell_idx++] = cell;
+						ctx->sprite_cells[ctx->num_sprite_cells++] = cell;
 					} break;
 					}
 				}
 			}
 
-			SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
-			layer_idx = 0;
-			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-				size_t cell_idx = 0;
-				ASE_Frame frame;
-				SDL_ReadStructChecked(fs, &frame);
-				SDL_assert(frame.magic_number == 0xF1FA);
-
-				// Would mean this aseprite file is very old.
-				SDL_assert(frame.num_chunks != 0);
-
-				sd->frames[frame_idx].dur = ((double)frame.frame_dur)/1000.0;
-			}
+			SDL_CloseIO(sd->fs);
+			sd->fs = NULL;
 		}
 
-		SDL_CloseIO(fs);
-
+		SDL_free(raw_chunk);
 	}
 
 	// SortSpriteCells

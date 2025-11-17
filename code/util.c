@@ -137,8 +137,6 @@ function FORCEINLINE VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize al
     return p;
 }
 
-// TODO: Is it okay to make these static?
-
 function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
     ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
     ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
