@@ -57,11 +57,18 @@ function FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
     return &ctx->levels[ctx->level_idx];
 }
 
-function FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
-    SDL_assert(sprite.idx >= 0 && sprite.idx < MAX_SPRITES);
+function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) {
+    if (!(sprite.idx >= 0 && sprite.idx < MAX_SPRITES)) return false;
     SpriteDesc* sd = &ctx->sprites[sprite.idx];
-    if (!sd->path) return NULL;
-    return sd;
+    bool size_check = sd->size.x != 0 && sd->size.y != 0;
+    bool layers_check = sd->num_layers > 0 && sd->num_layers < ctx->num_sprite_layers;
+    bool frames_check = sd->num_frames > 0 && ctx->num_frames < ctx->num_sprite_frames;
+    return size_check && layers_check && frames_check;
+}
+
+function FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
+    if (!SpriteIsValid(ctx, sprite)) return NULL;
+    return &ctx->sprites[sprite.idx];
 }
 
 function FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) {
@@ -84,6 +91,7 @@ function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, si
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
+// TODO: Add align parameter. I have no idea why I didn't just do it that way originally.
 function FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
     void* res = (void*)arena->cur;
     SDL_assert(size > 0);
@@ -160,8 +168,6 @@ function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemor
     if (a->memoryRequirements.size < b->memoryRequirements.size) return 1;
     return -1; // this could be 1, but then the sort would be unstable
 }
-
-
 
 function void GetDynamicMemProperties(SDL_IOStream* dynamic_mem, void** out_ptr, size_t* out_size) {
     SDL_assert(dynamic_mem && out_ptr && out_size);

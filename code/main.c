@@ -120,6 +120,12 @@ typedef struct SpriteLayer {
 	char* name;
 } SpriteLayer;
 
+typedef struct VulkanImage {
+	VkImage image;
+	VkMemoryRequirements mem_req;
+	// TODO: Memory allocation info
+} VulkanImage;
+
 enum {
 	SpriteCellType_Sprite,
 	SpriteCellType_Hitbox,
@@ -131,35 +137,30 @@ typedef uint32_t SpriteCellType;
 typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
-	uint32_t layer_idx;
-	uint32_t frame_idx;
-	int32_t z_idx;
 	SpriteCellType type;
-	
-	VkImage vk_image;
-	// VkImageView vk_image_view;
-	VkMemoryRequirements vk_mem_req;
+	int32_t z_idx;
 } SpriteCell;
 
 typedef struct SpriteFrame {
-	double dur;
-	SpriteCell* cells; size_t num_cells;
+	VulkanImage vk;
+	float dur;
+	uint16_t first_cell; uint16_t num_cells;
 } SpriteFrame;
 
 typedef struct SpriteDesc {
-	char* path;
+	SDL_IOStream* fs; // invalid after sprite has been loaded
 	ivec2s size;
-	SpriteLayer* layers; size_t num_layers;
-	SpriteFrame* frames; size_t num_frames;
+	uint16_t first_layer; uint16_t num_layers;
+	uint16_t first_frame; uint16_t num_frames;
 } SpriteDesc;
 
 typedef struct Sprite {
-	int32_t idx;
+	uint16_t idx;
 } Sprite;
 
 typedef struct Anim {
 	Sprite sprite;
-	int32_t frame_idx;
+	uint16_t frame_idx;
 	float dt_accumulator;
 	bool ended;
 } Anim;
@@ -168,7 +169,7 @@ enum {
 	EntityType_Player,
 	EntityType_Boar,
 };
-typedef uint32_t EntityType;
+typedef uint16_t EntityType;
 
 enum {
 	EntityState_Inactive,
@@ -182,7 +183,7 @@ enum {
 	EntityState_Hurt,
 	
 };
-typedef uint32_t EntityState;
+typedef uint16_t EntityState;
 
 typedef struct Entity {
 	Anim anim;
@@ -196,7 +197,7 @@ typedef struct Entity {
 
 	vec2s vel;
 	
-	int32_t dir;
+	int16_t dir;
 
 	EntityType type;
 	EntityState state;
@@ -393,8 +394,14 @@ typedef struct Context {
 	Level* levels; size_t num_levels;
 	size_t level_idx;
 
-	SpriteDesc sprites[MAX_SPRITES];
-	size_t num_sprite_cells; // not the same thing as the number of sprites
+	SpriteLayer* sprite_layers; size_t num_sprite_layers;
+	SpriteCell* sprite_cells; size_t num_sprite_cells;
+	SpriteFrame* sprite_frames; size_t num_sprite_frames;
+
+	// sprites is a hash map, not an array.
+	// When looping through sprites, please loop MAX_SPRITES times, not num_sprites times.
+	// To check if a SpriteDesc describes a valid sprite, simply check whether the path is NULL.
+	SpriteDesc sprites[MAX_SPRITES]; size_t num_sprites;
 
 	Vulkan vk;
 
@@ -446,7 +453,7 @@ function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback ca
     SDL_assert(callback);
     size_t sprite_cell_idx = 0;
     for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-        SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
+        SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(uint16_t)sprite_idx});
         if (sd) {
             for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
                 for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
@@ -791,7 +798,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
     SPALL_BUFFER_END();
 }
 
-function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
+function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
 
@@ -803,13 +810,16 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 	int32_t num_files;
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &num_files); SDL_CHECK(files);
 	if (num_files > 0) {
+		ctx->num_sprites += (size_t)num_files;
+
+		// TODO: Allocate this with a stack allocator.
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
 		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
 
 		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
 			char* file = files[file_idx];
 
-			char sprite_path[2048];
+			char sprite_path[1024];
 			SDL_CHECK(SDL_snprintf(sprite_path, sizeof(sprite_path), "%s\\%s", dir_path, file) >= 0);
 			SDL_CHECK(SDL_GetPathInfo(sprite_path, NULL));
 
@@ -818,282 +828,58 @@ function SDL_EnumerationResult EnumerateSpriteDirectory(void *userdata, const ch
 			SDL_assert(!sd && "Collision");
 			sd = &ctx->sprites[sprite.idx];
 
-			{
-				size_t buf_len = SDL_strlen(sprite_path) + 1;
-				sd->path = ArenaAlloc(&ctx->arena, (uint64_t)buf_len, char);
-				SDL_strlcpy(sd->path, sprite_path, buf_len);
-			}
+			sd->fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(sd->fs);
+
+			ASE_Header header;
+			SDL_ReadStructChecked(sd->fs, &header);
+
+			SDL_assert(header.magic_number == 0xA5E0);
+			SDL_assert(header.color_depth == 32);
+			SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
 			
-			SDL_IOStream* fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(fs);
-			
-			// LoadSprite
-			{
-				SPALL_BUFFER_BEGIN_NAME("LoadSprite");
-				/* 
-				This loops through the frames in three passes. These are:
-				1. Get layer count and for each frame, get cell count.
-				2. Get layer names.
-				3. Everything else, including decompressing texture data and uploading it to the GPU.
-				*/
+			sd->size.x = (int32_t)header.w;
+			sd->size.y = (int32_t)header.h;
+			SDL_assert(header.grid_x == 0);
+			SDL_assert(header.grid_y == 0);
+			SDL_assert(header.grid_w == 0 || header.grid_w == 16);
+			SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 
-				ASE_Header header;
-				SDL_ReadStructChecked(fs, &header);
+			sd->first_frame = (uint16_t)ctx->num_sprite_frames;
+			sd->num_frames = header.num_frames;
+			ctx->num_sprite_frames += sd->num_frames;
 
-				SDL_assert(header.magic_number == 0xA5E0);
-				SDL_assert(header.color_depth == 32);
-				SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
-				
-				sd->size.x = (int32_t)header.w;
-				sd->size.y = (int32_t)header.h;
-				SDL_assert(header.grid_x == 0);
-				SDL_assert(header.grid_y == 0);
-				SDL_assert(header.grid_w == 0 || header.grid_w == 16);
-				SDL_assert(header.grid_h == 0 || header.grid_h == 16);
-				sd->num_frames = (size_t)header.num_frames;
-				sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
+			sd->first_layer = (uint16_t)ctx->num_sprite_layers;
 
-				int64_t fs_save = SDL_TellIO(fs); SDL_CHECK(fs_save != -1);
+			int64_t fs_pos = SDL_TellIO(sd->fs);
+			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+				ASE_Frame frame;
+				SDL_ReadStructChecked(sd->fs, &frame);
+				SDL_assert(frame.magic_number == 0xF1FA);
 
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					ASE_Frame frame;
-					SDL_ReadStructChecked(fs, &frame);
-					SDL_assert(frame.magic_number == 0xF1FA);
+				// Would mean this aseprite file is very old.
+				SDL_assert(frame.num_chunks != 0);
 
-					// Would mean this aseprite file is very old.
-					SDL_assert(frame.num_chunks != 0);
+				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+					ASE_ChunkHeader chunk_header;
+					SDL_ReadStructChecked(sd->fs, &chunk_header);
+					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-						ASE_ChunkHeader chunk_header;
-						SDL_ReadStructChecked(fs, &chunk_header);
-						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+					SDL_assert(raw_chunk_alloc_size >= raw_chunk_size);
+					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
-						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-						SDL_assert(raw_chunk_alloc_size >= raw_chunk_size);
-						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
-
-						switch (chunk_header.type) {
-						case ASE_ChunkType_Layer: {
-							++sd->num_layers;
-						} break;
-						case ASE_ChunkType_Cell: {
-							++sd->frames[frame_idx].num_cells;
-						} break;
-						}
+					switch (chunk_header.type) {
+					case ASE_ChunkType_Layer: {
+						sd->num_layers += 1;
+						ctx->num_sprite_layers += 1;
+					} break;
+					case ASE_ChunkType_Cell: {
+						ctx->num_sprite_cells += 1;
+					} break;
 					}
 				}
-				sd->layers = ArenaAlloc(&ctx->arena, sd->num_layers, SpriteLayer);
-				
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					if (sd->frames[frame_idx].num_cells > 0) {
-						sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
-					}
-				}
-
-				size_t layer_idx;
-
-				SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
-				layer_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					ASE_Frame frame;
-					SDL_ReadStructChecked(fs, &frame);
-					SDL_assert(frame.magic_number == 0xF1FA);
-
-					// Would mean this aseprite file is very old.
-					SDL_assert(frame.num_chunks != 0);
-
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-						ASE_ChunkHeader chunk_header;
-						SDL_ReadStructChecked(fs, &chunk_header);
-						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
-
-						switch (chunk_header.type) {
-						case ASE_ChunkType_Layer: {
-							// TODO: tileset_idx and uuid
-							ASE_LayerChunk* chunk = raw_chunk;
-							SpriteLayer sprite_layer = {0};
-							if (chunk->layer_name.len > 0) {
-								sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
-								SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
-							}
-							sd->layers[layer_idx++] = sprite_layer;
-						} break;
-						}
-					}
-				}
-
-				SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
-				layer_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					size_t cell_idx = 0;
-					ASE_Frame frame;
-					SDL_ReadStructChecked(fs, &frame);
-					SDL_assert(frame.magic_number == 0xF1FA);
-
-					// Would mean this aseprite file is very old.
-					SDL_assert(frame.num_chunks != 0);
-
-					sd->frames[frame_idx].dur = ((double)frame.frame_dur)/1000.0;
-
-					for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-						ASE_ChunkHeader chunk_header;
-						SDL_ReadStructChecked(fs, &chunk_header);
-						if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-						size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-						SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
-
-						switch (chunk_header.type) {
-						case ASE_ChunkType_OldPalette: {
-						} break;
-						case ASE_ChunkType_OldPalette2: {
-						} break;
-						case ASE_ChunkType_Cell: {
-							ASE_CellChunk* chunk = raw_chunk;
-							SpriteCell cell = {
-								.layer_idx = (uint32_t)layer_idx,
-								.frame_idx = (uint32_t)frame_idx,
-								.offset.x = chunk->x,
-								.offset.y = chunk->y,
-								.z_idx = chunk->z_idx,
-							};
-							SDL_assert(chunk->type == ASE_CellType_CompressedImage);
-							switch (chunk->type) {
-								case ASE_CellType_Raw: {
-								} break;
-								case ASE_CellType_Linked: {
-								} break;
-								case ASE_CellType_CompressedImage: {
-									cell.size.x = chunk->compressed_image.w;
-									cell.size.y = chunk->compressed_image.h;
-
-									if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
-										cell.type = SpriteCellType_Hitbox;
-									} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Origin") == 0) {
-										cell.type = SpriteCellType_Origin;
-									} else {
-										// DecompressImageAndWriteToStream
-										{
-											// It's the zero-sized array at the end of ASE_CellChunk.
-											size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
-											void* src_buf = (void*)((&chunk->compressed_image.h)+1);
-
-											size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
-											void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
-
-											SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
-											size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
-											SPALL_BUFFER_END();
-											SDL_assert(res > 0);
-
-											SDL_WriteIO(ctx->vk.static_staging_buffer_stream, dst_buf, dst_buf_size);
-											SDL_free(dst_buf);
-										}
-
-										uint32_t queue_family_idx = 0;
-										VkImageCreateInfo image_info = {
-											.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-											.imageType = VK_IMAGE_TYPE_2D,
-											.format = VK_FORMAT_R8G8B8A8_SRGB,
-											.extent = {cell.size.x, cell.size.y, 1},
-											.mipLevels = 1,
-											.arrayLayers = 1,
-											.samples = VK_SAMPLE_COUNT_1_BIT,
-											.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,
-
-											// TODO
-											.queueFamilyIndexCount = 1,
-											.pQueueFamilyIndices = &queue_family_idx,
-										};
-										VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
-										vkGetImageMemoryRequirements(ctx->vk.device, cell.vk_image, &cell.vk_mem_req);
-
-										ctx->num_sprite_cells += 1;
-
-										// VkImageViewCreateInfo image_view_info = {
-										// 	.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-										// 	.image = cell.vk_image,
-										// 	.viewType = VK_IMAGE_VIEW_TYPE_2D,
-										// 	.format = image_info.format,
-										// 	.subresourceRange = {
-										// 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
-										// 		.baseMipLevel = 0, 
-										// 		.levelCount = 1,
-										// 		.baseArrayLayer = 0, 
-										// 		.layerCount = 1,
-										// 	},
-										// };
-										// VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
-									}
-								} break;
-								case ASE_CellType_CompressedTilemap: {
-								} break;
-							}
-							sd->frames[frame_idx].cells[cell_idx++] = cell;
-						} break;
-						case ASE_ChunkType_CellExtra: {
-							ASE_CellChunk* chunk = raw_chunk;
-							UNUSED(chunk);
-							ASE_CellExtraChunk* extra_chunk = (ASE_CellExtraChunk*)((uintptr_t)raw_chunk + (uintptr_t)chunk_header.size - sizeof(ASE_CellExtraChunk));
-							UNUSED(extra_chunk);
-						} break;
-						case ASE_ChunkType_ColorProfile: {
-							ASE_ColorProfileChunk* chunk = raw_chunk;
-							switch (chunk->type) {
-							case ASE_ColorProfileType_None: {
-
-							} break;
-							case ASE_ColorProfileType_SRGB: {
-
-							} break;
-							case ASE_ColorProfileType_EmbeddedICC: {
-
-							} break;
-							default: {
-								SDL_assert(false);
-							} break;
-							}
-						} break;
-						case ASE_ChunkType_ExternalFiles: {
-							ASE_ExternalFilesChunk* chunk = raw_chunk;
-							UNUSED(chunk);
-							SDL_Log("ASE_CHUNK_TYPE_EXTERNAL_FILES");
-						} break;
-						case ASE_ChunkType_DeprecatedMask: {
-						} break;
-						case ASE_ChunkType_Path: {
-							SDL_Log("ASE_CHUNK_TYPE_PATH");
-						} break;
-						case ASE_ChunkType_Tags: {
-							ASE_TagsChunk* chunk = raw_chunk;
-							ASE_Tag* tags = (ASE_Tag*)(chunk+1);
-							for (size_t tag_idx = 0; tag_idx < (size_t)chunk->num_tags; tag_idx += 1) {
-								ASE_Tag* tag = &tags[tag_idx]; UNUSED(tag);
-							}
-						} break;
-						case ASE_ChunkType_Palette: {
-							ASE_PaletteChunk* chunk = raw_chunk; // TODO: Do I have to do anything with this?
-							UNUSED(chunk);
-						} break;
-						case ASE_ChunkType_UserData: {
-							SDL_Log("ASE_CHUNK_TYPE_USER_DATA");
-						} break;
-						case ASE_ChunkType_Slice: {
-							SDL_Log("ASE_CHUNK_TYPE_SLICE");
-						} break;
-						case ASE_ChunkType_Tileset: {
-							SDL_Log("ASE_CHUNK_TYPE_TILESET");
-						} break;
-						}
-					}
-				}
-
-				SPALL_BUFFER_END();
 			}
-
-			SDL_CloseIO(fs);
+			SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
 		}
 
 		SDL_free(raw_chunk);
@@ -2277,19 +2063,163 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pSetLayouts = &ctx->vk.descriptor_set_layout,
 		};
 
-
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
 	}
 	
 	// LoadSprites
 	{
-		ctx->vk.static_staging_buffer_stream = SDL_IOFromDynamicMem(); SDL_CHECK(ctx->vk.static_staging_buffer_stream);
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
+
+		// AllocateSpriteArrays
+		ctx->sprite_layers = ArenaAlloc(&ctx->arena, ctx->num_sprite_layers, SpriteLayer);
+		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
+		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
+
+		ctx->vk.static_staging_buffer_stream = SDL_IOFromDynamicMem(); SDL_CHECK(ctx->vk.static_staging_buffer_stream);
+
+		// TODO: Allocate this with a stack allocator.
+		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
+		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
+
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = &ctx->sprites[sprite_idx];
+			if (!sd->fs) continue;
+			SDL_IOStream* fs = sd->fs;
+
+			size_t layer_idx = (size_t)sd->first_layer;
+
+			for (size_t frame_idx = (size_t)sd->first_frame; frame_idx < (size_t)(sd->first_frame + sd->num_frames); frame_idx += 1) {
+				ASE_Frame frame;
+				SDL_ReadStruct(fs, &frame);
+
+				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+					ASE_ChunkHeader chunk_header;
+					SDL_ReadStruct(fs, &chunk_header);
+					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+					SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
+
+					switch (chunk_header.type) {
+					case ASE_ChunkType_Layer: {
+						ASE_LayerChunk* chunk = raw_chunk;
+						SpriteLayer sprite_layer = {0};
+						if (chunk->layer_name.len > 0) {
+							sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
+							SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+						}
+						ctx->sprite_layers[layer_idx++] = sprite_layer;
+					} break;
+
+					case ASE_ChunkType_Cell: {
+						ASE_CellChunk* chunk = raw_chunk;
+						SpriteCell cell = {
+							.layer_idx = (uint16_t)layer_idx,
+							.frame_idx = (uint16_t)frame_idx,
+							.offset.x = chunk->x,
+							.offset.y = chunk->y,
+							.z_idx = chunk->z_idx,
+						};
+						SDL_assert(chunk->type == ASE_CellType_CompressedImage);
+						switch (chunk->type) {
+							case ASE_CellType_Raw: {
+							} break;
+							case ASE_CellType_Linked: {
+							} break;
+							case ASE_CellType_CompressedImage: {
+								cell.size.x = chunk->compressed_image.w;
+								cell.size.y = chunk->compressed_image.h;
+
+								if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Hitbox") == 0) {
+									cell.type = SpriteCellType_Hitbox;
+								} else if (SDL_strcmp(sd->layers[chunk->layer_idx].name, "Origin") == 0) {
+									cell.type = SpriteCellType_Origin;
+								} else {
+									// DecompressImageAndWriteToStream
+									{
+										// It's the zero-sized array at the end of ASE_CellChunk.
+										size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
+										void* src_buf = (void*)((&chunk->compressed_image.h)+1);
+
+										size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
+										void* dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(dst_buf);
+
+										SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
+										size_t res = INFL_ZInflate(dst_buf, dst_buf_size, src_buf, src_buf_size);
+										SPALL_BUFFER_END();
+										SDL_assert(res > 0);
+
+										SDL_WriteIO(ctx->vk.static_staging_buffer_stream, dst_buf, dst_buf_size);
+										SDL_free(dst_buf);
+									}
+
+									uint32_t queue_family_idx = 0;
+									VkImageCreateInfo image_info = {
+										.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+										.imageType = VK_IMAGE_TYPE_2D,
+										.format = VK_FORMAT_R8G8B8A8_SRGB,
+										.extent = {cell.size.x, cell.size.y, 1},
+										.mipLevels = 1,
+										.arrayLayers = 1,
+										.samples = VK_SAMPLE_COUNT_1_BIT,
+										.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,
+
+										// TODO
+										.queueFamilyIndexCount = 1,
+										.pQueueFamilyIndices = &queue_family_idx,
+									};
+									VK_CHECK(vkCreateImage(ctx->vk.device, &image_info, NULL, &cell.vk_image));
+									vkGetImageMemoryRequirements(ctx->vk.device, cell.vk_image, &cell.vk_mem_req);
+
+									ctx->num_sprite_cells += 1;
+
+									// VkImageViewCreateInfo image_view_info = {
+									// 	.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+									// 	.image = cell.vk_image,
+									// 	.viewType = VK_IMAGE_VIEW_TYPE_2D,
+									// 	.format = image_info.format,
+									// 	.subresourceRange = {
+									// 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, 
+									// 		.baseMipLevel = 0, 
+									// 		.levelCount = 1,
+									// 		.baseArrayLayer = 0, 
+									// 		.layerCount = 1,
+									// 	},
+									// };
+									// VK_CHECK(vkCreateImageView(ctx->vk.device, &image_view_info, NULL, &cell.vk_image_view));
+								}
+							} break;
+							case ASE_CellType_CompressedTilemap: {
+							} break;
+						}
+						sd->frames[frame_idx].cells[cell_idx++] = cell;
+					} break;
+					}
+				}
+			}
+
+			SDL_CHECK(SDL_SeekIO(fs, fs_save, SDL_IO_SEEK_SET) != -1);
+			layer_idx = 0;
+			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+				size_t cell_idx = 0;
+				ASE_Frame frame;
+				SDL_ReadStructChecked(fs, &frame);
+				SDL_assert(frame.magic_number == 0xF1FA);
+
+				// Would mean this aseprite file is very old.
+				SDL_assert(frame.num_chunks != 0);
+
+				sd->frames[frame_idx].dur = ((double)frame.frame_dur)/1000.0;
+			}
+		}
+
+		SDL_CloseIO(fs);
+
 	}
 
 	// SortSpriteCells
 	{
-		SPALL_BUFFER_BEGIN_NAME("SortSprites");
+		SPALL_BUFFER_BEGIN_NAME("SortSpriteCells");
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
