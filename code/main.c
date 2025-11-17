@@ -248,11 +248,21 @@ typedef struct ReplayFrame {
 	Entity* enemies; size_t num_enemies;
 } ReplayFrame;
 
+// https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
 typedef struct Arena {
-	uint8_t* first;
-	uint8_t* last;
-	uint8_t* cur;
+	uint8_t* buf;
+	size_t buf_len;
+	size_t prev_offset;
+	size_t curr_offset;
 } Arena;
+
+// https://www.gingerbill.org/article/2019/02/15/memory-allocation-strategies-003/
+typedef Arena Stack;
+
+typedef struct StackAllocHeader {
+	size_t prev_offset;
+	size_t padding;
+} StackAllocHeader;
 
 typedef struct VulkanFrame {
 	VkCommandBuffer command_buffer;
@@ -373,6 +383,7 @@ typedef struct Context {
 #endif
 
 	Arena arena;
+	Stack stack;
 
 	SDL_Window* window;
 	bool vsync;
@@ -748,10 +759,6 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 	if (num_files > 0) {
 		ctx->num_sprites += (size_t)num_files;
 
-		// TODO: Allocate this with a stack allocator.
-		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
-		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
-
 		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
 			char* file = files[file_idx];
 
@@ -801,7 +808,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-					SDL_assert(raw_chunk_alloc_size >= raw_chunk_size);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 1);
 					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -813,12 +820,12 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 						ctx->num_sprite_cells += 1;
 					} break;
 					}
+
+					StackFree(&ctx->stack, raw_chunk);
 				}
 			}
 			SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
 		}
-
-		SDL_free(raw_chunk);
 	} else if (num_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
@@ -1255,15 +1262,24 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-		uint64_t memory_size = 4096ULL * 128ULL;
+		uint64_t memory_size = 4096ULL * 256ULL;
+		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
 
 		Arena arena;
-		arena.first = SDL_malloc(memory_size); SDL_CHECK(arena.first);
-		arena.last = arena.first + memory_size;
-		arena.cur = arena.first;
+		arena.buf = memory;
+		arena.buf_len = memory_size/2;
+		arena.prev_offset = 0;
+		arena.curr_offset = 0;
+
+		Stack stack;
+		stack.buf = memory + memory_size/2 + 1;
+		stack.buf_len = memory_size/2;
+		stack.prev_offset = 0;
+		stack.curr_offset = 0;
 
 		ctx = ArenaAlloc(&arena, 1, Context);
 		ctx->arena = arena;
+		ctx->stack = stack;
 	}
 
 #if ENABLE_PROFILING
@@ -1454,7 +1470,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
 
-		VkDeviceQueueCreateInfo* queue_infos = SDL_malloc(ctx->vk.num_queue_family_properties * sizeof(VkDeviceQueueCreateInfo)); SDL_CHECK(queue_infos);
+		VkDeviceQueueCreateInfo* queue_infos = StackAlloc(&ctx->stack, ctx->vk.num_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t num_queue_infos = 0;
 		size_t num_queues = 0;
 		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
@@ -1491,7 +1507,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
 
-		SDL_free(queue_infos);
+		StackFree(&ctx->stack, queue_infos);
 	}
 
 	// VulkanCreateSwapchain
@@ -1625,14 +1641,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			.commandBufferCount = (uint32_t)ctx->vk.num_frames,
 		};
 
-		VkCommandBuffer* command_buffers = SDL_malloc(ctx->vk.num_frames * sizeof(VkCommandBuffer)); SDL_CHECK(command_buffers);
+		VkCommandBuffer* command_buffers = StackAlloc(&ctx->stack, ctx->vk.num_frames, VkCommandBuffer);
 		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
 
 		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
 			ctx->vk.frames[i].command_buffer = command_buffers[i];			
 		}
 
-		SDL_free(command_buffers);
+		StackFree(&ctx->stack, command_buffers);
 	}
 
 	// VulkanCreateFences
@@ -2010,10 +2026,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
 
-		// TODO: Allocate this with a stack allocator.
-		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;
-		void* raw_chunk = SDL_malloc(raw_chunk_alloc_size); SDL_CHECK(raw_chunk);
-
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
 			if (!sd->fs) continue;
@@ -2029,6 +2041,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 1);
 					SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -2074,14 +2087,14 @@ int32_t main(int32_t argc, char* argv[]) {
 						ctx->sprite_cells[ctx->num_sprite_cells++] = cell;
 					} break;
 					}
+				
+					StackFree(&ctx->stack, raw_chunk);
 				}
 			}
 
 			SDL_CloseIO(sd->fs);
 			sd->fs = NULL;
 		}
-
-		SDL_free(raw_chunk);
 	}
 
 	// SortSpriteCells
@@ -2368,8 +2381,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// VulkanCreateImageMemoryBarriers
 		ctx->vk.num_image_memory_barriers = ctx->num_sprite_cells;
-		ctx->vk.image_memory_barriers_before = SDL_malloc(ctx->vk.num_image_memory_barriers*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_before);
-		ctx->vk.image_memory_barriers_after = SDL_malloc(ctx->vk.num_image_memory_barriers*sizeof(VkImageMemoryBarrier)); SDL_CHECK(ctx->vk.image_memory_barriers_after);
+		ctx->vk.image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
+		ctx->vk.image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
 		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
 		for (size_t i = 0; i < ctx->vk.num_image_memory_barriers; i += 1) {
 			VkImageSubresourceRange subresource_range = {
@@ -2411,7 +2424,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 		}
 
-		SDL_free(images);
+		// TODO
+		//SDL_free(images);
 	}
 
 	// VulkanCreateDynamicStagingBuffer

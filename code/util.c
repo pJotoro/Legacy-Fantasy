@@ -91,18 +91,127 @@ function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, si
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
-// TODO: Add align parameter. I have no idea why I didn't just do it that way originally.
-function FORCEINLINE void* ArenaAllocRaw(Arena* arena, uint64_t size) {
-    void* res = (void*)arena->cur;
-    SDL_assert(size > 0);
-    size = (size - (size%1024ULL)) + 1024ULL;
-    arena->cur += size;
-    SDL_assert((uint64_t)arena->cur < (uint64_t)arena->last);
-    SDL_memset(res, 0, size);
-    return res;
+// https://www.gingerbill.org/series/memory-allocation-strategies/
+
+function FORCEINLINE bool IsPowerOf2(uintptr_t x) {
+    return (x & (x-1)) == 0;
 }
 
-#define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw(ARENA, COUNT*sizeof(TYPE))
+function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align) {
+    SDL_assert(IsPowerOf2(align));
+    size_t p = ptr;
+    size_t a = align;
+    size_t modulo = p & (a-1);
+    if (modulo != 0) {
+        p += a - modulo;
+    }
+    return p;
+}
+
+function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) {
+    // Align 'curr_offset' forward to the specified alignment
+    uintptr_t curr_ptr = (uintptr_t)arena->buf + (uintptr_t)arena->curr_offset;
+    uintptr_t offset = AlignForward(curr_ptr, align);
+    offset -= (uintptr_t)arena->buf; // Change to relative offset
+
+    // Check to see if the backing memory has space left
+    if (offset+size <= arena->buf_len) {
+        void *ptr = &arena->buf[offset];
+        arena->prev_offset = offset;
+        arena->curr_offset = offset+size;
+
+        // Zero new memory by default
+        SDL_memset(ptr, 0, size);
+        return ptr;
+    }
+    // Return NULL if the arena is out of memory (or handle differently)
+    return NULL;
+}
+
+#define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw((ARENA), (COUNT)*sizeof(TYPE), alignof(TYPE))
+
+size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t header_size) {
+    SDL_assert(IsPowerOf2(alignment));
+
+    uintptr_t p = ptr;
+    uintptr_t a = alignment;
+    uintptr_t modulo = p & (a-1); // (p % a) as it assumes alignment is a power of two
+
+    uintptr_t padding = 0;
+    uintptr_t needed_space = 0;
+
+    if (modulo != 0) { // Same logic as 'align_forward'
+        padding = a - modulo;
+    }
+
+    needed_space = (uintptr_t)header_size;
+
+    if (padding < needed_space) {
+        needed_space -= padding;
+
+        if ((needed_space & (a-1)) != 0) {
+            padding += a * (1+(needed_space/a));
+        } else {
+            padding += a * (needed_space/a);
+        }
+    }
+
+    return (size_t)padding;
+}
+
+void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
+    SDL_assert(IsPowerOf2(alignment));
+
+    uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
+    size_t padding = CalcPaddingWithHeader(curr_addr, (uintptr_t)alignment, sizeof(StackAllocHeader));
+    if (stack->curr_offset + padding + size > stack->buf_len) {
+        // Stack allocator is out of memory
+        return NULL;
+    }
+    stack->prev_offset = stack->curr_offset; // Store the previous offset
+    stack->curr_offset += padding;
+
+    uintptr_t next_addr = curr_addr + (uintptr_t)padding;
+    StackAllocHeader* header = (StackAllocHeader*)(next_addr - sizeof(StackAllocHeader));
+    header->padding = padding;
+    header->prev_offset = stack->prev_offset;
+
+    stack->curr_offset += size;
+
+    return SDL_memset((void*)next_addr, 0, size);
+}
+
+#define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
+
+void StackFree(Stack* stack, void* ptr) {
+    if (ptr) {
+        uintptr_t start = (uintptr_t)stack->buf;
+        uintptr_t end = start + (uintptr_t)stack->buf_len;
+        uintptr_t curr_addr = (uintptr_t)ptr;
+
+        if (!(start <= curr_addr && curr_addr < end)) {
+            assert(0 && "Out of bounds memory address passed to stack allocator (free)");
+            return;
+        }
+
+        if (curr_addr >= start+(uintptr_t)stack->curr_offset) {
+            // Allow double frees
+            return;
+        }
+
+        StackAllocHeader* header = (StackAllocHeader*)(curr_addr - sizeof(StackAllocHeader));
+        size_t prev_offset = (size_t)(curr_addr - (uintptr_t)header->padding - start);
+
+        SDL_assert(prev_offset == header->prev_offset);
+
+        stack->curr_offset = stack->prev_offset;
+        stack->prev_offset = header->prev_offset;
+    }
+}
+
+void StackFreeAll(Stack* stack) {
+    stack->curr_offset = 0;
+}
 
 // TODO: Switch away from using bool to using a bit mask.
 
@@ -118,23 +227,6 @@ function FORCEINLINE bool TileIsValid(Tile tile) {
 
 function FORCEINLINE bool TilesEqual(Tile a, Tile b) {
     return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
-}
-
-// https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/#aligning-a-memory-address
-
-function FORCEINLINE bool IsPowerOf2(VkDeviceSize x) {
-    return (x & (x-1)) == 0;
-}
-
-function FORCEINLINE VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize align) {
-    SDL_assert(IsPowerOf2(align));
-    VkDeviceSize p = ptr;
-    VkDeviceSize a = align;
-    VkDeviceSize modulo = p & (a-1);
-    if (modulo != 0) {
-        p += a - modulo;
-    }
-    return p;
 }
 
 function int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
