@@ -601,7 +601,7 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 
 	// Find origin
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	for (size_t cell_idx = (size_t)sd->first_cell; cell_idx < (size_t)(sd->first_cell + sd->num_cells); cell_idx += 1) {
+	for (size_t cell_idx = sd->first_cell; cell_idx < sd->first_cell + sd->num_cells; cell_idx += 1) {
 		SpriteCell* cell = &ctx->sprite_cells[cell_idx];
 		if (cell->type == SpriteCellType_Origin) {
 			res = cell->offset;
@@ -782,7 +782,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 			sd->first_frame = (uint16_t)ctx->num_sprite_frames;
 			sd->num_frames = header.num_frames;
-			ctx->num_sprite_frames += (size_t)sd->num_frames;
+			ctx->num_sprite_frames += sd->num_frames;
 
 			sd->first_layer = (uint16_t)ctx->num_sprite_layers;
 
@@ -2019,9 +2019,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!sd->fs) continue;
 			SDL_IOStream* fs = sd->fs;
 
-			size_t layer_idx = (size_t)sd->first_layer;
+			size_t layer_idx = sd->first_layer;
 
-			for (size_t frame_idx = (size_t)sd->first_frame; frame_idx < (size_t)(sd->first_frame + sd->num_frames); frame_idx += 1) {
+			for (size_t frame_idx = sd->first_frame; frame_idx < (size_t)sd->first_frame + sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
 				SDL_ReadStruct(fs, &frame);
 
