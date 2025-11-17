@@ -143,25 +143,25 @@ typedef struct SpriteCell {
 } SpriteCell;
 
 typedef struct SpriteFrame {
-	VulkanImage vk;
+	size_t first_cell; size_t num_cells;
+	size_t vk_image_idx;
 	float dur;
-	uint16_t first_cell; uint16_t num_cells;
 } SpriteFrame;
 
 typedef struct SpriteDesc {
 	SDL_IOStream* fs; // invalid after sprite has been loaded
 	ivec2s size;
-	uint16_t first_layer; uint16_t num_layers;
-	uint16_t first_frame; uint16_t num_frames;
+	size_t first_layer; size_t num_layers;
+	size_t first_frame; size_t num_frames;
 } SpriteDesc;
 
 typedef struct Sprite {
-	uint16_t idx;
+	size_t idx;
 } Sprite;
 
 typedef struct Anim {
 	Sprite sprite;
-	uint16_t frame_idx;
+	size_t frame_idx;
 	float dt_accumulator;
 	bool ended;
 } Anim;
@@ -331,7 +331,6 @@ typedef struct Vulkan {
 		uint16_t indices[6];
 	*/
 	VulkanBuffer static_staging_buffer;
-	SDL_IOStream* static_staging_buffer_stream; // The data in this will be copied over to the static staging buffer.
 	
 	/*
 	Memory layout:
@@ -436,69 +435,6 @@ static Sprite boar_hit;
 static Sprite spr_tiles;
 
 static float dt;
-
-function EntityVertex* GetEntityVertices(Level* level, size_t* num_entity_vertices) {
-	SDL_assert(num_entity_vertices);
-	*num_entity_vertices = (1 + level->num_enemies);
-	EntityVertex* res = SDL_malloc((*num_entity_vertices) * sizeof(EntityVertex)); SDL_CHECK(res);
-	res[0].pos = level->player.pos;
-	for (size_t i = 0; i < level->num_enemies; i += 1) {
-		res[i+1].pos = level->enemies[i].pos;
-	}
-	return res;
-}
-
-typedef bool (*EnumerateSpriteCellsCallback)(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data);
-
-function void EnumerateSpriteCells(Context* ctx, EnumerateSpriteCellsCallback callback, void* user_data) {
-    SDL_assert(callback);
-    size_t sprite_cell_idx = 0;
-    for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-        SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(uint16_t)sprite_idx});
-        if (sd) {
-            for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-                for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
-                    if (sd->frames[frame_idx].cells[cell_idx].type == SpriteCellType_Sprite) {
-                        if (!callback(ctx, &sd->frames[frame_idx].cells[cell_idx], sprite_cell_idx, user_data)) {
-                            return;
-                        }
-                        sprite_cell_idx += 1;
-                    }
-                }
-            }
-        }
-    }
-}
-
-function bool VulkanGetSpriteCellsImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
-    UNUSED(ctx);
-    VkImage* images = (VkImage*)user_data;
-    images[sprite_cell_idx] = cell->vk_image;
-    return true;
-}
-
-function VkImage* VulkanGetSpriteCellsImages(Context* ctx) {
-	VkImage* images = SDL_malloc(ctx->num_sprite_cells * sizeof(VkImage)); SDL_CHECK(images);
-	EnumerateSpriteCells(ctx, VulkanGetSpriteCellsImagesCallback, images);
-	return images;
-}
-
-function bool VulkanGetSpriteCellsMemoryRequirementsCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
-    UNUSED(ctx);
-    VkMemoryRequirements* mem_reqs = (VkMemoryRequirements*)user_data;
-    mem_reqs[sprite_cell_idx] = cell->vk_mem_req;
-    return true;
-}
-
-function void VulkanGetSpriteCellsInfoCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
-
-}
-
-function VkMemoryRequirements* VulkanGetSpriteCellsMemoryRequirements(Context* ctx) {
-    VkMemoryRequirements* mem_reqs = SDL_malloc(ctx->num_sprite_cells * sizeof(VkMemoryRequirements)); SDL_CHECK(mem_reqs);
-    EnumerateSpriteCells(ctx, VulkanGetSpriteCellsMemoryRequirementsCallback, mem_reqs);
-    return mem_reqs;
-}
 
 function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
     uint32_t memory_type_idx;
@@ -665,9 +601,8 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 
 	// Find origin
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SpriteFrame* frame = &sd->frames[0];
-	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
-		SpriteCell* cell = &frame->cells[cell_idx];
+	for (size_t cell_idx = (size_t)sd->first_cell; cell_idx < (size_t)(sd->first_cell + sd->num_cells); cell_idx += 1) {
+		SpriteCell* cell = &ctx->sprite_cells[cell_idx];
 		if (cell->type == SpriteCellType_Origin) {
 			res = cell->offset;
 			break;
@@ -847,7 +782,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 			sd->first_frame = (uint16_t)ctx->num_sprite_frames;
 			sd->num_frames = header.num_frames;
-			ctx->num_sprite_frames += sd->num_frames;
+			ctx->num_sprite_frames += (size_t)sd->num_frames;
 
 			sd->first_layer = (uint16_t)ctx->num_sprite_layers;
 
@@ -2074,8 +2009,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->sprite_layers = ArenaAlloc(&ctx->arena, ctx->num_sprite_layers, SpriteLayer);
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
-
-		ctx->vk.static_staging_buffer_stream = SDL_IOFromDynamicMem(); SDL_CHECK(ctx->vk.static_staging_buffer_stream);
 
 		// TODO: Allocate this with a stack allocator.
 		size_t raw_chunk_alloc_size = 4096ULL * 32ULL;

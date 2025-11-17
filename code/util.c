@@ -61,8 +61,8 @@ function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) {
     if (!(sprite.idx >= 0 && sprite.idx < MAX_SPRITES)) return false;
     SpriteDesc* sd = &ctx->sprites[sprite.idx];
     bool size_check = sd->size.x != 0 && sd->size.y != 0;
-    bool layers_check = sd->num_layers > 0 && sd->num_layers < ctx->num_sprite_layers;
-    bool frames_check = sd->num_frames > 0 && ctx->num_frames < ctx->num_sprite_frames;
+    bool layers_check = sd->num_layers > 0 && sd->num_layers < (uint16_t)ctx->num_sprite_layers;
+    bool frames_check = sd->num_frames > 0 && sd->num_frames < (uint16_t)ctx->num_sprite_frames;
     return size_check && layers_check && frames_check;
 }
 
@@ -137,17 +137,6 @@ function FORCEINLINE VkDeviceSize AlignForward(VkDeviceSize ptr, VkDeviceSize al
     return p;
 }
 
-function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
-    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
-    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
-    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
-        return -1;
-    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
-        return 1;
-    }
-    return 0;
-}
-
 function int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
     if (a->src.y < b->src.y) return -1;
     if (a->src.y > b->src.y) return 1;
@@ -165,18 +154,4 @@ function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemor
     if (a->memoryRequirements.size > b->memoryRequirements.size) return -1;
     if (a->memoryRequirements.size < b->memoryRequirements.size) return 1;
     return -1; // this could be 1, but then the sort would be unstable
-}
-
-function void GetDynamicMemProperties(SDL_IOStream* dynamic_mem, void** out_ptr, size_t* out_size) {
-    SDL_assert(dynamic_mem && out_ptr && out_size);
-    {
-        SDL_PropertiesID props = SDL_GetIOProperties(dynamic_mem); SDL_CHECK(props);    
-        *out_ptr = SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER, NULL);
-        SDL_assert(*out_ptr); 
-        SDL_DestroyProperties(props);
-    }
-    {
-        *out_size = (size_t)SDL_TellIO(dynamic_mem);
-        SDL_assert(*out_size != -1);
-    }
 }
