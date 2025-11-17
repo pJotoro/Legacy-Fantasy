@@ -143,16 +143,15 @@ typedef struct SpriteCell {
 } SpriteCell;
 
 typedef struct SpriteFrame {
-	size_t first_cell; size_t num_cells;
-	size_t vk_image_idx;
+	SpriteCell* cells; size_t num_cells;
 	float dur;
 } SpriteFrame;
 
 typedef struct SpriteDesc {
 	SDL_IOStream* fs; // invalid after sprite has been loaded
 	ivec2s size;
-	size_t first_layer; size_t num_layers;
-	size_t first_frame; size_t num_frames;
+	SpriteLayer* layers; size_t num_layers;
+	SpriteFrame* frames; size_t num_frames;
 } SpriteDesc;
 
 typedef struct Sprite {
@@ -601,7 +600,8 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
 
 	// Find origin
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	for (size_t cell_idx = sd->first_cell; cell_idx < sd->first_cell + sd->num_cells; cell_idx += 1) {
+	SpriteFrame* frame = &sd->frames[0];
+	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
 		SpriteCell* cell = &ctx->sprite_cells[cell_idx];
 		if (cell->type == SpriteCellType_Origin) {
 			res = cell->offset;
@@ -780,11 +780,11 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 			SDL_assert(header.grid_w == 0 || header.grid_w == 16);
 			SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 
-			sd->first_frame = (uint16_t)ctx->num_sprite_frames;
+			sd->frames = &ctx->sprite_frames[ctx->num_sprite_frames];
 			sd->num_frames = header.num_frames;
 			ctx->num_sprite_frames += sd->num_frames;
 
-			sd->first_layer = (uint16_t)ctx->num_sprite_layers;
+			sd->layers = &ctx->sprite_layers[ctx->num_sprite_layers];
 
 			int64_t fs_pos = SDL_TellIO(sd->fs);
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
@@ -1020,7 +1020,7 @@ function void UpdatePlayer(Context* ctx) {
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
 
-	int32_t input_dir = 0;
+	int16_t input_dir = 0;
 	if (ctx->gamepad) {
 		if (ctx->gamepad_left_stick.x == 0.0f) input_dir = 0;
 		else if (ctx->gamepad_left_stick.x > 0.0f) input_dir = 1;
@@ -1125,7 +1125,7 @@ function void UpdatePlayer(Context* ctx) {
 		} else {
 			SetSprite(player, player_run);
 			if (player->vel.x != 0.0f) {
-				player->dir = (int32_t)glm_signf(player->vel.x);
+				player->dir = (int16_t)glm_signf(player->vel.x);
 			} else if (input_dir != 0) {
 				player->dir = input_dir;
 			}
@@ -2019,9 +2019,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!sd->fs) continue;
 			SDL_IOStream* fs = sd->fs;
 
-			size_t layer_idx = sd->first_layer;
-
-			for (size_t frame_idx = sd->first_frame; frame_idx < (size_t)sd->first_frame + sd->num_frames; frame_idx += 1) {
+			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
 				SDL_ReadStruct(fs, &frame);
 
@@ -2041,14 +2039,12 @@ int32_t main(int32_t argc, char* argv[]) {
 							sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
 							SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 						}
-						ctx->sprite_layers[layer_idx++] = sprite_layer;
+						ctx->sprite_layers[ctx->num_sprite_layers++] = sprite_layer;
 					} break;
 
 					case ASE_ChunkType_Cell: {
 						ASE_CellChunk* chunk = raw_chunk;
 						SpriteCell cell = {
-							.layer_idx = (uint16_t)layer_idx,
-							.frame_idx = (uint16_t)frame_idx,
 							.offset.x = chunk->x,
 							.offset.y = chunk->y,
 							.z_idx = chunk->z_idx,
@@ -2058,9 +2054,9 @@ int32_t main(int32_t argc, char* argv[]) {
 						cell.size.x = chunk->compressed_image.w;
 						cell.size.y = chunk->compressed_image.h;
 
-						if (SDL_strcmp(ctx->sprite_layers[layer_idx].name, "Hitbox") == 0) {
+						if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Hitbox") == 0) {
 							cell.type = SpriteCellType_Hitbox;
-						} else if (SDL_strcmp(ctx->sprite_layers[layer_idx].name, "Origin") == 0) {
+						} else if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Origin") == 0) {
 							cell.type = SpriteCellType_Origin;
 						} else {
 							size_t buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
@@ -2096,8 +2092,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
 			if (sd) {
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					SpriteFrame* sf = &sd->frames[frame_idx];
-					SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
+					// TODO:
+					//SpriteFrame* sf = &sd->frames[frame_idx];
+					// TODO
+					//SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 				}
 			}
 		}
@@ -2292,12 +2290,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateStaticStagingBuffer
 	{
-		void* stream_ptr; size_t stream_size;
-		GetDynamicMemProperties(ctx->vk.static_staging_buffer_stream, &stream_ptr, &stream_size);
-
 		uint16_t indices[] = {0, 1, 2, 2, 3, 0};
 
-		VkDeviceSize size = stream_size;
+		// TODO:
+		VkDeviceSize size = 0; //stream_size;
+		
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2309,7 +2306,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-		VulkanCopyBuffer(stream_size, stream_ptr, &ctx->vk.static_staging_buffer);
+		// TODO:
+		//VulkanCopyBuffer(stream_size, stream_ptr, &ctx->vk.static_staging_buffer);
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2319,43 +2317,42 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		VulkanCopyBuffer(SDL_arraysize(indices) * sizeof(uint16_t), indices, &ctx->vk.static_staging_buffer);
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-
-		SDL_CHECK(SDL_CloseIO(ctx->vk.static_staging_buffer_stream));
-		ctx->vk.static_staging_buffer_stream = NULL;
 	}
 
 	{
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
-		VkImage* images = VulkanGetSpriteCellsImages(ctx);
+		VkImage* images = NULL; // TODO
 
 		// VulkanAllocateAndBindImageMemory
 		{
+			// TODO:
 			VkMemoryAllocateInfo allocate_info = {
 				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+				//.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 			};
 			ctx->vk.image_memory_info = (VkMemoryAllocateInfo){
 				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-				.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+				//.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 			};
 			VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
 
 			for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-				allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
+				// TODO:
+				//allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
 				bind_infos[i] = (VkBindImageMemoryInfo){
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 					.image = images[i],
 					.memoryOffset = allocate_info.allocationSize,
 				};
 				ctx->vk.buffer_image_copies[i] = (VkBufferImageCopy){
-					.bufferOffset = allocate_info.memoryOffset,
-					.imageSubresource = ,
-					.imageExtent = 
+					//.bufferOffset = allocate_info.memoryOffset,
+					//.imageSubresource = ,
+					//.imageExtent = 
 				};
-				ctx->vk.
-				allocate_info.allocationSize += mem_reqs[i].size;
+				//ctx->vk.
+				//allocate_info.allocationSize += mem_reqs[i].size;
 			}
 			VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
@@ -2365,7 +2362,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
 
 			SDL_free(bind_infos);
-			SDL_free(mem_reqs);
+			// TODO:
+			//SDL_free(mem_reqs);
 		}
 
 		// VulkanCreateImageMemoryBarriers
@@ -2628,10 +2626,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// VulkanCopyVerticesToDynamicStagingBuffer
 		{
-			size_t num_entity_vertices;
-			EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
-			VulkanCopyBuffer(num_entity_vertices * sizeof(EntityVertex), entity_vertices, &ctx->vk.dynamic_staging_buffer);
-			SDL_free(entity_vertices);
+			// TODO:
+			//size_t num_entity_vertices;
+			//EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
+			//VulkanCopyBuffer(num_entity_vertices * sizeof(EntityVertex), entity_vertices, &ctx->vk.dynamic_staging_buffer);
+			//SDL_free(entity_vertices);
 		}
 
 		uint32_t image_idx;
@@ -2696,7 +2695,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
-				function bool VulkanCopyStaticStagingBufferToImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
+				// TODO:
+				/*function bool VulkanCopyStaticStagingBufferToImagesCallback(Context* ctx, SpriteCell* cell, size_t sprite_cell_idx, void* user_data) {
 					UNUSED(sprite_cell_idx);
 					UNUSED(user_data);
 					VkCommandBuffer cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
@@ -2711,12 +2711,13 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
 
 					return true;
-				}
+				}*/
 				for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
+					// TODO:
 					VkBufferImageCopy region = {
 						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-						.bufferOffset = ctx->vk.bind_image_memory_infos[i].offset,
-						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+						//.bufferOffset = ctx->vk.bind_image_memory_infos[i].offset,
+						//.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
 					};
 					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.bind_image_memory_infos[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
