@@ -787,11 +787,8 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 			SDL_assert(header.grid_w == 0 || header.grid_w == 16);
 			SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 
-			sd->frames = &ctx->sprite_frames[ctx->num_sprite_frames];
 			sd->num_frames = header.num_frames;
 			ctx->num_sprite_frames += sd->num_frames;
-
-			sd->layers = &ctx->sprite_layers[ctx->num_sprite_layers];
 
 			int64_t fs_pos = SDL_TellIO(sd->fs);
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
@@ -825,6 +822,11 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 				}
 			}
 			SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
+
+			SDL_assert(sd->size.x != 0);
+			SDL_assert(sd->size.y != 0);
+			SDL_assert(sd->num_frames != 0);
+			SDL_assert(sd->num_layers != 0);
 		}
 	} else if (num_files == 0) {
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
