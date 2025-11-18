@@ -2028,6 +2028,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
 
+		size_t sprite_frame_idx = 0;
 		size_t sprite_layer_idx = 0;
 		size_t sprite_cell_idx = 0;
 
@@ -2036,9 +2037,17 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!sd->fs) continue;
 			SDL_IOStream* fs = sd->fs;
 
+			sd->layers = &ctx->sprite_layers[sprite_layer_idx];
+			sd->frames = &ctx->sprite_frames[sprite_frame_idx];
+			sprite_frame_idx += sd->num_frames;
+
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
 				SDL_ReadStruct(fs, &frame);
+
+				sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
+				sd->frames[frame_idx].cells = &ctx->sprite_cells[sprite_cell_idx];
+				sd->frames[frame_idx].num_cells = 0; // TODO: Is this really needed? I don't think it is.
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
