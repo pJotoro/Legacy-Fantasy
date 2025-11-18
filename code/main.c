@@ -727,16 +727,16 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    SDL_assert(anim->frame_idx >= 0 && anim->frame_idx < (int32_t)sd->num_frames);
-	double dur = sd->frames[anim->frame_idx].dur;
+    SDL_assert(anim->frame_idx >= 0 && anim->frame_idx < sd->num_frames);
+	float dur = sd->frames[anim->frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
     if (loop || !anim->ended) {
         anim->dt_accumulator += dt;
         if (anim->dt_accumulator >= dur) {
             anim->dt_accumulator = 0.0;
-            ++anim->frame_idx;
-            if (anim->frame_idx >= (int32_t)num_frames) {
+            anim->frame_idx += 1;
+            if (anim->frame_idx >= num_frames) {
                 if (loop) anim->frame_idx = 0;
                 else {
                     anim->frame_idx -= 1;
