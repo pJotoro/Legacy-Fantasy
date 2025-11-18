@@ -808,7 +808,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 1);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 8);
 					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -2026,6 +2026,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
 
+		size_t sprite_layer_idx = 0;
+		size_t sprite_cell_idx = 0;
+
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
 			if (!sd->fs) continue;
@@ -2041,7 +2044,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 1);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 8);
 					SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -2052,7 +2055,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
 							SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 						}
-						ctx->sprite_layers[ctx->num_sprite_layers++] = sprite_layer;
+						ctx->sprite_layers[sprite_layer_idx++] = sprite_layer;
 					} break;
 
 					case ASE_ChunkType_Cell: {
@@ -2084,7 +2087,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							SPALL_BUFFER_END();
 							SDL_assert(res > 0);
 						}
-						ctx->sprite_cells[ctx->num_sprite_cells++] = cell;
+						ctx->sprite_cells[sprite_cell_idx++] = cell;
 					} break;
 					}
 				
