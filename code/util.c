@@ -247,3 +247,14 @@ function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemor
     if (a->memoryRequirements.size < b->memoryRequirements.size) return 1;
     return -1; // this could be 1, but then the sort would be unstable
 }
+
+function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) {
+    ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
+    ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
+    if ((a_order < b_order) || ((a_order == b_order) && (a->z_idx < b->z_idx))) {
+        return -1;
+    } else if ((b_order < a_order) || ((b_order == a_order) && (b->z_idx < a->z_idx))) {
+        return 1;
+    }
+    return 0;
+}

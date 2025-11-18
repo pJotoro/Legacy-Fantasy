@@ -140,6 +140,7 @@ typedef struct SpriteCell {
 	void* buf; // invalid after Vulkan images have been created
 	SpriteCellType type;
 	int32_t z_idx;
+	size_t layer_idx;
 } SpriteCell;
 
 typedef struct SpriteFrame {
@@ -2075,6 +2076,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							.offset.x = chunk->x,
 							.offset.y = chunk->y,
 							.z_idx = chunk->z_idx,
+							.layer_idx = (size_t)chunk->layer_idx,
 						};
 
 						SDL_assert(chunk->type == ASE_CellType_CompressedImage);
@@ -2119,10 +2121,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
 			if (sd) {
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					// TODO:
-					//SpriteFrame* sf = &sd->frames[frame_idx];
-					// TODO
-					//SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
+					SpriteFrame* sf = &sd->frames[frame_idx];
+					SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 				}
 			}
 		}
