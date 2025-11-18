@@ -229,14 +229,6 @@ function FORCEINLINE bool TilesEqual(Tile a, Tile b) {
     return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
 }
 
-function int32_t SDLCALL CompareTileSrc(const Tile* a, const Tile* b) {
-    if (a->src.y < b->src.y) return -1;
-    if (a->src.y > b->src.y) return 1;
-    if (a->src.x < b->src.x) return -1;
-    if (a->src.x > b->src.x) return 1;
-    return -1; // this could be 1, but then the sort would be unstable
-}
-
 function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) {
     SDL_assert(a && b);
     if (a->memoryRequirements.memoryTypeBits < b->memoryRequirements.memoryTypeBits) return -1;

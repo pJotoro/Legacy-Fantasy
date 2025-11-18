@@ -2095,7 +2095,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							cell.buf = SDL_malloc(buf_size); SDL_CHECK(cell.buf);
 							
 							// It's the zero-sized array at the end of ASE_CellChunk.
-							size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; 
+							size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2; // TODO: Is the - 2 still needed?
 							void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
 							SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
@@ -2148,7 +2148,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
 		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) {
-			++ctx->num_levels;
+			ctx->num_levels += 1;
 		}
 		ctx->levels = ArenaAlloc(&ctx->arena, ctx->num_levels, Level);
 		size_t level_idx = 0;
@@ -2198,12 +2198,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
 					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) {
-						++tile_layer->num_tiles;
+						tile_layer->num_tiles += 1;
 					}
 				} else if (SDL_strcmp(ident, layer_enemies) == 0) {
 					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
-						++level.num_enemies;
+						level.num_enemies += 1;
 					}
 				}
 			}
@@ -2243,7 +2243,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							if (SDL_strcmp(identifier, "Boar") == 0) {
 								enemy->type = EntityType_Boar;
 							} // else if (SDL_strcmp(identifier, "") == 0) {}
-							++enemy;
+							enemy += 1;
 						}
 					}
 				} else if (SDL_strcmp(type, "Tiles") == 0) {
@@ -2278,8 +2278,6 @@ int32_t main(int32_t argc, char* argv[]) {
 						SDL_assert(i < tile_layer->num_tiles);
 						tile_layer->tiles[i++] = (Tile){src, dst};
 					}
-
-					//SDL_qsort(tile_layer->tiles, tile_layer->num_tiles, sizeof(Tile), (SDL_CompareCallback)CompareTileSrc);
 				}
  				
 			}
