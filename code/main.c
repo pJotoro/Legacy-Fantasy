@@ -137,7 +137,10 @@ typedef uint32_t SpriteCellType;
 typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
-	void* buf; // invalid after Vulkan images have been created
+
+	// invalid after Vulkan images have been created
+	void* buf; // buf_size = size.x*size.y*sizeof(uint32_t)
+
 	SpriteCellType type;
 	int32_t z_idx;
 	size_t layer_idx;
@@ -757,7 +760,9 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 	int32_t num_files;
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &num_files); SDL_CHECK(files);
-	if (num_files > 0) {
+	if (num_files == 0) {
+		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
+	} else {
 		ctx->num_sprites += (size_t)num_files;
 
 		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
@@ -829,8 +834,6 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 			SDL_assert(sd->num_frames != 0);
 			SDL_assert(sd->num_layers != 0);
 		}
-	} else if (num_files == 0) {
-		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
 	}
 	
 	SDL_free(files);
