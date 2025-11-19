@@ -173,7 +173,7 @@ enum {
 	EntityType_Player,
 	EntityType_Boar,
 };
-typedef uint16_t EntityType;
+typedef uint32_t EntityType;
 
 enum {
 	EntityState_Inactive,
@@ -187,7 +187,7 @@ enum {
 	EntityState_Hurt,
 	
 };
-typedef uint16_t EntityState;
+typedef uint32_t EntityState;
 
 typedef struct Entity {
 	Anim anim;
@@ -201,7 +201,7 @@ typedef struct Entity {
 
 	vec2s vel;
 	
-	int16_t dir;
+	int32_t dir;
 
 	EntityType type;
 	EntityState state;
