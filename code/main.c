@@ -2185,11 +2185,17 @@ int32_t main(int32_t argc, char* argv[]) {
 	// LoadSprites
 	{
 		/*
-		EnumerateSpriteDirectory sets:
+		EnumerateSpriteDirectory sets the following globals:
 		- ctx->num_sprite_layers
 		- ctx->num_sprite_frames
 		- ctx->num_sprite_cells
 		- ctx->vk.static_staging_buffer.size (only the size of uint32_t raw_image_data[][]; see Vulkan struct for static staging buffer memory layout)
+
+		EnumerateSpriteDirectory sets the following members of each sprite desc:
+		- sd->fs
+		- sd->size
+		- sd->num_layers
+		- sd->num_frames
 		*/
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
