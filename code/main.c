@@ -120,12 +120,6 @@ typedef struct SpriteLayer {
 	char* name;
 } SpriteLayer;
 
-typedef struct VulkanImage {
-	VkImage image;
-	VkMemoryRequirements mem_req;
-	// TODO: Memory allocation info
-} VulkanImage;
-
 enum {
 	SpriteCellType_Sprite,
 	SpriteCellType_Hitbox,
@@ -2347,6 +2341,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
+				// NOTE: This is wrong. We shouldn't be copying the tiles in a row like this. We should be copying the tile vertices and instances
+				// as separate arrays.
 				VulkanCopyBuffer(sizeof(Tile)*tile_layer->num_tiles, tile_layer->tiles, &ctx->vk.static_staging_buffer);
 			}
 		}
@@ -2357,6 +2353,9 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	{
+		// TODO: What the heck is going on here? I completely forgot what this code was about. After I read the Vulkan spec and whatnot for a while,
+		// I should really come back to this and figure it out.
+
 		// The reason I commented it out is because it causes a segmentation fault.
 		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
 
@@ -2405,6 +2404,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// VulkanCreateImageMemoryBarriers
 		ctx->vk.num_image_memory_barriers = ctx->num_sprite_cells;
+		// TODO: I'm not sure why I'm allocating these with a stack allocator, since I will need them after the scope ends!
 		ctx->vk.image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
 		ctx->vk.image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
 		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
