@@ -206,23 +206,6 @@ typedef struct Tile {
 	ivec2s dst;
 } Tile;
 
-typedef struct EntityVertex {
-	ivec2s pos;
-} EntityVertex;
-
-typedef struct EntityInstance {
-	int32_t dir;
-	int32_t frame_idx;
-} EntityInstance;
-
-typedef struct TileVertex {
-	ivec2s dst;
-} TileVertex;
-
-typedef struct TileInstance {
-	ivec2s src;
-} TileInstance;
-
 typedef struct TileLayer {
 	Tile* tiles;
 	size_t num_tiles;
@@ -335,7 +318,6 @@ typedef struct Vulkan {
 	Memory layout:
 		uint32_t raw_image_data[][];
 		Tile tiles[];
-		uint16_t indices[6];
 	*/
 	VulkanBuffer static_staging_buffer;
 	
@@ -353,12 +335,6 @@ typedef struct Vulkan {
 		Tile tiles[];
 	*/
 	VulkanBuffer vertex_buffer;
-
-	/*
-	Memory layout:
-		uint16_t indices[6];
-	*/
-	VulkanBuffer index_buffer;
 
 	uint32_t image_memory_type_idx;
 	VkBindImageMemoryInfo* bind_image_memory_infos;
@@ -2060,6 +2036,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			tile_vert,
 			tile_frag,
 		};
+		// TODO: Do we even really need all these Vertex and Instance structs? What if we just made use of strides instead?
 		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
 		{
 			{
@@ -2207,6 +2184,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 	// LoadSprites
 	{
+		/*
+		EnumerateSpriteDirectory sets:
+		- ctx->num_sprite_layers
+		- ctx->num_sprite_frames
+		- ctx->num_sprite_cells
+		- ctx->vk.static_staging_buffer.size (only the size of uint32_t raw_image_data[][]; see Vulkan struct for static staging buffer memory layout)
+		*/
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
 		ctx->sprite_layers = ArenaAlloc(&ctx->arena, ctx->num_sprite_layers, SpriteLayer);
@@ -2306,7 +2290,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// SortSprites
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){(int32_t)sprite_idx});
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 			if (sd) {
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					SpriteFrame* sf = &sd->frames[frame_idx];
@@ -2316,24 +2300,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		// VulkanCreateStaticStagingBuffer
-		// NOTE: These indices only make it easier to draw images (or anything rectangular). They don't help us with knowing which instance to
-		// associate with which vertex. To be honest, I still find indexed rendering and instance rendering really confusing, especially how
-		// exactly the two are merged together.
-		uint16_t indices[] = {0, 1, 2, 2, 3, 0};
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				// TODO: This is wrong. What we should do is this:
-				// ctx->vk.static_staging_buffer.size += tile_layer->num_tile_vertices * sizeof(TileVertex);
-				// ctx->vk.static_staging_buffer.size += tile_layer->num_tile_instances * sizeof(TileInstance);
-				// The reason we can't do that right now is we don't know the number of tile instances,
-				// and we also don't have an index buffer for the tiles, which means we can't determine which tile vertex to associate
-				// with which tile instance.
 				ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 			}
 		}
-		ctx->vk.static_staging_buffer.size += SDL_arraysize(indices) * sizeof(uint16_t);
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 		VulkanCopyBuffer(dst_bufs_offset, dst_bufs, &ctx->vk.static_staging_buffer);
@@ -2341,12 +2314,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			Level* level = &ctx->levels[level_idx];
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				// NOTE: This is wrong. We shouldn't be copying the tiles in a row like this. We should be copying the tile vertices and instances
-				// as separate arrays.
-				VulkanCopyBuffer(sizeof(Tile)*tile_layer->num_tiles, tile_layer->tiles, &ctx->vk.static_staging_buffer);
+				VulkanCopyBuffer(tile_layer->num_tiles*sizeof(Tile), tile_layer->tiles, &ctx->vk.static_staging_buffer);
 			}
 		}
-		VulkanCopyBuffer(SDL_arraysize(indices) * sizeof(uint16_t), indices, &ctx->vk.static_staging_buffer);
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		StackFree(&ctx->stack, dst_bufs);
@@ -2454,34 +2424,27 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDynamicStagingBuffer
 	{
-		size_t size = sizeof(EntityVertex) + sizeof(EntityInstance); // the player
+		size_t size = sizeof(Entity); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += (sizeof(EntityVertex) + sizeof(EntityInstance))*level->num_enemies;
+			size += level->num_enemies*sizeof(Entity);
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
 	}
 
 	// VulkanCreateVertexBuffer
 	{
-		size_t size = sizeof(EntityVertex) + sizeof(EntityInstance); // the player
+		size_t size = sizeof(Entity); // the player
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += (sizeof(EntityVertex) + sizeof(EntityInstance)) * level->num_enemies;
+			size += level->num_enemies*sizeof(Entity);
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
-				size += (sizeof(TileVertex) + sizeof(TileInstance)) * tile_layer->num_tiles;
+				size += tile_layer->num_tiles*sizeof(Tile);
 			}
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	}
-
-	// VulkanCreateIndexBuffer
-	{
-		size_t size = 6 * sizeof(uint16_t);
-		ctx->vk.index_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 
 	// InitReplayFrames
@@ -2722,13 +2685,6 @@ int32_t main(int32_t argc, char* argv[]) {
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-						.buffer = ctx->vk.index_buffer.handle,
-						.size = ctx->vk.index_buffer.size,
-					}
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
@@ -2761,7 +2717,6 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				}
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
-				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.index_buffer, (VkDeviceSize)-1);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
@@ -2770,13 +2725,6 @@ int32_t main(int32_t argc, char* argv[]) {
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
-					},
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-						.dstAccessMask = VK_ACCESS_INDEX_READ_BIT,
-						.buffer = ctx->vk.index_buffer.handle,
-						.size = ctx->vk.index_buffer.size,
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
@@ -2854,10 +2802,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				uint32_t binding_count = 1;
 				VkDeviceSize offset = 0;
 				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
-			}
-			{
-				VkDeviceSize offset = 0;
-				vkCmdBindIndexBuffer(cb, ctx->vk.index_buffer.handle, offset, VK_INDEX_TYPE_UINT16);
 			}
 			{
 				uint32_t first_set = 0;
