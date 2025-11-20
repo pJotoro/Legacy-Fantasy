@@ -1242,18 +1242,18 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SDL_CHECK(SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD));
 
-		uint64_t memory_size = 4096ULL * 256ULL;
+		uint64_t memory_size = 1024ULL * 1024ULL * 64ULL;
 		uint8_t* memory = SDL_malloc(memory_size); SDL_CHECK(memory);
 
 		Arena arena;
 		arena.buf = memory;
-		arena.buf_len = memory_size/2;
+		arena.buf_len = memory_size/256;
 		arena.prev_offset = 0;
 		arena.curr_offset = 0;
 
 		Stack stack;
-		stack.buf = memory + memory_size/2 + 1;
-		stack.buf_len = memory_size/2;
+		stack.buf = memory + memory_size/256 + 1;
+		stack.buf_len = memory_size - arena.buf_len;
 		stack.prev_offset = 0;
 		stack.curr_offset = 0;
 

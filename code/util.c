@@ -114,60 +114,50 @@ function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align
     uintptr_t offset = AlignForward(curr_ptr, align);
     offset -= (uintptr_t)arena->buf; // Change to relative offset
 
-    // Check to see if the backing memory has space left
-    if (offset+size <= arena->buf_len) {
-        void *ptr = &arena->buf[offset];
-        arena->prev_offset = offset;
-        arena->curr_offset = offset+size;
+    SDL_assert(offset+size <= arena->buf_len);
 
-        // Zero new memory by default
-        SDL_memset(ptr, 0, size);
-        return ptr;
-    }
-    // Return NULL if the arena is out of memory (or handle differently)
-    return NULL;
+    void *ptr = &arena->buf[offset];
+    arena->prev_offset = offset;
+    arena->curr_offset = offset+size;
+
+    // Zero new memory by default
+    SDL_memset(ptr, 0, size);
+    return ptr;
 }
 
 #define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw((ARENA), (COUNT)*sizeof(TYPE), alignof(TYPE))
 
-size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t header_size) {
+function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t header_size) {
     SDL_assert(IsPowerOf2(alignment));
-
-    uintptr_t p = ptr;
-    uintptr_t a = alignment;
-    uintptr_t modulo = p & (a-1); // (p % a) as it assumes alignment is a power of two
-
+    uintptr_t modulo = ptr & (alignment-1); // (ptr % alignment) as it assumes alignment is a power of two
     uintptr_t padding = 0;
-    uintptr_t needed_space = 0;
 
     if (modulo != 0) { // Same logic as 'align_forward'
-        padding = a - modulo;
+        padding = alignment - modulo;
     }
 
-    needed_space = (uintptr_t)header_size;
+    uintptr_t needed_space = (uintptr_t)header_size;
 
     if (padding < needed_space) {
         needed_space -= padding;
 
-        if ((needed_space & (a-1)) != 0) {
-            padding += a * (1+(needed_space/a));
+        if ((needed_space & (alignment-1)) != 0) {
+            padding += alignment * (1+(needed_space/alignment));
         } else {
-            padding += a * (needed_space/a);
+            padding += alignment * (needed_space/alignment);
         }
     }
 
     return (size_t)padding;
 }
 
-void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
+function void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
     SDL_assert(IsPowerOf2(alignment));
 
     uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
     size_t padding = CalcPaddingWithHeader(curr_addr, (uintptr_t)alignment, sizeof(StackAllocHeader));
-    if (stack->curr_offset + padding + size > stack->buf_len) {
-        // Stack allocator is out of memory
-        return NULL;
-    }
+    SDL_assert(stack->curr_offset + padding + size <= stack->buf_len);
+
     stack->prev_offset = stack->curr_offset; // Store the previous offset
     stack->curr_offset += padding;
 
@@ -183,7 +173,7 @@ void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
 
 #define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
 
-void StackFree(Stack* stack, void* ptr) {
+function void StackFree(Stack* stack, void* ptr) {
     if (ptr) {
         uintptr_t start = (uintptr_t)stack->buf;
         uintptr_t end = start + (uintptr_t)stack->buf_len;
@@ -209,7 +199,7 @@ void StackFree(Stack* stack, void* ptr) {
     }
 }
 
-void StackFreeAll(Stack* stack) {
+function void StackFreeAll(Stack* stack) {
     stack->curr_offset = 0;
 }
 
