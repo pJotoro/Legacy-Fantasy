@@ -132,10 +132,9 @@ typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
 
-	// invalid after Vulkan images have been created
-	void* buf; // buf_size = size.x*size.y*sizeof(uint32_t)
-
+	// TODO: Remove SpriteCellType. Instead, store the hitbox, hurtbox and origin in separate fields.
 	SpriteCellType type;
+	
 	int32_t z_idx;
 	size_t layer_idx;
 } SpriteCell;
@@ -146,10 +145,14 @@ typedef struct SpriteFrame {
 } SpriteFrame;
 
 typedef struct SpriteDesc {
+	// TODO: Find a way to get this out of SpriteDesc.
 	SDL_IOStream* fs; // invalid after sprite has been loaded
+
 	ivec2s size;
 	SpriteLayer* layers; size_t num_layers;
 	SpriteFrame* frames; size_t num_frames;
+	
+	VkImage vk_image;
 } SpriteDesc;
 
 typedef struct Sprite {
@@ -336,16 +339,7 @@ typedef struct Vulkan {
 	*/
 	VulkanBuffer vertex_buffer;
 
-	uint32_t image_memory_type_idx;
-	VkBindImageMemoryInfo* bind_image_memory_infos;
-	VkBufferImageCopy* buffer_image_copies;
-	VkMemoryAllocateInfo image_memory_info;
 	VkDeviceMemory image_memory;
-
-	size_t num_image_memory_barriers;
-	VkImageMemoryBarrier* image_memory_barriers_before; // invalid after startup
-	VkImageMemoryBarrier* image_memory_barriers_after;  // invalid after startup
-	VkImageMemoryBarrier* image_memory_barriers;
 
 	bool staged;
 } Vulkan;
@@ -1204,10 +1198,10 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 #ifdef _DEBUG
 static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", /*"VK_NV_external_memory", "VK_NV_external_memory_win32"*/ };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain",};
 #else
 static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", /*"VK_NV_external_memory", "VK_NV_external_memory_win32"*/ };
+static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", };
 #endif
 
 static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
@@ -2216,7 +2210,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
 				sd->frames[frame_idx].cells = &ctx->sprite_cells[sprite_cell_idx];
-				sd->frames[frame_idx].num_cells = 0; // TODO: Is this really needed? I don't think it is.
+				sd->frames[frame_idx].num_cells = 0;
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
@@ -2268,6 +2262,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 							dst_bufs_offset += dst_buf_size;
 						}
+						sd->frames[frame_idx].num_cells += 1;
 						ctx->sprite_cells[sprite_cell_idx++] = cell;
 					} break;
 					}
@@ -2319,101 +2314,111 @@ int32_t main(int32_t argc, char* argv[]) {
 		StackFree(&ctx->stack, dst_bufs);
 	}
 
+	// VulkanCreateImages
 	{
-		// TODO: What the heck is going on here? I completely forgot what this code was about. After I read the Vulkan spec and whatnot for a while,
-		// I should really come back to this and figure it out.
+		VkMemoryRequirements mem_reqs[MAX_SPRITES];
+		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
+		size_t num_images = 0;
+		VkDeviceSize memory_offset = 0;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			if (sd) {
+				VkImageCreateInfo info = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+					.imageType = VK_IMAGE_TYPE_2D,
+					.format = VK_FORMAT_R8G8B8A8_SRGB,
+					.extent = (VkExtent3D){(uint32_t)sd->size.x, (uint32_t)sd->size.y, 1},
+					.mipLevels = 1,
+					.samples = VK_SAMPLE_COUNT_1_BIT,
+					.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,
+				};
 
-		// The reason I commented it out is because it causes a segmentation fault.
-		//SDL_qsort((void*)mem_req, ctx->num_sprite_cells, sizeof(VkImageMemoryRequirements), (SDL_CompareCallback)VulkanCompareImageMemoryRequirements);
+				// Different frames might have different amounts of cells.
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
+						if (sd->frames[frame_idx].cells[cell_idx].type == SpriteCellType_Sprite) {
+							info.arrayLayers += 1;
+						}
+					}
+				}
 
-		VkImage* images = NULL; // TODO
+				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
 
-		// VulkanAllocateAndBindImageMemory
-		{
-			// TODO:
-			VkMemoryAllocateInfo allocate_info = {
-				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-				//.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-			};
-			ctx->vk.image_memory_info = (VkMemoryAllocateInfo){
-				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-				//.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-			};
-			VkBindImageMemoryInfo* bind_infos = SDL_calloc(ctx->num_sprite_cells, sizeof(VkBindImageMemoryInfo)); SDL_CHECK(bind_infos);
-
-			for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-				// TODO:
-				//allocate_info.allocationSize = AlignForward(allocate_info.allocationSize, mem_reqs[i].alignment);
-				bind_infos[i] = (VkBindImageMemoryInfo){
+				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[num_images]);
+				memory_offset = AlignForward(memory_offset, mem_reqs[num_images].alignment);
+				bind_infos[num_images] = (VkBindImageMemoryInfo){
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-					.image = images[i],
-					.memoryOffset = allocate_info.allocationSize,
+					.image = sd->vk_image,
+					//.memory = scroll down a little more!,
+					.memoryOffset = memory_offset,
 				};
-				ctx->vk.buffer_image_copies[i] = (VkBufferImageCopy){
-					//.bufferOffset = allocate_info.memoryOffset,
-					//.imageSubresource = ,
-					//.imageExtent = 
-				};
-				//ctx->vk.
-				//allocate_info.allocationSize += mem_reqs[i].size;
+				memory_offset += mem_reqs[num_images].size;
+				num_images += 1;
 			}
-			VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
-
-			for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
-				bind_infos[i].memory = ctx->vk.image_memory;
-			}
-			VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprite_cells, bind_infos));
-
-			SDL_free(bind_infos);
-			// TODO:
-			//SDL_free(mem_reqs);
 		}
 
-		// VulkanCreateImageMemoryBarriers
-		ctx->vk.num_image_memory_barriers = ctx->num_sprite_cells;
-		// TODO: I'm not sure why I'm allocating these with a stack allocator, since I will need them after the scope ends!
-		ctx->vk.image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
-		ctx->vk.image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
-		ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
-		for (size_t i = 0; i < ctx->vk.num_image_memory_barriers; i += 1) {
-			VkImageSubresourceRange subresource_range = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.baseMipLevel = 0,
-				.levelCount = 1,
-				.baseArrayLayer = 0,
-				.layerCount = 1,
-			};
+		VkMemoryAllocateInfo allocate_info = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = memory_offset,
+			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+		};
+		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
-			ctx->vk.image_memory_barriers_before[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
-
-			ctx->vk.image_memory_barriers_after[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
-
-			ctx->vk.image_memory_barriers[i] = (VkImageMemoryBarrier){
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.image = images[i],
-				.subresourceRange = subresource_range,
-			};
+		for (size_t i = 0; i < num_images; i += 1) {
+			bind_infos[i].memory = ctx->vk.image_memory;
 		}
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)num_images, bind_infos));
+	}
+
+	{
+		
+
+		// TODO:
+		// // VulkanCreateImageMemoryBarriers
+		// ctx->vk.num_image_memory_barriers = ctx->num_sprite_cells;
+		// // TODO: I'm not sure why I'm allocating these with a stack allocator, since I will need them after the scope ends!
+		// ctx->vk.image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
+		// ctx->vk.image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
+		// ctx->vk.image_memory_barriers = ArenaAlloc(&ctx->arena, ctx->vk.num_image_memory_barriers, VkImageMemoryBarrier);
+		// for (size_t i = 0; i < ctx->vk.num_image_memory_barriers; i += 1) {
+		// 	VkImageSubresourceRange subresource_range = {
+		// 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		// 		.baseMipLevel = 0,
+		// 		.levelCount = 1,
+		// 		.baseArrayLayer = 0,
+		// 		.layerCount = 1,
+		// 	};
+
+		// 	ctx->vk.image_memory_barriers_before[i] = (VkImageMemoryBarrier){
+		// 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		// 		.srcAccessMask = 0,
+		// 		.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+		// 		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		// 		.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		// 		.image = images[i],
+		// 		.subresourceRange = subresource_range,
+		// 	};
+
+		// 	ctx->vk.image_memory_barriers_after[i] = (VkImageMemoryBarrier){
+		// 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		// 		.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+		// 		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+		// 		.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		// 		.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		// 		.image = images[i],
+		// 		.subresourceRange = subresource_range,
+		// 	};
+
+		// 	ctx->vk.image_memory_barriers[i] = (VkImageMemoryBarrier){
+		// 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		// 		.srcAccessMask = 0,
+		// 		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+		// 		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		// 		.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		// 		.image = images[i],
+		// 		.subresourceRange = subresource_range,
+		// 	};
+		// }
 
 		// TODO
 		//SDL_free(images);
@@ -2660,30 +2665,30 @@ int32_t main(int32_t argc, char* argv[]) {
 			// VulkanCopyStagingBuffers
 			if (!ctx->vk.staged) {
 				ctx->vk.staged = true;
-				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-						.buffer = ctx->vk.static_staging_buffer.handle,
-						.size = ctx->vk.static_staging_buffer.size,
-					},
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-						.buffer = ctx->vk.dynamic_staging_buffer.handle,
-						.size = ctx->vk.dynamic_staging_buffer.size,
-					},
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-						.buffer = ctx->vk.vertex_buffer.handle,
-						.size = ctx->vk.vertex_buffer.size,
-					},
-				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
+				// VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
+				// 	{
+				// 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+				// 		.srcAccessMask = 0,
+				// 		.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+				// 		.buffer = ctx->vk.static_staging_buffer.handle,
+				// 		.size = ctx->vk.static_staging_buffer.size,
+				// 	},
+				// 	{
+				// 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+				// 		.srcAccessMask = 0,
+				// 		.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+				// 		.buffer = ctx->vk.dynamic_staging_buffer.handle,
+				// 		.size = ctx->vk.dynamic_staging_buffer.size,
+				// 	},
+				// 	{
+				// 		.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+				// 		.srcAccessMask = 0,
+				// 		.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+				// 		.buffer = ctx->vk.vertex_buffer.handle,
+				// 		.size = ctx->vk.vertex_buffer.size,
+				// 	},
+				// };
+				//vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_before);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
 				// TODO:
@@ -2705,12 +2710,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				}*/
 				for (size_t i = 0; i < ctx->num_sprite_cells; i += 1) {
 					// TODO:
-					VkBufferImageCopy region = {
+					/*VkBufferImageCopy region = {
 						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 						//.bufferOffset = ctx->vk.bind_image_memory_infos[i].offset,
 						//.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
-					};
-					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.bind_image_memory_infos[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+					};*/
+					//vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.bind_image_memory_infos[i].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 				}
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
@@ -2726,7 +2731,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_after);
+				//vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers_after);
 			} else {
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
@@ -2759,7 +2764,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers);
+				//vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers);
 			}
 
 			// VulkanBeginRenderPass
