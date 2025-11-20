@@ -158,7 +158,7 @@ typedef struct Sprite {
 
 typedef struct Anim {
 	Sprite sprite;
-	size_t frame_idx;
+	uint32_t frame_idx;
 	float dt_accumulator;
 	bool ended;
 } Anim;
@@ -323,15 +323,15 @@ typedef struct Vulkan {
 	
 	/*
 	Memory layout:
-		EntityVertex player;
-		EntityVertex enemies[];
+		Entity player;
+		Entity enemies[];
 	*/
 	VulkanBuffer dynamic_staging_buffer;
 
 	/*
 	Memory layout:
-		EntityVertex player;
-		EntityVertex enemies[];
+		Entity player;
+		Entity enemies[];
 		Tile tiles[];
 	*/
 	VulkanBuffer vertex_buffer;
@@ -697,16 +697,16 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    SDL_assert(anim->frame_idx >= 0 && anim->frame_idx < sd->num_frames);
+    SDL_assert(anim->frame_idx >= 0 && (size_t)anim->frame_idx < sd->num_frames);
 	float dur = sd->frames[anim->frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
     if (loop || !anim->ended) {
         anim->dt_accumulator += dt;
         if (anim->dt_accumulator >= dur) {
-            anim->dt_accumulator = 0.0;
+            anim->dt_accumulator = 0.0f;
             anim->frame_idx += 1;
-            if (anim->frame_idx >= num_frames) {
+            if ((size_t)anim->frame_idx >= num_frames) {
                 if (loop) anim->frame_idx = 0;
                 else {
                     anim->frame_idx -= 1;
@@ -842,7 +842,7 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
+		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
 		if (!res && entity->anim.frame_idx == 0) {
@@ -1735,6 +1735,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image));
 	}
 
+	// TODO: Should we get rid of the depth stencil image? I'm not really using it for anything.
+
 	// VulkanCreateDepthStencilImageMemory
 	{
 		VkImageMemoryRequirementsInfo2 info = {
@@ -2036,17 +2038,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			tile_vert,
 			tile_frag,
 		};
-		// TODO: Do we even really need all these Vertex and Instance structs? What if we just made use of strides instead?
 		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(TileVertex),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-			},
-			{
-				.binding = 1,
-				.stride = sizeof(TileInstance),
+				.stride = sizeof(Tile),
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
@@ -2059,9 +2055,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			},
 			{
 				.location = 1,
-				.binding = 1,
+				.binding = 0,
 				.format = VK_FORMAT_R32G32_SINT,
-				.offset = 0,
+				.offset = offsetof(Tile, dst),
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo tile_vertex_input_info = { 
@@ -2087,12 +2083,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(EntityVertex),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-			},
-			{
-				.binding = 1,
-				.stride = sizeof(EntityInstance),
+				.stride = sizeof(Entity),
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
@@ -2101,13 +2092,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 0,
 				.binding = 0,
 				.format = VK_FORMAT_R32G32_SINT,
-				.offset = 0,
+				.offset = offsetof(Entity, pos),
 			},
 			{
 				.location = 1,
-				.binding = 1,
-				.format = VK_FORMAT_R32G32_SINT,
-				.offset = 0,
+				.binding = 0,
+				.format = VK_FORMAT_R32_UINT,
+				.offset = offsetof(Anim, frame_idx), // NOTE: Anim is the first member of Entity.
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
@@ -2818,12 +2809,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
-			// TODO: Draw tiles.
+			size_t num_tiles = 0;
+			for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) {
+				num_tiles += ctx->levels[ctx->level_idx].tile_layers[layer_idx].num_tiles;
+			}
+			vkCmdDraw(cb, 4, (uint32_t)num_tiles, 0, 0);
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
-			// TODO: Draw entities.
-
-
+			vkCmdDraw(cb, 4, (uint32_t)ctx->levels[ctx->level_idx].num_enemies + 1, 0, 0);
 		}
 
 		// DrawEnd
