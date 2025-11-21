@@ -116,31 +116,27 @@ typedef int64_t ssize_t;
 
 #define MIN_FPS 15
 
+typedef struct Rect {
+	ivec2s min;
+	ivec2s max;
+} Rect;
+
 typedef struct SpriteLayer {
 	char* name;
 } SpriteLayer;
 
-enum {
-	SpriteCellType_Sprite,
-	SpriteCellType_Hitbox,
-	SpriteCellType_Hurtbox,
-	SpriteCellType_Origin,
-};
-typedef uint32_t SpriteCellType;
-
 typedef struct SpriteCell {
 	ivec2s offset;
 	ivec2s size;
-
-	// TODO: Remove SpriteCellType. Instead, store the hitbox, hurtbox and origin in separate fields.
-	SpriteCellType type;
-	
 	int32_t z_idx;
 	size_t layer_idx;
 } SpriteCell;
 
 typedef struct SpriteFrame {
 	SpriteCell* cells; size_t num_cells;
+	Rect hitbox;
+	Rect hurtbox; // TODO
+	ivec2s origin;
 	float dur;
 } SpriteFrame;
 
@@ -221,11 +217,6 @@ typedef struct Level {
 	TileLayer* tile_layers; size_t num_tile_layers;
 	bool* tiles; // num_tiles = size.x*size.y/TILE_SIZE
 } Level;
-
-typedef struct Rect {
-	ivec2s min;
-	ivec2s max;
-} Rect;
 
 typedef struct ReplayFrame {
 	Entity player;
@@ -573,28 +564,14 @@ function void ResetGame(Context* ctx) {
 	SPALL_BUFFER_END();
 }
 
-function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) {
-	SPALL_BUFFER_BEGIN();
-	ivec2s res = {0};
-
-	// Find origin
+function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SpriteFrame* frame = &sd->frames[0];
-	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
-		SpriteCell* cell = &ctx->sprite_cells[cell_idx];
-		if (cell->type == SpriteCellType_Origin) {
-			res = cell->offset;
-			break;
-		}
-	}
-
-	// Flip if necessary
+	SDL_assert(frame_idx < sd->num_frames);
+	ivec2s origin = sd->frames[frame_idx].origin;
 	if (dir == -1) {
-		res.x = sd->size.x - res.x;
+		origin.x = sd->size.x - origin.x;
 	}
-
-	SPALL_BUFFER_END();
-	return res;
+	return origin;
 }
 
 #if 0
@@ -644,47 +621,23 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 }
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
-	SPALL_BUFFER_BEGIN();
-	bool res = false;
-
 	SDL_assert(hitbox);
-	SDL_assert(dir == 1 || dir == -1);
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SDL_assert(frame_idx < sd->num_frames);
-	SpriteFrame* frame = &sd->frames[frame_idx];
-	for (size_t cell_idx = 0; cell_idx < frame->num_cells; cell_idx += 1) {
-		SpriteCell* cell = &frame->cells[cell_idx];
-		if (cell->type == SpriteCellType_Hitbox) {
-			if (dir == 1) {
-				hitbox->min.x = cell->offset.x;
-				hitbox->max.x = cell->offset.x + cell->size.x;
-				hitbox->min.y = cell->offset.y;
-				hitbox->max.y = cell->offset.y + cell->size.y;
-			} else {
-				hitbox->min.x = -cell->offset.x - cell->size.x;
-				hitbox->max.x = -cell->offset.x;
-				hitbox->min.y = cell->offset.y;
-				hitbox->max.y = cell->offset.y + cell->size.y;
-				
-				hitbox->min.x += sd->size.x;
-				hitbox->max.x += sd->size.x;
-			}
-
-			// HACK
-			hitbox->max.x -= 1;
-			hitbox->max.y -= 1;
-
-			ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
-			hitbox->min = glms_ivec2_sub(hitbox->min, origin);
-			hitbox->max = glms_ivec2_sub(hitbox->max, origin);
-
-			res = true;
-			break;
-		}
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
+	SDL_assert(frame_idx < sd->num_frames); SpriteFrame* frame = &sd->frames[frame_idx];
+	Rect res = frame->hitbox;
+	if (dir == -1) {
+		res.min.x = -frame->hitbox.max.x + sd->size.x;
+		res.max.x = -frame->hitbox.min.x + sd->size.x;
 	}
+	if (res.max.x <= res.min.x || res.max.y <= res.min.y) return false;
 
-	SPALL_BUFFER_END();
-	return res;
+	// TODO: Should we get the origin right after LoadSprites instead?
+	ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
+	res.min = glms_ivec2_sub(res.min, origin);
+	res.max = glms_ivec2_sub(res.max, origin);
+	
+	*hitbox = res;
+	return true;
 }
 
 function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
@@ -2204,6 +2157,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			sd->frames = &ctx->sprite_frames[sprite_frame_idx];
 			sprite_frame_idx += sd->num_frames;
 
+			bool found_hitbox = false;
+
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
 				SDL_ReadStruct(fs, &frame);
@@ -2244,9 +2199,18 @@ int32_t main(int32_t argc, char* argv[]) {
 						};
 
 						if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Hitbox") == 0) {
-							cell.type = SpriteCellType_Hitbox;
+							SDL_assert(!found_hitbox);
+							found_hitbox = true;
+
+							Rect* hitbox = &sd->frames[frame_idx].hitbox;
+							*hitbox = (Rect){
+								.min.x = cell.offset.x,
+								.max.x = cell.offset.x + cell.size.x - 1, // HACK: Shouldn't have to subtract 1.
+								.min.y = cell.offset.y,
+								.max.y = cell.offset.y + cell.size.y - 1, // HACK: Shouldn't have to subtract 1.
+							};
 						} else if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Origin") == 0) {
-							cell.type = SpriteCellType_Origin;
+							sd->frames[frame_idx].origin = cell.offset;
 						} else {
 							size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
 							uint8_t* dst_buf = dst_bufs + dst_bufs_offset;
@@ -2335,11 +2299,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				// Different frames might have different amounts of cells.
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
-						if (sd->frames[frame_idx].cells[cell_idx].type == SpriteCellType_Sprite) {
-							info.arrayLayers += 1;
-						}
-					}
+					info.arrayLayers += (uint32_t)sd->frames[frame_idx].num_cells;
 				}
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
