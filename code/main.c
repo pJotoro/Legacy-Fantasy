@@ -2157,8 +2157,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			sd->frames = &ctx->sprite_frames[sprite_frame_idx];
 			sprite_frame_idx += sd->num_frames;
 
-			bool found_hitbox = false;
-
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
 				SDL_ReadStruct(fs, &frame);
@@ -2166,6 +2164,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
 				sd->frames[frame_idx].cells = &ctx->sprite_cells[sprite_cell_idx];
 				sd->frames[frame_idx].num_cells = 0;
+
+				bool found_hitbox = false;
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
@@ -2198,7 +2198,7 @@ int32_t main(int32_t argc, char* argv[]) {
 							.size.y = (int32_t)chunk->compressed_image.h,
 						};
 
-						if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Hitbox") == 0) {
+						if (SDL_strcmp(sd->layers[cell.layer_idx].name, "Hitbox") == 0) {
 							SDL_assert(!found_hitbox);
 							found_hitbox = true;
 
@@ -2209,7 +2209,7 @@ int32_t main(int32_t argc, char* argv[]) {
 								.min.y = cell.offset.y,
 								.max.y = cell.offset.y + cell.size.y - 1, // HACK: Shouldn't have to subtract 1.
 							};
-						} else if (SDL_strcmp(ctx->sprite_layers[ctx->num_sprite_layers].name, "Origin") == 0) {
+						} else if (SDL_strcmp(sd->layers[cell.layer_idx].name, "Origin") == 0) {
 							sd->frames[frame_idx].origin = cell.offset;
 						} else {
 							size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
