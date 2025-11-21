@@ -47,6 +47,18 @@ function FORCEINLINE Entity* GetPlayer(Context* ctx) {
     return &ctx->levels[ctx->level_idx].entities[0];
 }
 
+function FORCEINLINE Entity* GetEntities(Context* ctx, size_t* num_entities) {
+    SDL_assert(num_entities);
+    if (ctx->levels[ctx->level_idx].num_entities == 0) {
+        *num_entities = 0;
+        return NULL;
+    } else {
+        *num_entities = ctx->levels[ctx->level_idx].num_entities;
+        return &ctx->levels[ctx->level_idx].entities[1];
+    }
+}
+
+// TODO: Should we get rid of this?
 function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) {
     SDL_assert(num_enemies);
     if (ctx->levels[ctx->level_idx].num_entities <= 1) {
