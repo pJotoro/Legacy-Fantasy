@@ -212,15 +212,16 @@ typedef struct TileLayer {
 
 typedef struct Level {
 	ivec2s size;
-	Entity player;
-	Entity* enemies; size_t num_enemies;
+
+	// NOTE: entities[0] is always the player.
+	Entity* entities; size_t num_entities;
+
 	TileLayer* tile_layers; size_t num_tile_layers;
 	bool* tiles; // num_tiles = size.x*size.y/TILE_SIZE
 } Level;
 
 typedef struct ReplayFrame {
-	Entity player;
-	Entity* enemies; size_t num_enemies;
+	Entity* entities; size_t num_entities;
 } ReplayFrame;
 
 // https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
@@ -540,7 +541,7 @@ function void ResetGame(Context* ctx) {
 	for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 		Level* level = &ctx->levels[level_idx];
 		{
-			Entity* player = &level->player;
+			Entity* player = &level->entities[0];
 			player->state = EntityState_Free;
 			player->pos = player->start_pos;
 			player->vel = (vec2s){0.0f};
@@ -548,8 +549,8 @@ function void ResetGame(Context* ctx) {
 			ResetAnim(&player->anim);
 			SetSprite(player, player_idle);
 		}
-		for (size_t enemy_idx = 0; enemy_idx < level->num_enemies; enemy_idx += 1) {
-			Entity* enemy = &level->enemies[enemy_idx];
+		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) {
+			Entity* enemy = &level->entities[entity_idx];
 			enemy->state = EntityState_Free;
 			enemy->pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f};
@@ -728,7 +729,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 8);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
 					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -1128,9 +1129,8 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 	ctx->replay_frame_idx = replay_frame_idx;
 	Level* level = GetCurrentLevel(ctx);
 	ReplayFrame* replay_frame = &ctx->replay_frames[ctx->replay_frame_idx];
-	level->player = replay_frame->player;
-	SDL_memcpy(level->enemies, replay_frame->enemies, replay_frame->num_enemies * sizeof(Entity));
-	level->num_enemies = replay_frame->num_enemies;
+	SDL_memcpy(level->entities, replay_frame->entities, replay_frame->num_entities * sizeof(Entity));
+	level->num_entities = replay_frame->num_entities;
 
 	SPALL_BUFFER_END();
 }
@@ -1258,6 +1258,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			size_t num_tiles = (size_t)(level.size.x*level.size.y/TILE_SIZE);
 			level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
 
+			level.num_entities = 1; // the player
+
 			// TODO
 			level.num_tile_layers = 3;
 			level.tile_layers = ArenaAlloc(&ctx->arena, level.num_tile_layers, TileLayer);
@@ -1295,7 +1297,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				} else if (SDL_strcmp(ident, layer_enemies) == 0) {
 					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
-						level.num_enemies += 1;
+						level.num_entities += 1;
 					}
 				}
 			}
@@ -1310,8 +1312,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					tile_layer->tiles[i].dst.y = -1;
 				}
 			}
-			level.enemies = ArenaAlloc(&ctx->arena, level.num_enemies, Entity);
-			Entity* enemy = level.enemies;
+			level.entities = ArenaAlloc(&ctx->arena, level.num_entities, Entity);
+			Entity* enemy = &level.entities[1];
 			cJSON_ArrayForEach(layer_instance, layer_instances) {
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
 				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
@@ -1324,7 +1326,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						cJSON* entity_instance = entity_instances->child;
 						cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
 						cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
-						level.player.start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
+						level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
 					} else if (SDL_strcmp(ident, layer_enemies) == 0) {
 						cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
 							cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
@@ -2173,7 +2175,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 
 					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, 8);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
 					SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
@@ -2443,10 +2445,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDynamicStagingBuffer
 	{
-		size_t size = sizeof(Entity); // the player
+		VkDeviceSize size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_enemies*sizeof(Entity);
+			size += level->num_entities*sizeof(Entity);
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
@@ -2454,10 +2456,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateVertexBuffer
 	{
-		size_t size = sizeof(Entity); // the player
+		size_t size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_enemies*sizeof(Entity);
+			size += level->num_entities*sizeof(Entity);
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->num_tiles*sizeof(Tile);
@@ -2838,7 +2840,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			vkCmdDraw(cb, 4, (uint32_t)num_tiles, 0, 0);
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
-			vkCmdDraw(cb, 4, (uint32_t)ctx->levels[ctx->level_idx].num_enemies + 1, 0, 0);
+			vkCmdDraw(cb, 4, (uint32_t)ctx->levels[ctx->level_idx].num_entities, 0, 0);
 		}
 
 		// DrawEnd

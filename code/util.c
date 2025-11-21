@@ -44,13 +44,18 @@ function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) {
 }
 
 function FORCEINLINE Entity* GetPlayer(Context* ctx) {
-    return &ctx->levels[ctx->level_idx].player;
+    return &ctx->levels[ctx->level_idx].entities[0];
 }
 
 function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) {
     SDL_assert(num_enemies);
-    *num_enemies = ctx->levels[ctx->level_idx].num_enemies;
-    return ctx->levels[ctx->level_idx].enemies;
+    if (ctx->levels[ctx->level_idx].num_entities <= 1) {
+        *num_enemies = 0;
+        return NULL;
+    } else {
+        *num_enemies = ctx->levels[ctx->level_idx].num_entities - 1;
+        return &ctx->levels[ctx->level_idx].entities[1];
+    }
 }
 
 function FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
