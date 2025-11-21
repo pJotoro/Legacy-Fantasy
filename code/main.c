@@ -2316,6 +2316,25 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
+	// TestSpriteCells
+	{
+		size_t cell_idx = 0;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
+			if (sd) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+					for (size_t sprite_cell_idx = 0; sprite_cell_idx < sd->frames[frame_idx].num_cells && cell_idx < ctx->num_sprite_cells; ++sprite_cell_idx, ++cell_idx) {
+						if (SDL_memcmp(&sd->frames[frame_idx].cells[sprite_cell_idx], &ctx->sprite_cells[cell_idx], sizeof(SpriteCell)) != 0) {
+							SDL_Log("FAIL");
+						} else {
+							SDL_Log("SUCCESS");
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// VulkanCreateImages
 	{
 		VkMemoryRequirements mem_reqs[MAX_SPRITES];
