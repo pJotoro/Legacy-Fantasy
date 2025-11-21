@@ -2342,6 +2342,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkMemoryRequirements mem_reqs[MAX_SPRITES];
 		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
 		VkDeviceSize memory_offset = 0;
+		size_t i = 0;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 			if (sd) {
@@ -2362,18 +2363,19 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
 
-				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[ctx->num_sprites]);
-				memory_offset = AlignForward(memory_offset, mem_reqs[ctx->num_sprites].alignment);
-				bind_infos[ctx->num_sprites] = (VkBindImageMemoryInfo){
+				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[i]);
+				memory_offset = AlignForward(memory_offset, mem_reqs[i].alignment);
+				bind_infos[i] = (VkBindImageMemoryInfo){
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 					.image = sd->vk_image,
 					//.memory = scroll down a little more!,
 					.memoryOffset = memory_offset,
 				};
-				memory_offset += mem_reqs[ctx->num_sprites].size;
-				ctx->num_sprites += 1;
+				memory_offset += mem_reqs[i].size;
+				i += 1;
 			}
 		}
+		SDL_assert(i == ctx->num_sprites);
 
 		VkMemoryAllocateInfo allocate_info = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
