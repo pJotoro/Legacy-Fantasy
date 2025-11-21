@@ -2646,13 +2646,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		#endif
 		}
 		
-		// VulkanCopyVerticesToDynamicStagingBuffer
+		// VulkanCopyEntitiesToDynamicStagingBuffer
 		{
-			// TODO:
-			//size_t num_entity_vertices;
-			//EntityVertex* entity_vertices = GetEntityVertices(GetCurrentLevel(ctx), &num_entity_vertices);
-			//VulkanCopyBuffer(num_entity_vertices * sizeof(EntityVertex), entity_vertices, &ctx->vk.dynamic_staging_buffer);
-			//SDL_free(entity_vertices);
+			size_t num_entities;
+			Entity* entities = GetEntities(ctx, &num_entities);
+			SDL_assert(entities);
+			VulkanCopyBuffer(num_entities * sizeof(Entity), entities, &ctx->vk.dynamic_staging_buffer);
 		}
 
 		uint32_t image_idx;
