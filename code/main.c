@@ -331,6 +331,7 @@ typedef struct Vulkan {
 	*/
 	VulkanBuffer vertex_buffer;
 
+	VkImage* images; size_t num_images;
 	VkDeviceMemory image_memory;
 
 	bool staged;
@@ -2341,7 +2342,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		VkMemoryRequirements mem_reqs[MAX_SPRITES];
 		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
-		size_t num_images = 0;
+		ctx->vk.num_images = 0;
 		VkDeviceSize memory_offset = 0;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
@@ -2363,16 +2364,16 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
 
-				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[num_images]);
-				memory_offset = AlignForward(memory_offset, mem_reqs[num_images].alignment);
-				bind_infos[num_images] = (VkBindImageMemoryInfo){
+				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[ctx->vk.num_images]);
+				memory_offset = AlignForward(memory_offset, mem_reqs[ctx->vk.num_images].alignment);
+				bind_infos[ctx->vk.num_images] = (VkBindImageMemoryInfo){
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 					.image = sd->vk_image,
 					//.memory = scroll down a little more!,
 					.memoryOffset = memory_offset,
 				};
-				memory_offset += mem_reqs[num_images].size;
-				num_images += 1;
+				memory_offset += mem_reqs[ctx->vk.num_images].size;
+				ctx->vk.num_images += 1;
 			}
 		}
 
@@ -2383,10 +2384,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
-		for (size_t i = 0; i < num_images; i += 1) {
+		ctx->vk.images = ArenaAlloc(&ctx->arena, ctx->vk.num_images, VkImage);
+		for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
 			bind_infos[i].memory = ctx->vk.image_memory;
+			ctx->vk.images[i] = bind_infos[i].image;
 		}
-		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)num_images, bind_infos));
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->vk.num_images, bind_infos));
 	}
 
 	{
