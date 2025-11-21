@@ -635,7 +635,7 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
 	res.min = glms_ivec2_sub(res.min, origin);
 	res.max = glms_ivec2_sub(res.max, origin);
-	
+
 	*hitbox = res;
 	return true;
 }
@@ -2276,6 +2276,25 @@ int32_t main(int32_t argc, char* argv[]) {
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		StackFree(&ctx->stack, dst_bufs);
+	}
+
+	// TestSpriteLayers
+	{
+		size_t layer_idx = 0;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
+			if (sd) {
+				for (size_t sprite_layer_idx = 0; 
+					sprite_layer_idx < sd->num_layers && layer_idx < ctx->num_sprite_layers; 
+					++sprite_layer_idx, ++layer_idx) {
+					if (SDL_strcmp(sd->layers[sprite_layer_idx].name, ctx->sprite_layers[layer_idx].name) != 0) {
+						SDL_Log("FAIL: %s != %s", sd->layers[sprite_layer_idx].name, ctx->sprite_layers[layer_idx].name);
+					} else {
+						SDL_Log("SUCCESS: %s", sd->layers[sprite_layer_idx].name);
+					}
+				}
+			}
+		}
 	}
 
 	// VulkanCreateImages
