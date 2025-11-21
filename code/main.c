@@ -331,7 +331,6 @@ typedef struct Vulkan {
 	*/
 	VulkanBuffer vertex_buffer;
 
-	VkImage* images; size_t num_images;
 	VkDeviceMemory image_memory;
 
 	bool staged;
@@ -2342,7 +2341,6 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		VkMemoryRequirements mem_reqs[MAX_SPRITES];
 		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
-		ctx->vk.num_images = 0;
 		VkDeviceSize memory_offset = 0;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
@@ -2364,16 +2362,16 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
 
-				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[ctx->vk.num_images]);
-				memory_offset = AlignForward(memory_offset, mem_reqs[ctx->vk.num_images].alignment);
-				bind_infos[ctx->vk.num_images] = (VkBindImageMemoryInfo){
+				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[ctx->num_sprites]);
+				memory_offset = AlignForward(memory_offset, mem_reqs[ctx->num_sprites].alignment);
+				bind_infos[ctx->num_sprites] = (VkBindImageMemoryInfo){
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 					.image = sd->vk_image,
 					//.memory = scroll down a little more!,
 					.memoryOffset = memory_offset,
 				};
-				memory_offset += mem_reqs[ctx->vk.num_images].size;
-				ctx->vk.num_images += 1;
+				memory_offset += mem_reqs[ctx->num_sprites].size;
+				ctx->num_sprites += 1;
 			}
 		}
 
@@ -2384,12 +2382,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
-		ctx->vk.images = ArenaAlloc(&ctx->arena, ctx->vk.num_images, VkImage);
-		for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
+		for (size_t i = 0; i < ctx->num_sprites; i += 1) {
 			bind_infos[i].memory = ctx->vk.image_memory;
-			ctx->vk.images[i] = bind_infos[i].image;
 		}
-		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->vk.num_images, bind_infos));
+		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprites, bind_infos));
 	}
 
 	// VulkanCreateDynamicStagingBuffer
@@ -2633,10 +2629,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			if (!ctx->vk.staged) {
 				ctx->vk.staged = true;
 
-				VkImageMemoryBarrier* image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->vk.num_images, VkImageMemoryBarrier);
-				VkImageMemoryBarrier* image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->vk.num_images, VkImageMemoryBarrier);
-				VkImageMemoryBarrier* image_memory_barriers = StackAlloc(&ctx->stack, ctx->vk.num_images, VkImageMemoryBarrier);
-				for (size_t i = 0; i < ctx->vk.num_images; i += 1) {
+				VkImageMemoryBarrier* image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->num_sprites, VkImageMemoryBarrier);
+				VkImageMemoryBarrier* image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->num_sprites, VkImageMemoryBarrier);
+				VkImageMemoryBarrier* image_memory_barriers = StackAlloc(&ctx->stack, ctx->num_sprites, VkImageMemoryBarrier);
+				size_t i = 0;
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+					if (!sd) continue;
+
 					VkImageSubresourceRange subresource_range = {
 						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 						.baseMipLevel = 0,
@@ -2651,7 +2651,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 						.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-						.image = ctx->vk.images[i],
+						.image = sd->vk_image,
 						.subresourceRange = subresource_range,
 					};
 
@@ -2661,7 +2661,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 						.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-						.image = ctx->vk.images[i],
+						.image = sd->vk_image,
 						.subresourceRange = subresource_range,
 					};
 
@@ -2671,10 +2671,13 @@ int32_t main(int32_t argc, char* argv[]) {
 						.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
 						.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 						.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-						.image = ctx->vk.images[i],
+						.image = sd->vk_image,
 						.subresourceRange = subresource_range,
 					};
+
+					i += 1;
 				}
+				SDL_assert(i == ctx->num_sprites);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
@@ -2699,19 +2702,20 @@ int32_t main(int32_t argc, char* argv[]) {
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->vk.num_images, image_memory_barriers_before);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->num_sprites, image_memory_barriers_before);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, (VkDeviceSize)-1);
 				
-				for (size_t sprite_cell_idx = 0; sprite_cell_idx < ctx->num_sprite_cells; sprite_cell_idx += 1) {
-					SpriteCell* cell = &ctx->sprite_cells[sprite_cell_idx];
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+					if (!sd) continue;
 					VkBufferImageCopy region = {
 						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 						.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
-						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+						//.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
 					};
-					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, ctx->vk.images[sprite_cell_idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-					ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+					//ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
 				}
 				
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
@@ -2727,7 +2731,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_images, image_memory_barriers_after);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprites, image_memory_barriers_after);
 
 				StackFree(&ctx->stack, image_memory_barriers_before);
 				StackFree(&ctx->stack, image_memory_barriers_after);
