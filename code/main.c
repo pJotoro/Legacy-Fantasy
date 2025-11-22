@@ -2267,6 +2267,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t cell_idx = 0; cell_idx < ctx->num_sprite_cells; cell_idx += 1) {
 			SpriteCell* cell = &ctx->sprite_cells[cell_idx];
 			VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
+			cell->dst_buf = NULL;
 		}
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
