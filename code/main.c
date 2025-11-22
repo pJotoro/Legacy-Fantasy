@@ -2714,7 +2714,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					VkBufferImageCopy region = {
 						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
 						.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
-						//.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
+						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
 					};
 					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 					//ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
