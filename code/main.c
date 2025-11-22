@@ -149,6 +149,7 @@ typedef struct SpriteDesc {
 	SpriteFrame* frames; size_t num_frames;
 	
 	VkImage vk_image;
+	size_t vk_image_array_layers;
 } SpriteDesc;
 
 typedef struct Sprite {
@@ -2247,6 +2248,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		sprite_cell_idx = UINT64_MAX;
 
 		// SortSprites
+		// TODO: Wouldn't it cause issues to sort the sprites *after* putting the image data in dst_bufs?
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 			if (sd) {
@@ -2360,6 +2362,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 					info.arrayLayers += (uint32_t)sd->frames[frame_idx].num_cells;
 				}
+				sd->vk_image_array_layers = (size_t)info.arrayLayers;
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
 
@@ -2711,13 +2714,38 @@ int32_t main(int32_t argc, char* argv[]) {
 				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 					if (!sd) continue;
-					VkBufferImageCopy region = {
-						.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
-						.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
-						.imageExtent = (VkExtent3D){cell->size.x, cell->size.y, 1},
-					};
-					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-					//ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+					VkBufferImageCopy* regions = StackAlloc(&ctx->stack, sd->vk_image_array_layers, VkBufferImageCopy);
+					size_t region_idx = 0;
+					for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+						SpriteFrame* sf = &sd->frames[frame_idx];
+						for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
+							SpriteCell* cell = &sf->cells[cell_idx];
+							SDL_assert(region_idx < sd->vk_image_array_layers);
+							regions[region_idx] = (VkBufferImageCopy){
+								.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
+								.imageSubresource = (VkImageSubresourceLayers){
+									.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+									.mipLevel = 0,
+									.baseArrayLayer = (uint32_t)region_idx,
+									.layerCount = 1,
+								},
+								.imageOffset = (VkOffset3D){
+									.x = cell->offset.x,
+									.y = cell->offset.y,
+									.z = 0,
+								},
+								.imageExtent = (VkExtent3D){
+									.width = (uint32_t)cell->size.x,
+									.height = (uint32_t)cell->size.y,
+									.depth = 1,
+								},
+							};
+							region_idx += 1;
+							ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+						}
+					}
+					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (uint32_t)sd->vk_image_array_layers, regions);
+					StackFree(&ctx->stack, regions);
 				}
 				
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
