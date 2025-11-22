@@ -2136,9 +2136,10 @@ int32_t main(int32_t argc, char* argv[]) {
 							SDL_assert(res > 0);
 
 							dst_bufs_offset += dst_buf_size;
+
+							sd->frames[frame_idx].num_cells += 1;
+							ctx->sprite_cells[sprite_cell_idx++] = cell;
 						}
-						sd->frames[frame_idx].num_cells += 1;
-						ctx->sprite_cells[sprite_cell_idx++] = cell;
 					} break;
 					}
 				
