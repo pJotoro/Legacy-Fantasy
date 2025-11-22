@@ -2647,7 +2647,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						.baseMipLevel = 0,
 						.levelCount = 1,
 						.baseArrayLayer = 0,
-						.layerCount = 1,
+						.layerCount = (uint32_t)sd->vk_image_array_layers,
 					};
 
 					image_memory_barriers_before[i] = (VkImageMemoryBarrier){
@@ -2798,7 +2798,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
 
-				//vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->vk.num_image_memory_barriers, ctx->vk.image_memory_barriers);
+				//vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)num_image_memory_barriers, ctx->vk.image_memory_barriers);
 			}
 
 			// VulkanBeginRenderPass
