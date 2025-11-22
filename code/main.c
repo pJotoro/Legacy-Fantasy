@@ -2249,14 +2249,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		sprite_cell_idx = UINT64_MAX;
 
 		// SortSprites
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					SpriteFrame* sf = &sd->frames[frame_idx];
-					SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
-				}
-			}
+		for (size_t frame_idx = 0; frame_idx < ctx->num_sprite_frames; frame_idx += 1) {
+			SpriteFrame* sf = &ctx->sprite_frames[frame_idx];
+			SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 		}
 
 		// VulkanCreateStaticStagingBuffer
@@ -2269,17 +2264,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					SpriteFrame* sf = &sd->frames[frame_idx];
-					for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
-						SpriteCell* cell = &sf->cells[cell_idx];
-						VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
-					}
-				}
-			}
+		for (size_t cell_idx = 0; cell_idx < ctx->num_sprite_cells; cell_idx += 1) {
+			SpriteCell* cell = &ctx->sprite_cells[cell_idx];
+			VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
 		}
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
