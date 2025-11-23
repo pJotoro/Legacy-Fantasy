@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 layout (location = 0) in ivec2 pos;
 layout (location = 1) in uint frame_idx;
