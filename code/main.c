@@ -1688,7 +1688,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 	}
 
-	
+
 	// VulkanCreateSampler
 	{
 		VkSamplerCreateInfo info = { 
@@ -2833,22 +2833,38 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
 			}
 			{
-				//uint32_t first_set = 0;
-				//uint32_t num_descriptor_sets = 1;
-				//uint32_t num_dynamic_offsets = 0;
-				//const uint32_t* dynamic_offsets = NULL;
-				//vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, first_set, num_descriptor_sets, &ctx->vk.descriptor_set, num_dynamic_offsets, dynamic_offsets);
-			}
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
 
-			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
-			size_t num_tiles = 0;
-			for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) {
-				num_tiles += ctx->levels[ctx->level_idx].tile_layers[layer_idx].num_tiles;
-			}
-			vkCmdDraw(cb, 4, (uint32_t)num_tiles, 0, 0);
+				SpriteDesc* sd =  GetSpriteDesc(ctx, spr_tiles);
+				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 
-			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
-			vkCmdDraw(cb, 4, (uint32_t)ctx->levels[ctx->level_idx].num_entities, 0, 0);
+				size_t num_tiles = 0;
+				for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) {
+					num_tiles += ctx->levels[ctx->level_idx].tile_layers[layer_idx].num_tiles;
+				}
+				vkCmdDraw(cb, 4, (uint32_t)num_tiles, 0, 0);
+			}
+			{
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
+				
+				// DrawPlayer
+				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim_sprite);
+				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
+				vkCmdDraw(cb, 4, 1, 0, 0);
+
+				// DrawEnemies
+				size_t num_entities = ctx->levels[ctx->level_idx].num_entities - 1;
+				size_t num_instances = 1;
+				size_t first_instance = 1;
+				while (num_entities > 0) {
+					Sprite sprite = ctx->levels[ctx->level_idx].entities[first_instance].anim_sprite;
+					while (num_instances < num_entities && SpritesEqual(sprite, ctx->levels[ctx->level_idx].entities[first_instance+1].anim_sprite)) {
+						num_instances += 1;
+					}
+					vkCmdDraw(cb, 4, (uint32_t)num_instances, 0, (uint32_t)first_instance);
+					num_entities -= num_instances;
+				}
+			}
 		}
 
 		// DrawEnd
