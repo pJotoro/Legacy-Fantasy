@@ -220,8 +220,6 @@ function void StackFreeAll(Stack* stack) {
     stack->curr_offset = 0;
 }
 
-// TODO: Switch away from using bool to using a bit mask.
-
 function FORCEINLINE bool IsSolid(Level* level, ivec2s pos) {
     if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
     size_t idx = (size_t)(pos.x + pos.y*level->size.x);
