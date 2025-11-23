@@ -15,7 +15,7 @@ void main() {
     dst += a[gl_VertexIndex];
 
     vec2 pos;
-    pos.x = float(in_dst.x)/960.0 - 1.0; // TODO: Add uniform variablies for window
+    pos.x = float(in_dst.x)/960.0 - 1.0; // TODO: Add uniform variables for window
     pos.y = float(in_dst.y)/540.0 - 1.0; // width and height.
 
     gl_Position = vec4(pos, 0.0, 1.0);
