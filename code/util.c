@@ -92,7 +92,7 @@ function FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) {
 }
 
 function FORCEINLINE void ResetAnim(Entity* entity) {
-    entity->anim_frame_idx = 0;
+    entity->inst.anim_frame_idx = 0;
     entity->anim_dt_accumulator = 0.0;
     entity->anim_ended = false;
 }

@@ -85,9 +85,13 @@ enum {
 };
 typedef uint32_t EntityState;
 
+typedef struct EntityInstance {
+	ivec2s pos;
+	uint32_t anim_frame_idx;
+} EntityInstance;
+
 typedef struct Entity {
-	ivec2s pos;					// binding 0, attribute 0, per-instance
-	uint32_t anim_frame_idx;	// binding 0, attribute 1, per-instance
+	EntityInstance inst;
 
 	Sprite anim_sprite;
 	float anim_dt_accumulator;
@@ -220,13 +224,13 @@ typedef struct Vulkan {
 	
 	/*
 	Memory layout:
-		Entity entities[];
+		EntityInstance entities[];
 	*/
 	VulkanBuffer dynamic_staging_buffer;
 
 	/*
 	Memory layout:
-		Entity entities[];
+		EntityInstance entities[];
 		Tile tiles[];
 	*/
 	VulkanBuffer vertex_buffer;
@@ -440,7 +444,7 @@ function void ResetGame(Context* ctx) {
 		{
 			Entity* player = &level->entities[0];
 			player->state = EntityState_Free;
-			player->pos = player->start_pos;
+			player->inst.pos = player->start_pos;
 			player->vel = (vec2s){0.0f};
 			player->dir = 1;
 			ResetAnim(player);
@@ -449,7 +453,7 @@ function void ResetGame(Context* ctx) {
 		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) {
 			Entity* enemy = &level->entities[entity_idx];
 			enemy->state = EntityState_Free;
-			enemy->pos = enemy->start_pos;
+			enemy->inst.pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f};
 			enemy->dir = 1;
 			ResetAnim(enemy);
@@ -542,19 +546,19 @@ function void UpdateAnim(Context* ctx, Entity* entity, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
-    SDL_assert(entity->anim_frame_idx >= 0 && (size_t)entity->anim_frame_idx < sd->num_frames);
-	float dur = sd->frames[entity->anim_frame_idx].dur;
+    SDL_assert(entity->inst.anim_frame_idx >= 0 && (size_t)entity->inst.anim_frame_idx < sd->num_frames);
+	float dur = sd->frames[entity->inst.anim_frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
     if (loop || !entity->anim_ended) {
         entity->anim_dt_accumulator += dt;
         if (entity->anim_dt_accumulator >= dur) {
             entity->anim_dt_accumulator = 0.0f;
-            entity->anim_frame_idx += 1;
-            if ((size_t)entity->anim_frame_idx >= num_frames) {
-                if (loop) entity->anim_frame_idx = 0;
+            entity->inst.anim_frame_idx += 1;
+            if ((size_t)entity->inst.anim_frame_idx >= num_frames) {
+                if (loop) entity->inst.anim_frame_idx = 0;
                 else {
-                    entity->anim_frame_idx -= 1;
+                    entity->inst.anim_frame_idx -= 1;
                     entity->anim_ended = true;
                 }
             }
@@ -687,10 +691,10 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = (ssize_t)entity->anim_frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
+		for (res = false, frame_idx = (ssize_t)entity->inst.anim_frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
 			res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
-		if (!res && entity->anim_frame_idx == 0) {
+		if (!res && entity->inst.anim_frame_idx == 0) {
 			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) {
 				res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
@@ -698,8 +702,8 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 		SDL_assert(res);
 	}
 
-	hitbox.min = glms_ivec2_add(hitbox.min, entity->pos);
-	hitbox.max = glms_ivec2_add(hitbox.max, entity->pos);
+	hitbox.min = glms_ivec2_add(hitbox.min, entity->inst.pos);
+	hitbox.max = glms_ivec2_add(hitbox.max, entity->inst.pos);
 
 	SPALL_BUFFER_END();
 	return hitbox;
@@ -779,7 +783,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 	}
 
     entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
-    entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
+    entity->inst.pos = glms_ivec2_add(entity->inst.pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
     entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 
     Rect hitbox = GetEntityHitbox(ctx, entity);
@@ -810,7 +814,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 								h.max.x -= incr;
 								amount += incr;
 							}
-							entity->pos.x -= amount;
+							entity->inst.pos.x -= amount;
 							horizontal_collision_happened = true;
 						}
 
@@ -827,7 +831,7 @@ function EntityState EntityMoveAndCollide(Context* ctx, Entity* entity, vec2s ac
 								h.max.y -= incr;
 								amount += incr;
 							}
-							entity->pos.y -= amount;					
+							entity->inst.pos.y -= amount;					
 							vertical_collision_happened = true;
 						}
 					}
@@ -880,7 +884,7 @@ function void UpdatePlayer(Context* ctx) {
 	} break;
 	}
 
-	if (player->pos.y > (float)level->size.y) {
+	if (player->inst.pos.y > (float)level->size.y) {
 		ResetGame(ctx);
 	} else switch (player->state) {
 	case EntityState_Inactive:
@@ -1929,7 +1933,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(Entity),
+				.stride = sizeof(EntityInstance),
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
@@ -1938,13 +1942,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 0,
 				.binding = 0,
 				.format = VK_FORMAT_R32G32_SINT,
-				.offset = offsetof(Entity, pos),
+				.offset = offsetof(EntityInstance, pos),
 			},
 			{
 				.location = 1,
 				.binding = 0,
 				.format = VK_FORMAT_R32_UINT,
-				.offset = offsetof(Entity, anim_frame_idx),
+				.offset = offsetof(EntityInstance, anim_frame_idx),
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
@@ -2332,7 +2336,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDeviceSize size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_entities*sizeof(Entity);
+			size += level->num_entities*sizeof(EntityInstance);
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
@@ -2343,7 +2347,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		size_t size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_entities*sizeof(Entity);
+			size += level->num_entities*sizeof(EntityInstance);
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->num_tiles*sizeof(Tile);
@@ -2535,7 +2539,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			size_t num_entities;
 			Entity* entities = GetEntities(ctx, &num_entities);
 			SDL_assert(entities);
-			VulkanCopyBuffer(num_entities * sizeof(Entity), entities, &ctx->vk.dynamic_staging_buffer);
+			for (size_t i = 0; i < num_entities; i += 1) {
+				VulkanCopyBuffer(sizeof(EntityInstance), &entities[i], &ctx->vk.dynamic_staging_buffer);
+			}
 		}
 
 		uint32_t image_idx;
