@@ -57,6 +57,7 @@ typedef struct SpriteDesc {
 	SpriteFrame* frames; size_t num_frames;
 	
 	VkImage vk_image;
+	VkImageView vk_image_view;
 	size_t vk_image_array_layers;
 } SpriteDesc;
 
@@ -2293,6 +2294,26 @@ int32_t main(int32_t argc, char* argv[]) {
 			bind_infos[i].memory = ctx->vk.image_memory;
 		}
 		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprites, bind_infos));
+
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			if (sd) {
+				VkImageViewCreateInfo info = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+					.image = sd->vk_image,
+					.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+					.format = VK_FORMAT_R8G8B8A8_SRGB,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = 0,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = (uint32_t)sd->vk_image_array_layers,
+					},
+				};
+				VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
+			}
+		}
 	}
 
 	// VulkanCreateDynamicStagingBuffer
