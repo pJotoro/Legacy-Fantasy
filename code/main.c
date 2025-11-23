@@ -1698,7 +1698,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		};
@@ -2001,7 +2001,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	// VulkanCreateDescriptorPool
 	{
 		VkDescriptorPoolSize size = {
-			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			1,
 		};
 
