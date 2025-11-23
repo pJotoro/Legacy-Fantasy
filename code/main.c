@@ -2025,6 +2025,23 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
+
+		VkDescriptorImageInfo image_info = {
+		    .sampler = ctx->vk.sampler,
+		    .imageView = wha,
+		    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		VkWriteDescriptorSet write = {
+		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		    .dstSet = ctx->vk.descriptor_set,
+		    .dstBinding = 0,
+		    .descriptorCount = 1,
+		    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		    .pImageInfo = &image_info,
+		};
+
+		vkUpdateDescriptorSets(ctx->vk.device, 1, &write, 0, NULL);
 	}
 	
 	// LoadSprites
