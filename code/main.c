@@ -65,13 +65,6 @@ typedef struct Sprite {
 	size_t idx;
 } Sprite;
 
-typedef struct Anim {
-	Sprite sprite;
-	uint32_t frame_idx;
-	float dt_accumulator;
-	bool ended;
-} Anim;
-
 enum {
 	EntityType_Player,
 	EntityType_Boar,
@@ -93,17 +86,16 @@ enum {
 typedef uint32_t EntityState;
 
 typedef struct Entity {
-	Anim anim;
+	ivec2s pos;					// binding 0, attribute 0, per-instance
+	uint32_t anim_frame_idx;	// binding 0, attribute 1, per-instance
 
-	// The position is the position of the origin.
-	// The origin is defined by the current sprite.
-	// Each sprite has its own origin relative to its canvas.
+	Sprite anim_sprite;
+	float anim_dt_accumulator;
+	bool anim_ended;
+
 	ivec2s start_pos;
-	ivec2s pos;
 	vec2s pos_remainder;
-
 	vec2s vel;
-	
 	int32_t dir;
 
 	EntityType type;
@@ -431,10 +423,10 @@ function void VulkanResetBuffer(VulkanBuffer* buffer) {
 
 function bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
-    if (!SpritesEqual(entity->anim.sprite, sprite)) {
+    if (!SpritesEqual(entity->anim_sprite, sprite)) {
         sprite_changed = true;
-        entity->anim.sprite = sprite;
-        ResetAnim(&entity->anim);
+        entity->anim_sprite = sprite;
+        ResetAnim(entity);
     }
     return sprite_changed;
 }
@@ -451,7 +443,7 @@ function void ResetGame(Context* ctx) {
 			player->pos = player->start_pos;
 			player->vel = (vec2s){0.0f};
 			player->dir = 1;
-			ResetAnim(&player->anim);
+			ResetAnim(player);
 			SetSprite(player, player_idle);
 		}
 		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) {
@@ -460,7 +452,7 @@ function void ResetGame(Context* ctx) {
 			enemy->pos = enemy->start_pos;
 			enemy->vel = (vec2s){0.0f};
 			enemy->dir = 1;
-			ResetAnim(&enemy->anim);
+			ResetAnim(enemy);
 			if (enemy->type == EntityType_Boar) {
 				SetSprite(enemy, boar_idle);
 			}
@@ -546,24 +538,24 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return true;
 }
 
-function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+function void UpdateAnim(Context* ctx, Entity* entity, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
-    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
-    SDL_assert(anim->frame_idx >= 0 && (size_t)anim->frame_idx < sd->num_frames);
-	float dur = sd->frames[anim->frame_idx].dur;
+    SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
+    SDL_assert(entity->anim_frame_idx >= 0 && (size_t)entity->anim_frame_idx < sd->num_frames);
+	float dur = sd->frames[entity->anim_frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
-    if (loop || !anim->ended) {
-        anim->dt_accumulator += dt;
-        if (anim->dt_accumulator >= dur) {
-            anim->dt_accumulator = 0.0f;
-            anim->frame_idx += 1;
-            if ((size_t)anim->frame_idx >= num_frames) {
-                if (loop) anim->frame_idx = 0;
+    if (loop || !entity->anim_ended) {
+        entity->anim_dt_accumulator += dt;
+        if (entity->anim_dt_accumulator >= dur) {
+            entity->anim_dt_accumulator = 0.0f;
+            entity->anim_frame_idx += 1;
+            if ((size_t)entity->anim_frame_idx >= num_frames) {
+                if (loop) entity->anim_frame_idx = 0;
                 else {
-                    anim->frame_idx -= 1;
-                    anim->ended = true;
+                    entity->anim_frame_idx -= 1;
+                    entity->anim_ended = true;
                 }
             }
         }
@@ -685,7 +677,7 @@ function void DrawEntity(Context* ctx, Entity* entity) {
 function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
 
 	/* 	
 	I'll admit this part of the function is kind of weird. I might end up changing it later.
@@ -695,12 +687,12 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+		for (res = false, frame_idx = (ssize_t)entity->anim_frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
+			res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
-		if (!res && entity->anim.frame_idx == 0) {
+		if (!res && entity->anim_frame_idx == 0) {
 			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) {
-				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+				res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
 		}
 		SDL_assert(res);
@@ -896,8 +888,8 @@ function void UpdatePlayer(Context* ctx) {
     case EntityState_Die: {
 		SetSprite(player, player_die);
 		bool loop = false;
-		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) {
+		UpdateAnim(ctx, player, loop);
+		if (player->anim_ended) {
 			ResetGame(ctx);
 		}
 	} break;
@@ -920,8 +912,8 @@ function void UpdatePlayer(Context* ctx) {
 		}
 		
 		bool loop = false;
-		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) {
+		UpdateAnim(ctx, player, loop);
+		if (player->anim_ended) {
 			player->state = EntityState_Free;
 		}
 	} break;
@@ -933,7 +925,7 @@ function void UpdatePlayer(Context* ctx) {
     	player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
+    	UpdateAnim(ctx, player, loop);
 	} break;
     	
 	case EntityState_Jump: {
@@ -946,7 +938,7 @@ function void UpdatePlayer(Context* ctx) {
     	player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 		bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
+    	UpdateAnim(ctx, player, loop);
 	} break;
 
 	case EntityState_Free: {
@@ -974,7 +966,7 @@ function void UpdatePlayer(Context* ctx) {
 		player->state = EntityMoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
 
 		bool loop = true;
-		UpdateAnim(ctx, &player->anim, loop);
+		UpdateAnim(ctx, player, loop);
 	} break;
 
 	default: {
@@ -993,9 +985,9 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 		SetSprite(boar, boar_hit);
 
 		bool loop = false;
-		UpdateAnim(ctx, &boar->anim, loop);
+		UpdateAnim(ctx, boar, loop);
 
-		if (boar->anim.ended) {
+		if (boar->anim_ended) {
 			boar->state = EntityState_Inactive;
 		}
 	} break;
@@ -1007,7 +999,7 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 		boar->state = EntityMoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
-		UpdateAnim(ctx, &boar->anim, loop);
+		UpdateAnim(ctx, boar, loop);
 	} break;
 
 	case EntityState_Free: {
@@ -1017,7 +1009,7 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 		boar->state = EntityMoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
-		UpdateAnim(ctx, &boar->anim, loop);
+		UpdateAnim(ctx, boar, loop);
 	} break;
 
 	default: {
@@ -1905,7 +1897,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 0,
 				.binding = 0,
 				.format = VK_FORMAT_R32G32_SINT,
-				.offset = 0,
+				.offset = offsetof(Tile, src),
 			},
 			{
 				.location = 1,
@@ -1952,7 +1944,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 1,
 				.binding = 0,
 				.format = VK_FORMAT_R32_UINT,
-				.offset = offsetof(Anim, frame_idx), // NOTE: Anim is the first member of Entity.
+				.offset = offsetof(Entity, anim_frame_idx),
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
@@ -2017,6 +2009,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateDescriptorSets
 	{
+		/*
 		VkDescriptorSetAllocateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = ctx->vk.descriptor_pool,
@@ -2042,6 +2035,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		vkUpdateDescriptorSets(ctx->vk.device, 1, &write, 0, NULL);
+		*/
 	}
 	
 	// LoadSprites

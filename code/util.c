@@ -91,10 +91,10 @@ function FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) {
     return a.idx == b.idx;
 }
 
-function FORCEINLINE void ResetAnim(Anim* anim) {
-    anim->frame_idx = 0;
-    anim->dt_accumulator = 0.0;
-    anim->ended = false;
+function FORCEINLINE void ResetAnim(Entity* entity) {
+    entity->anim_frame_idx = 0;
+    entity->anim_dt_accumulator = 0.0;
+    entity->anim_ended = false;
 }
 
 function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
