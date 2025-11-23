@@ -402,8 +402,6 @@ function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
 	buffer->write_offset = 0;
 }
 
-// TODO: I find the parameter order here really unnatural. At the same time, it is closer to how Vulkan does things.
-// Should I change it?
 function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) {
 	SDL_assert(buffer->mapped_memory);
 	SDL_assert(buffer->write_offset + src_size <= buffer->size);
