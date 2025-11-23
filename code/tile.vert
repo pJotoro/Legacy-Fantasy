@@ -12,8 +12,7 @@ const float TILESET_HEIGHT = 400.0f;
 void main() {
     ivec2 a[4] = {ivec2(0, 0), ivec2(16, 0), ivec2(0, 16), ivec2(16, 16)};
     ivec2 dst = in_dst;
-    dst.x += a[gl_VertexIndex].x;
-    dst.y += a[gl_VertexIndex].y;
+    dst += a[gl_VertexIndex];
 
     vec2 pos;
     pos.x = float(in_dst.x)/960.0 - 1.0; // TODO: Add uniform variablies for window
