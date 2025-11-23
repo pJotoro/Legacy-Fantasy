@@ -307,6 +307,9 @@ static Sprite boar_hit;
 
 static Sprite spr_tiles;
 
+// NOTE: For now, this should always be the same as the number of sprites, which is why I've put this here.
+#define MAX_DESCRIPTOR_SETS 11
+
 static float dt;
 
 function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
