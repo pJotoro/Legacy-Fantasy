@@ -277,7 +277,6 @@ typedef struct Context {
 
 	// sprites is a hash map, not an array.
 	// When looping through sprites, please loop MAX_SPRITES times, not num_sprites times.
-	// To check if a SpriteDesc describes a valid sprite, simply check whether the path is NULL.
 	SpriteDesc sprites[MAX_SPRITES]; size_t num_sprites;
 
 	Vulkan vk;
