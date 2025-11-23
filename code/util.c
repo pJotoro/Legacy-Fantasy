@@ -58,7 +58,6 @@ function FORCEINLINE Entity* GetEntities(Context* ctx, size_t* num_entities) {
     }
 }
 
-// TODO: Should we get rid of this?
 function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) {
     SDL_assert(num_enemies);
     if (ctx->levels[ctx->level_idx].num_entities <= 1) {
