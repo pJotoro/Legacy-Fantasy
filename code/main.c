@@ -59,6 +59,7 @@ typedef struct SpriteDesc {
 	VkImage vk_image;
 	VkImageView vk_image_view;
 	size_t vk_image_array_layers;
+
 } SpriteDesc;
 
 typedef struct Sprite {
@@ -1631,6 +1632,101 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image_view));
 	}
 
+	// VulkanCreateSampler
+	{
+		VkSamplerCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			.magFilter = VK_FILTER_LINEAR,
+			.minFilter = VK_FILTER_LINEAR,
+			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			.anisotropyEnable = VK_TRUE,
+			.maxAnisotropy = ctx->vk.physical_device_properties.limits.maxSamplerAnisotropy,
+			.compareOp = VK_COMPARE_OP_ALWAYS,
+			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+		};
+		VK_CHECK(vkCreateSampler(ctx->vk.device, &info, NULL, &ctx->vk.sampler));
+	}
+
+	// VulkanCreateDescriptorSetLayout
+	{
+		VkDescriptorSetLayoutBinding binding = {
+			.binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		};
+
+		VkDescriptorSetLayoutCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.bindingCount = 1,
+			.pBindings = &binding,
+		};
+		
+		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
+	}
+
+	// VulkanCreatePipelineLayout
+	{
+		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = 1,
+			.pSetLayouts = &ctx->vk.descriptor_set_layout,
+		};
+
+		VK_CHECK(vkCreatePipelineLayout(ctx->vk.device, &pipeline_layout_info, NULL, &ctx->vk.pipeline_layout));
+	}
+
+	// VulkanCreateDescriptorPool
+	{
+		VkDescriptorPoolSize size = {
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			1,
+		};
+
+		VkDescriptorPoolCreateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.maxSets = 1,
+			.poolSizeCount = 1,
+			.pPoolSizes = &size,
+		};
+
+		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
+	}
+
+	// VulkanCreateDescriptorSets
+	{
+		/*
+		VkDescriptorSetAllocateInfo info = { 
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = ctx->vk.descriptor_pool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &ctx->vk.descriptor_set_layout,
+		};
+
+		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
+
+		VkDescriptorImageInfo image_info = {
+		    .sampler = ctx->vk.sampler,
+		    .imageView = wha,
+		    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		VkWriteDescriptorSet write = {
+		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		    .dstSet = ctx->vk.descriptor_set,
+		    .dstBinding = 0,
+		    .descriptorCount = 1,
+		    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		    .pImageInfo = &image_info,
+		};
+
+		vkUpdateDescriptorSets(ctx->vk.device, 1, &write, 0, NULL);
+		*/
+	}
+
 	// VulkanAllocateFrames
 	{
 		ctx->vk.num_frames = ctx->vk.num_swapchain_images;
@@ -1688,35 +1784,6 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
 		}
-	}
-
-	// VulkanCreateDescriptorSetLayout
-	{
-		VkDescriptorSetLayoutBinding binding = {
-			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			.descriptorCount = 1,
-			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-		};
-
-		VkDescriptorSetLayoutCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.bindingCount = 1,
-			.pBindings = &binding,
-		};
-		
-		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
-	}
-
-	// VulkanCreatePipelineLayout
-	{
-		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.setLayoutCount = 1,
-			.pSetLayouts = &ctx->vk.descriptor_set_layout,
-		};
-
-		VK_CHECK(vkCreatePipelineLayout(ctx->vk.device, &pipeline_layout_info, NULL, &ctx->vk.pipeline_layout));
 	}
 
 	// VulkanCreateRenderPass
@@ -1974,72 +2041,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
-	}
-
-	// VulkanCreateSampler
-	{
-		VkSamplerCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-			.magFilter = VK_FILTER_LINEAR,
-			.minFilter = VK_FILTER_LINEAR,
-			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-			.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			.anisotropyEnable = VK_TRUE,
-			.maxAnisotropy = ctx->vk.physical_device_properties.limits.maxSamplerAnisotropy,
-			.compareOp = VK_COMPARE_OP_ALWAYS,
-			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-		};
-		VK_CHECK(vkCreateSampler(ctx->vk.device, &info, NULL, &ctx->vk.sampler));
-	}
-
-	// VulkanCreateDescriptorPool
-	{
-		VkDescriptorPoolSize size = {
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			1,
-		};
-
-		VkDescriptorPoolCreateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = 1,
-			.poolSizeCount = 1,
-			.pPoolSizes = &size,
-		};
-
-		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
-	}
-
-	// VulkanCreateDescriptorSets
-	{
-		/*
-		VkDescriptorSetAllocateInfo info = { 
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.descriptorPool = ctx->vk.descriptor_pool,
-			.descriptorSetCount = 1,
-			.pSetLayouts = &ctx->vk.descriptor_set_layout,
-		};
-
-		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, &ctx->vk.descriptor_set));
-
-		VkDescriptorImageInfo image_info = {
-		    .sampler = ctx->vk.sampler,
-		    .imageView = wha,
-		    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		};
-
-		VkWriteDescriptorSet write = {
-		    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		    .dstSet = ctx->vk.descriptor_set,
-		    .dstBinding = 0,
-		    .descriptorCount = 1,
-		    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-		    .pImageInfo = &image_info,
-		};
-
-		vkUpdateDescriptorSets(ctx->vk.device, 1, &write, 0, NULL);
-		*/
 	}
 	
 	// LoadSprites
