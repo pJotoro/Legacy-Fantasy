@@ -227,15 +227,13 @@ typedef struct Vulkan {
 	
 	/*
 	Memory layout:
-		Entity player;
-		Entity enemies[];
+		Entity entities[];
 	*/
 	VulkanBuffer dynamic_staging_buffer;
 
 	/*
 	Memory layout:
-		Entity player;
-		Entity enemies[];
+		Entity entities[];
 		Tile tiles[];
 	*/
 	VulkanBuffer vertex_buffer;
