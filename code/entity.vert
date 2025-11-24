@@ -1,6 +1,6 @@
 #version 460
 
-layout (location = 0) in ivec2 pos;
+layout (location = 0) in ivec4 rect;
 layout (location = 1) in uint frame_idx;
 
 void main() {
