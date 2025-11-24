@@ -12,13 +12,17 @@ const float TILESET_HEIGHT = 400.0f;
 
 void main() {
     ivec2 a[6] = {ivec2(0, 0), ivec2(16, 0), ivec2(16, 16), ivec2(16, 16), ivec2(0, 16), ivec2(0, 0)};
+    
+    // Set gl_Position.
     ivec2 dst = in_dst;
     dst += a[gl_VertexIndex];
-
     vec2 pos;
     pos.x = float(dst.x)/960.0 - 1.0;
     pos.y = float(dst.y)/540.0 - 1.0;
-
     gl_Position = vec4(pos, 0.0, 1.0);
-    out_src = vec2(float(in_src.x) / TILESET_WIDTH, float(in_src.y) / TILESET_HEIGHT);
+
+    // Set out_src.
+    ivec2 src = in_src;
+    src += a[gl_VertexIndex];
+    out_src = vec2(float(src.x) / TILESET_WIDTH, float(src.y) / TILESET_HEIGHT);
 }
