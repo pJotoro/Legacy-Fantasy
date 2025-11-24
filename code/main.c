@@ -208,9 +208,11 @@ typedef struct Vulkan {
 	VkViewport viewport;
 	VkRect2D scissor;
 
+/*
 	VkImage depth_stencil_image;
 	VkDeviceMemory depth_stencil_image_memory;
 	VkImageView depth_stencil_image_view;
+*/
 	
 	VulkanFrame* frames; size_t num_frames;
 	size_t current_frame;
@@ -1587,7 +1589,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	}
 
 	// VulkanCreateDepthStencilImage
-	{
+	/*{
 		VkImageCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
@@ -1602,12 +1604,12 @@ int32_t main(int32_t argc, char* argv[]) {
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		};
 		VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image));
-	}
+	}*/
 
 	// TODO: Should we get rid of the depth stencil image? I'm not really using it for anything.
 
 	// VulkanCreateDepthStencilImageMemory
-	{
+	/*{
 		VkImageMemoryRequirementsInfo2 info = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
 			.image = ctx->vk.depth_stencil_image,
@@ -1635,10 +1637,10 @@ int32_t main(int32_t argc, char* argv[]) {
 			.memory = ctx->vk.depth_stencil_image_memory,
 		};
 		VK_CHECK(vkBindImageMemory2(ctx->vk.device, 1, &bind_info));
-	}
+	}*/
 
 	// VulkanCreateDepthStencilImageView
-	{
+	/*{
 		VkImageViewCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.image = ctx->vk.depth_stencil_image,
@@ -1648,7 +1650,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.depth_stencil_image_view));
-	}
+	}*/
 
 	// VulkanAllocateFrames
 	{
@@ -1775,7 +1777,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
 
-		VkAttachmentDescription depth_attachment = {
+		/*VkAttachmentDescription depth_attachment = {
 			.format = VK_FORMAT_D32_SFLOAT_S8_UINT, // TODO
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -1784,18 +1786,18 @@ int32_t main(int32_t argc, char* argv[]) {
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-		};
+		};*/
 
-		VkAttachmentReference depth_attachment_ref = {
+		/*VkAttachmentReference depth_attachment_ref = {
 			.attachment = 1,
 			.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-		};
+		};*/
 
 		VkSubpassDescription subpass = {
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &color_attachment_ref,
-			.pDepthStencilAttachment = &depth_attachment_ref,
+			//.pDepthStencilAttachment = &depth_attachment_ref,
 		};
 
 		VkSubpassDependency subpass_dependency = {
@@ -1807,7 +1809,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 		};
 
-		VkAttachmentDescription attachments[] = { color_attachment, depth_attachment };
+		VkAttachmentDescription attachments[] = { color_attachment /*, depth_attachment*/ };
 
 		VkRenderPassCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -1828,7 +1830,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
 			VkImageView attachments[] = {
 				ctx->vk.swapchain_image_views[i],
-				ctx->vk.depth_stencil_image_view,
+				//ctx->vk.depth_stencil_image_view,
 			};
 
 			VkFramebufferCreateInfo info = {
@@ -1891,12 +1893,12 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkPipelineColorBlendAttachmentState blend_attachment_info = { 
 			.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
 		};
-		VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {
+		/*VkPipelineDepthStencilStateCreateInfo depth_stencil_info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			.depthTestEnable = VK_TRUE,
 			.depthWriteEnable = VK_TRUE,
 			.depthCompareOp = VK_COMPARE_OP_LESS,
-		};
+		};*/
 		VkPipelineColorBlendStateCreateInfo blend_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 			.attachmentCount = 1,
@@ -1912,7 +1914,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pViewportState = &viewport_info,
 			.pRasterizationState = &rasterization_info,
 			.pMultisampleState = &multisample_info,
-			.pDepthStencilState = &depth_stencil_info,
+			//.pDepthStencilState = &depth_stencil_info,
 			.pColorBlendState = &blend_info,
 			.pDynamicState = &dynamic_state_info,
 			.layout = ctx->vk.pipeline_layout,
@@ -2835,9 +2837,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanBeginRenderPass
 			{
+				/*VkClearValue clear_values[2];
+				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
+				clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};*/
+
 				VkClearValue clear_values[2];
 				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
-				clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
 
 				VkRenderPassBeginInfo info = { 
 					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
