@@ -1336,9 +1336,9 @@ int32_t main(int32_t argc, char* argv[]) {
 		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
 		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
 	#if !FULLSCREEN
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY); SDL_CHECK(ctx->window);
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_HIDDEN); SDL_CHECK(ctx->window);
 	#else
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN); SDL_CHECK(ctx->window);
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN); SDL_CHECK(ctx->window);
 	#endif
 
 		PFN_vkGetInstanceProcAddr f = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
@@ -2616,6 +2616,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkAcquireNextImageKHR(ctx->vk.device, ctx->vk.swapchain, UINT64_MAX, ctx->vk.frames[ctx->vk.current_frame].sem_image_available, VK_NULL_HANDLE, &image_idx));
 			if (image_idx == 0 && ctx->vk.staged && ctx->vk.static_staging_buffer.handle) {
 				VulkanDestroyBuffer(&ctx->vk, &ctx->vk.static_staging_buffer);
+
+				SDL_ShowWindow(ctx->window);
 			}
 
 			cb = ctx->vk.frames[ctx->vk.current_frame].command_buffer;
