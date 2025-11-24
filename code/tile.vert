@@ -16,8 +16,8 @@ void main() {
     dst += a[gl_VertexIndex];
 
     vec2 pos;
-    pos.x = float(in_dst.x)/960.0 - 1.0;
-    pos.y = float(in_dst.y)/540.0 - 1.0;
+    pos.x = float(dst.x)/960.0 - 1.0;
+    pos.y = float(dst.y)/540.0 - 1.0;
 
     gl_Position = vec4(pos, 0.0, 1.0);
     out_src = vec2(float(in_src.x) / TILESET_WIDTH, float(in_src.y) / TILESET_HEIGHT);
