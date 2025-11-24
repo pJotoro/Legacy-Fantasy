@@ -2889,7 +2889,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				// DrawPlayer
 				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim_sprite);
 				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-				vkCmdDraw(cb, 4, 1, 0, 0);
+				vkCmdDraw(cb, 6, 1, 0, 0);
 
 				// DrawEnemies
 				// TODO: Sort the enemies every frame so that way, as few calls of vkCmdBindDescriptorSets are made as possible.
@@ -2904,7 +2904,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 					sd = GetSpriteDesc(ctx, sprite);
 					vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-					vkCmdDraw(cb, 4, (uint32_t)num_instances, 0, (uint32_t)first_instance);
+					vkCmdDraw(cb, 6, (uint32_t)num_instances, 0, (uint32_t)first_instance);
 					num_entities -= num_instances;
 					SDL_assert(num_entities < ctx->levels[ctx->level_idx].num_entities);
 					first_instance += num_instances;
