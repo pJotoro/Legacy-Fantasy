@@ -11,7 +11,7 @@ const float TILESET_WIDTH = 400.0f;
 const float TILESET_HEIGHT = 400.0f;
 
 void main() {
-    ivec2 a[4] = {ivec2(0, 0), ivec2(16, 0), ivec2(0, 16), ivec2(16, 16)};
+    ivec2 a[6] = {ivec2(0, 0), ivec2(16, 0), ivec2(16, 16), ivec2(16, 16), ivec2(0, 16), ivec2(0, 0)};
     ivec2 dst = in_dst;
     dst += a[gl_VertexIndex];
 

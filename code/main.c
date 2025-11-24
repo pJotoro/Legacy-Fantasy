@@ -2881,7 +2881,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) {
 					num_tiles += ctx->levels[ctx->level_idx].tile_layers[layer_idx].num_tiles;
 				}
-				vkCmdDraw(cb, 4, (uint32_t)num_tiles, 0, 0);
+				vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
 			}
 			{
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
