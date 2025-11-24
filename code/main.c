@@ -701,7 +701,7 @@ function void DrawEntity(Context* ctx, Entity* entity) {
 }
 #endif
 
-function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+function Rect GetHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
@@ -732,10 +732,10 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+function bool Intersect(Context* ctx, Entity* a, Entity* b) {
     if (a->state == EntityState_Inactive || b->state == EntityState_Inactive) return false;
-    Rect ha = GetEntityHitbox(ctx, a);
-    Rect hb = GetEntityHitbox(ctx, b);
+    Rect ha = GetHitbox(ctx, a);
+    Rect hb = GetHitbox(ctx, b);
     return RectsIntersect(ha, hb);
 }
 
@@ -745,7 +745,7 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	SPALL_BUFFER_BEGIN();
 	Level* level = GetCurrentLevel(ctx);
-	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+	Rect prev_hitbox = GetHitbox(ctx, entity);
 
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
@@ -807,7 +807,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 
 	MoveF(entity, vel);
 
-    Rect hitbox = GetEntityHitbox(ctx, entity);
+    Rect hitbox = GetHitbox(ctx, entity);
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
 		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
@@ -924,7 +924,7 @@ function void UpdatePlayer(Context* ctx) {
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
 		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
 			Entity* enemy = &enemies[enemy_idx];
-			if (EntitiesIntersect(ctx, player, enemy)) {
+			if (Intersect(ctx, player, enemy)) {
 				switch (enemy->type) {
 				case EntityType_Boar:
 					enemy->state = EntityState_Hurt;
@@ -3038,7 +3038,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_BEGIN_NAME("DrawHitbox");
 
 			Entity* player = GetPlayer(ctx);
-			Rect hitbox = GetEntityHitbox(ctx, player);
+			Rect hitbox = GetHitbox(ctx, player);
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
 			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x+1), (float)(hitbox.max.y-hitbox.min.y+1)};
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
