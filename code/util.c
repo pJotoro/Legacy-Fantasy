@@ -168,6 +168,7 @@ function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t
 }
 
 function void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
+#if 1
     SDL_assert(IsPowerOf2(alignment));
 
     uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
@@ -185,11 +186,17 @@ function void* StackAllocRaw(Stack* stack, size_t size, size_t alignment) {
     stack->curr_offset += size;
 
     return SDL_memset((void*)next_addr, 0, size);
+#else
+    UNUSED(stack);
+    UNUSED(alignment);
+    return SDL_calloc(1, size);
+#endif
 }
 
 #define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
 
 function void StackFree(Stack* stack, void* ptr) {
+#if 1
     if (ptr) {
         uintptr_t start = (uintptr_t)stack->buf;
         uintptr_t end = start + (uintptr_t)stack->buf_len;
@@ -213,6 +220,10 @@ function void StackFree(Stack* stack, void* ptr) {
         stack->curr_offset = stack->prev_offset;
         stack->prev_offset = header->prev_offset;
     }
+#else
+    UNUSED(stack);
+    SDL_free(ptr);
+#endif
 }
 
 function void StackFreeAll(Stack* stack) {
