@@ -66,6 +66,13 @@ typedef struct Sprite {
 	size_t idx;
 } Sprite;
 
+typedef struct Anim {
+	Sprite sprite;
+	float dt_accumulator;
+	uint32_t frame_idx;
+	bool ended;
+} Anim;
+
 enum {
 	EntityType_Player,
 	EntityType_Boar,
@@ -92,12 +99,9 @@ typedef struct EntityInstance {
 } EntityInstance;
 
 typedef struct Entity {
-	EntityInstance inst;
+	Anim anim;
 
-	Sprite anim_sprite;
-	float anim_dt_accumulator;
-	bool anim_ended;
-
+	ivec2s pos;
 	ivec2s start_pos;
 	vec2s pos_remainder;
 	vec2s vel;
@@ -426,27 +430,38 @@ function void VulkanResetBuffer(VulkanBuffer* buffer) {
 	buffer->write_offset = 0;
 }
 
-function void MoveF(Entity* entity, vec2s vel) {
+function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SDL_assert(frame_idx < sd->num_frames);
+	ivec2s origin = sd->frames[frame_idx].origin;
+	if (dir == -1) {
+		origin.x = sd->size.x - origin.x;
+	}
+	return origin;
+}
+
+function ivec2s GetOrigin(Context* ctx, Entity* entity) {
+	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir);
+}
+
+function void Move(Entity* entity, vec2s vel) {
 	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
-	entity->inst.rect.min = glms_ivec2_add(entity->inst.rect.min, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
-	entity->inst.rect.max = glms_ivec2_add(entity->inst.rect.max, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
+	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
 	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
 
-function void MoveI(Entity* entity, ivec2s vel) {
-	entity->inst.rect.min = glms_ivec2_add(entity->inst.rect.min, vel);
-	entity->inst.rect.max = glms_ivec2_add(entity->inst.rect.max, vel);
+function void Shift(Entity* entity, ivec2s shift) {
+	// NOTE: It would be wrong to call this 'vel' because it doensn't get multiplied by dt.
+	// In other words, it doesn't take any time.
+	entity->pos = glms_ivec2_add(entity->pos, shift);
 }
 
-function bool SetSprite(Context* ctx, Entity* entity, Sprite sprite) {
+function bool SetSprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
-    if (!SpritesEqual(entity->anim_sprite, sprite)) {
+    if (!SpritesEqual(entity->anim.sprite, sprite)) {
         sprite_changed = true;
-        ResetAnim(entity);
-        entity->anim_sprite = sprite;
-
-        SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
-        entity->inst.rect.max = glms_ivec2_add(entity->inst.rect.min, sd->size);
+        ResetAnim(&entity->anim);
+        entity->anim.sprite = sprite;
     }
     return sprite_changed;
 }
@@ -460,12 +475,9 @@ function void ResetGame(Context* ctx) {
 		{
 			Entity* player = &level->entities[0];
 			
-			ResetAnim(player);
-			SetSprite(ctx, player, player_idle);
-			SpriteDesc* sd = GetSpriteDesc(ctx, player->anim_sprite);
-			player->inst.rect.min = player->start_pos;
-			player->inst.rect.max = glms_ivec2_add(player->inst.rect.min, sd->size);
-
+			ResetAnim(&player->anim);
+			SetSprite(player, player_idle);
+			player->pos = player->start_pos;
 			player->state = EntityState_Free;
 			player->vel = (vec2s){0.0f};
 			player->dir = 1;
@@ -474,14 +486,11 @@ function void ResetGame(Context* ctx) {
 		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) {
 			Entity* enemy = &level->entities[entity_idx];
 
-			ResetAnim(enemy);
+			ResetAnim(&enemy->anim);
 			if (enemy->type == EntityType_Boar) {
-				SetSprite(ctx, enemy, boar_idle);
+				SetSprite(enemy, boar_idle);
 			} // else if (entity->type == EntityType_) {}
-			SpriteDesc* sd = GetSpriteDesc(ctx, enemy->anim_sprite);
-			enemy->inst.rect.min = enemy->start_pos;
-			enemy->inst.rect.max = glms_ivec2_add(enemy->inst.rect.min, sd->size);
-
+			enemy->pos = enemy->start_pos;
 			enemy->state = EntityState_Free;
 			enemy->vel = (vec2s){0.0f};
 			enemy->dir = 1;
@@ -489,16 +498,6 @@ function void ResetGame(Context* ctx) {
 	}
 
 	SPALL_BUFFER_END();
-}
-
-function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SDL_assert(frame_idx < sd->num_frames);
-	ivec2s origin = sd->frames[frame_idx].origin;
-	if (dir == -1) {
-		origin.x = sd->size.x - origin.x;
-	}
-	return origin;
 }
 
 #if 0
@@ -570,21 +569,21 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 function void UpdateAnim(Context* ctx, Entity* entity, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
-    SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
-    SDL_assert(entity->inst.anim_frame_idx >= 0 && (size_t)entity->inst.anim_frame_idx < sd->num_frames);
-	float dur = sd->frames[entity->inst.anim_frame_idx].dur;
+    SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+    SDL_assert(entity->anim.frame_idx >= 0 && (size_t)entity->anim.frame_idx < sd->num_frames);
+	float dur = sd->frames[entity->anim.frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
-    if (loop || !entity->anim_ended) {
-        entity->anim_dt_accumulator += dt;
-        if (entity->anim_dt_accumulator >= dur) {
-            entity->anim_dt_accumulator = 0.0f;
-            entity->inst.anim_frame_idx += 1;
-            if ((size_t)entity->inst.anim_frame_idx >= num_frames) {
-                if (loop) entity->inst.anim_frame_idx = 0;
+    if (loop || !entity->anim.ended) {
+        entity->anim.dt_accumulator += dt;
+        if (entity->anim.dt_accumulator >= dur) {
+            entity->anim.dt_accumulator = 0.0f;
+            entity->anim.frame_idx += 1;
+            if ((size_t)entity->anim.frame_idx >= num_frames) {
+                if (loop) entity->anim.frame_idx = 0;
                 else {
-                    entity->inst.anim_frame_idx -= 1;
-                    entity->anim_ended = true;
+                    entity->anim.frame_idx -= 1;
+                    entity->anim.ended = true;
                 }
             }
         }
@@ -706,7 +705,7 @@ function void DrawEntity(Context* ctx, Entity* entity) {
 function Rect GetHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim_sprite);
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
 	/* 	
 	I'll admit this part of the function is kind of weird. I might end up changing it later.
@@ -716,19 +715,19 @@ function Rect GetHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = (ssize_t)entity->inst.anim_frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
-			res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
-		if (!res && entity->inst.anim_frame_idx == 0) {
+		if (!res && entity->anim.frame_idx == 0) {
 			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) {
-				res = GetSpriteHitbox(ctx, entity->anim_sprite, (size_t)frame_idx, entity->dir, &hitbox);
+				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
 		}
 		SDL_assert(res);
 	}
 
-	hitbox.min = glms_ivec2_add(hitbox.min, entity->inst.rect.min);
-	hitbox.max = glms_ivec2_add(hitbox.max, entity->inst.rect.min);
+	hitbox.min = glms_ivec2_add(hitbox.min, entity->pos);
+	hitbox.max = glms_ivec2_add(hitbox.max, entity->pos);
 
 	SPALL_BUFFER_END();
 	return hitbox;
@@ -807,7 +806,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		}
 	}
 
-	MoveF(entity, vel);
+	Move(entity, vel);
 
     Rect hitbox = GetHitbox(ctx, entity);
 	ivec2s grid_pos;
@@ -836,7 +835,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 								h.max.x -= incr;
 								amount += incr;
 							}
-							MoveI(entity, (ivec2s){-amount, 0});
+							Shift(entity, (ivec2s){-amount, 0});
 							horizontal_collision_happened = true;
 						}
 
@@ -853,7 +852,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 								h.max.y -= incr;
 								amount += incr;
 							}
-							MoveI(entity, (ivec2s){0, -amount});				
+							Shift(entity, (ivec2s){0, -amount});				
 							vertical_collision_happened = true;
 						}
 					}
@@ -906,22 +905,22 @@ function void UpdatePlayer(Context* ctx) {
 	} break;
 	}
 
-	if (player->inst.rect.min.y > (float)level->size.y) {
+	if (player->pos.y > (float)level->size.y) {
 		ResetGame(ctx);
 	} else switch (player->state) {
 	case EntityState_Inactive:
 		break;
     case EntityState_Die: {
-		SetSprite(ctx, player, player_die);
+		SetSprite(player, player_die);
 		bool loop = false;
 		UpdateAnim(ctx, player, loop);
-		if (player->anim_ended) {
+		if (player->anim.ended) {
 			ResetGame(ctx);
 		}
 	} break;
 
     case EntityState_Attack: {
-		SetSprite(ctx, player, player_attack);
+		SetSprite(player, player_attack);
 
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
 		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
@@ -939,13 +938,13 @@ function void UpdatePlayer(Context* ctx) {
 		
 		bool loop = false;
 		UpdateAnim(ctx, player, loop);
-		if (player->anim_ended) {
+		if (player->anim.ended) {
 			player->state = EntityState_Free;
 		}
 	} break;
     	
     case EntityState_Fall: {
-    	SetSprite(ctx, player, player_jump_end);
+    	SetSprite(player, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
     	player->state = MoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
@@ -956,7 +955,7 @@ function void UpdatePlayer(Context* ctx) {
     	
 	case EntityState_Jump: {
 		vec2s acc = {0.0f};
-		if (SetSprite(ctx, player, player_jump_start)) {
+		if (SetSprite(player, player_jump_start)) {
 			acc.y -= PLAYER_JUMP;
 		}
 
@@ -979,9 +978,9 @@ function void UpdatePlayer(Context* ctx) {
 		}
 
 		if (input_dir == 0 && player->vel.x == 0.0f) {
-			SetSprite(ctx, player, player_idle);
+			SetSprite(player, player_idle);
 		} else {
-			SetSprite(ctx, player, player_run);
+			SetSprite(player, player_run);
 			if (player->vel.x != 0.0f) {
 				player->dir = (int16_t)glm_signf(player->vel.x);
 			} else if (input_dir != 0) {
@@ -1008,18 +1007,18 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 
 	switch (boar->state) {
 	case EntityState_Hurt: {
-		SetSprite(ctx, boar, boar_hit);
+		SetSprite(boar, boar_hit);
 
 		bool loop = false;
 		UpdateAnim(ctx, boar, loop);
 
-		if (boar->anim_ended) {
+		if (boar->anim.ended) {
 			boar->state = EntityState_Inactive;
 		}
 	} break;
 
 	case EntityState_Fall: {
-		SetSprite(ctx, boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
+		SetSprite(boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
 
 		vec2s acc = {0.0f, GRAVITY};
 		boar->state = MoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
@@ -1029,7 +1028,7 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 	} break;
 
 	case EntityState_Free: {
-		SetSprite(ctx, boar, boar_idle);
+		SetSprite(boar, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
 		boar->state = MoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
@@ -2597,12 +2596,18 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// VulkanCopyEntitiesToDynamicStagingBuffer
 		{
-			size_t num_entities;
-			Entity* entities = GetEntities(ctx, &num_entities);
-			SDL_assert(entities);
+			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			EntityInstance* instances = StackAlloc(&ctx->stack, num_entities, EntityInstance);
 			for (size_t i = 0; i < num_entities; i += 1) {
-				VulkanCopyBuffer(sizeof(EntityInstance), &entities[i], &ctx->vk.dynamic_staging_buffer);
+				SpriteDesc* sd = GetSpriteDesc(ctx, entities[i].anim.sprite);
+				ivec2s origin = GetSpriteOrigin(ctx, entities[i].anim.sprite, entities[i].anim.frame_idx, entities[i].dir);
+				ivec2s size = sd->size;
+				instances[i].rect.min = glms_ivec2_sub(entities[i].pos, origin);
+				instances[i].rect.max = glms_ivec2_add(instances[i].rect.min, size);
+				instances[i].anim_frame_idx = entities[i].anim.frame_idx;
 			}
+			VulkanCopyBuffer(num_entities * sizeof(EntityInstance), instances, &ctx->vk.dynamic_staging_buffer);
+			StackFree(&ctx->stack, instances);
 		}
 
 		uint32_t image_idx;
@@ -2892,7 +2897,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
 				
 				// DrawPlayer
-				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim_sprite);
+				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
 				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 				vkCmdDraw(cb, 6, 1, 0, 0);
 
@@ -2902,9 +2907,9 @@ int32_t main(int32_t argc, char* argv[]) {
 				size_t first_instance = 1;
 				while (num_entities > 0) {
 					SDL_assert(first_instance < ctx->levels[ctx->level_idx].num_entities);
-					Sprite sprite = ctx->levels[ctx->level_idx].entities[first_instance].anim_sprite;
+					Sprite sprite = ctx->levels[ctx->level_idx].entities[first_instance].anim.sprite;
 					size_t num_instances = 1;
-					while (num_instances < num_entities && SpritesEqual(sprite, ctx->levels[ctx->level_idx].entities[first_instance+num_instances].anim_sprite)) {
+					while (num_instances < num_entities && SpritesEqual(sprite, ctx->levels[ctx->level_idx].entities[first_instance+num_instances].anim.sprite)) {
 						num_instances += 1;
 					}
 					sd = GetSpriteDesc(ctx, sprite);
