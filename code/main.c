@@ -440,23 +440,17 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, i
 	return origin;
 }
 
-function ivec2s GetOrigin(Context* ctx, Entity* entity) {
-	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir);
-}
-
-function void Move(Entity* entity, vec2s vel) {
+function void MoveEntity(Entity* entity, vec2s vel) {
 	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
 	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
 	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
 
-function void Shift(Entity* entity, ivec2s shift) {
-	// NOTE: It would be wrong to call this 'vel' because it doensn't get multiplied by dt.
-	// In other words, it doesn't take any time.
+function void ShiftEntity(Entity* entity, ivec2s shift) {
 	entity->pos = glms_ivec2_add(entity->pos, shift);
 }
 
-function bool SetSprite(Entity* entity, Sprite sprite) {
+function bool SetEntitySprite(Entity* entity, Sprite sprite) {
     bool sprite_changed = false;
     if (!SpritesEqual(entity->anim.sprite, sprite)) {
         sprite_changed = true;
@@ -476,7 +470,7 @@ function void ResetGame(Context* ctx) {
 			Entity* player = &level->entities[0];
 			
 			ResetAnim(&player->anim);
-			SetSprite(player, player_idle);
+			SetEntitySprite(player, player_idle);
 			player->pos = player->start_pos;
 			player->state = EntityState_Free;
 			player->vel = (vec2s){0.0f};
@@ -488,7 +482,7 @@ function void ResetGame(Context* ctx) {
 
 			ResetAnim(&enemy->anim);
 			if (enemy->type == EntityType_Boar) {
-				SetSprite(enemy, boar_idle);
+				SetEntitySprite(enemy, boar_idle);
 			} // else if (entity->type == EntityType_) {}
 			enemy->pos = enemy->start_pos;
 			enemy->state = EntityState_Free;
@@ -702,7 +696,7 @@ function void DrawEntity(Context* ctx, Entity* entity) {
 }
 #endif
 
-function Rect GetHitbox(Context* ctx, Entity* entity) {
+function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
@@ -733,20 +727,20 @@ function Rect GetHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-function bool Intersect(Context* ctx, Entity* a, Entity* b) {
+function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
     if (a->state == EntityState_Inactive || b->state == EntityState_Inactive) return false;
-    Rect ha = GetHitbox(ctx, a);
-    Rect hb = GetHitbox(ctx, b);
+    Rect ha = GetEntityHitbox(ctx, a);
+    Rect hb = GetEntityHitbox(ctx, b);
     return RectsIntersect(ha, hb);
 }
 
 // This returns a new EntityState instead of setting the 
 // entity state directly because depending on the entity,
 // certain states might not make sense.
-function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	SPALL_BUFFER_BEGIN();
 	Level* level = GetCurrentLevel(ctx);
-	Rect prev_hitbox = GetHitbox(ctx, entity);
+	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
 
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
@@ -762,7 +756,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
-			if (IsSolid(level, grid_pos)) {
+			if (TileIsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
@@ -772,7 +766,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
 		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
-			if (IsSolid(level, grid_pos)) {
+			if (TileIsSolid(level, grid_pos)) {
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
@@ -785,7 +779,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
-			if (IsSolid(level, grid_pos)) {
+			if (TileIsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				vertical_collision_happened = true;
 				break;
@@ -795,7 +789,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
 		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
-			if (IsSolid(level, grid_pos)) {
+			if (TileIsSolid(level, grid_pos)) {
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
@@ -806,9 +800,9 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		}
 	}
 
-	Move(entity, vel);
+	MoveEntity(entity, vel);
 
-    Rect hitbox = GetHitbox(ctx, entity);
+    Rect hitbox = GetEntityHitbox(ctx, entity);
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
 		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
@@ -816,7 +810,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; 
 			(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE;
 			 grid_pos.x += 1) {
-			if (IsSolid(level, grid_pos)) {
+			if (TileIsSolid(level, grid_pos)) {
 				Rect tile_rect;
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
 				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
@@ -835,7 +829,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 								h.max.x -= incr;
 								amount += incr;
 							}
-							Shift(entity, (ivec2s){-amount, 0});
+							ShiftEntity(entity, (ivec2s){-amount, 0});
 							horizontal_collision_happened = true;
 						}
 
@@ -852,7 +846,7 @@ function EntityState MoveAndCollide(Context* ctx, Entity* entity, vec2s acc, flo
 								h.max.y -= incr;
 								amount += incr;
 							}
-							Shift(entity, (ivec2s){0, -amount});				
+							ShiftEntity(entity, (ivec2s){0, -amount});				
 							vertical_collision_happened = true;
 						}
 					}
@@ -911,7 +905,7 @@ function void UpdatePlayer(Context* ctx) {
 	case EntityState_Inactive:
 		break;
     case EntityState_Die: {
-		SetSprite(player, player_die);
+		SetEntitySprite(player, player_die);
 		bool loop = false;
 		UpdateAnim(ctx, player, loop);
 		if (player->anim.ended) {
@@ -920,12 +914,12 @@ function void UpdatePlayer(Context* ctx) {
 	} break;
 
     case EntityState_Attack: {
-		SetSprite(player, player_attack);
+		SetEntitySprite(player, player_attack);
 
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
 		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
 			Entity* enemy = &enemies[enemy_idx];
-			if (Intersect(ctx, player, enemy)) {
+			if (EntitiesIntersect(ctx, player, enemy)) {
 				switch (enemy->type) {
 				case EntityType_Boar:
 					enemy->state = EntityState_Hurt;
@@ -944,10 +938,10 @@ function void UpdatePlayer(Context* ctx) {
 	} break;
     	
     case EntityState_Fall: {
-    	SetSprite(player, player_jump_end);
+    	SetEntitySprite(player, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
-    	player->state = MoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	bool loop = false;
     	UpdateAnim(ctx, player, loop);
@@ -955,12 +949,12 @@ function void UpdatePlayer(Context* ctx) {
     	
 	case EntityState_Jump: {
 		vec2s acc = {0.0f};
-		if (SetSprite(player, player_jump_start)) {
+		if (SetEntitySprite(player, player_jump_start)) {
 			acc.y -= PLAYER_JUMP;
 		}
 
     	acc.y += GRAVITY;
-    	player->state = MoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 		bool loop = false;
     	UpdateAnim(ctx, player, loop);
@@ -978,9 +972,9 @@ function void UpdatePlayer(Context* ctx) {
 		}
 
 		if (input_dir == 0 && player->vel.x == 0.0f) {
-			SetSprite(player, player_idle);
+			SetEntitySprite(player, player_idle);
 		} else {
-			SetSprite(player, player_run);
+			SetEntitySprite(player, player_run);
 			if (player->vel.x != 0.0f) {
 				player->dir = (int16_t)glm_signf(player->vel.x);
 			} else if (input_dir != 0) {
@@ -988,7 +982,7 @@ function void UpdatePlayer(Context* ctx) {
 			}
 		}
 
-		player->state = MoveAndCollide(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+		player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
 
 		bool loop = true;
 		UpdateAnim(ctx, player, loop);
@@ -1007,7 +1001,7 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 
 	switch (boar->state) {
 	case EntityState_Hurt: {
-		SetSprite(boar, boar_hit);
+		SetEntitySprite(boar, boar_hit);
 
 		bool loop = false;
 		UpdateAnim(ctx, boar, loop);
@@ -1018,20 +1012,20 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 	} break;
 
 	case EntityState_Fall: {
-		SetSprite(boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
+		SetEntitySprite(boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
 
 		vec2s acc = {0.0f, GRAVITY};
-		boar->state = MoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
 		UpdateAnim(ctx, boar, loop);
 	} break;
 
 	case EntityState_Free: {
-		SetSprite(boar, boar_idle);
+		SetEntitySprite(boar, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
-		boar->state = MoveAndCollide(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
 		UpdateAnim(ctx, boar, loop);
@@ -1085,7 +1079,7 @@ int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
 
-	// SetSprites
+	// GetSprites
 	{
 		// This is the only time that we set the sprite variables.
 		// After that, they are effectively constants.
@@ -3050,7 +3044,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_BEGIN_NAME("DrawHitbox");
 
 			Entity* player = GetPlayer(ctx);
-			Rect hitbox = GetHitbox(ctx, player);
+			Rect hitbox = GetEntityHitbox(ctx, player);
 			SDL_CHECK(SDL_SetRenderDrawColor(ctx->renderer, 255, 0, 0, 128));
 			SDL_FRect rect = {(float)hitbox.min.x, (float)hitbox.min.y, (float)(hitbox.max.x-hitbox.min.x+1), (float)(hitbox.max.y-hitbox.min.y+1)};
 			SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));

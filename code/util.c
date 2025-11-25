@@ -230,7 +230,7 @@ function void StackFreeAll(Stack* stack) {
     stack->curr_offset = 0;
 }
 
-function FORCEINLINE bool IsSolid(Level* level, ivec2s pos) {
+function FORCEINLINE bool TileIsSolid(Level* level, ivec2s pos) {
     if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
     size_t idx = (size_t)(pos.x + pos.y*level->size.x);
     return level->tiles[idx];
