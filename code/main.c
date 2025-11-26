@@ -2732,8 +2732,8 @@ int32_t main(int32_t argc, char* argv[]) {
 									.layerCount = 1,
 								},
 								.imageOffset = (VkOffset3D){
-									.x = 0,//cell->offset.x,
-									.y = 0,//cell->offset.y,
+									.x = cell->offset.x,
+									.y = cell->offset.y,
 									.z = 0,
 								},
 								.imageExtent = (VkExtent3D){
