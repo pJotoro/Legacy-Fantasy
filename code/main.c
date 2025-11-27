@@ -21,8 +21,6 @@
 
 #define MAX_SPRITES 256
 
-#define MIN_FPS 15
-
 typedef struct Rect {
 	ivec2s min;
 	ivec2s max;
