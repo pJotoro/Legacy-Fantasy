@@ -1634,14 +1634,21 @@ int32_t main(int32_t argc, char* argv[]) {
 			.enabledExtensionCount = SDL_arraysize(g_vk_device_extensions),
 			.ppEnabledExtensionNames = g_vk_device_extensions,
 		};
+		SPALL_BUFFER_BEGIN_NAME("vkCreateDevice");
 		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
+		SPALL_BUFFER_END();
+
+		SPALL_BUFFER_BEGIN_NAME("volkLoadDevice");
 		volkLoadDevice(ctx->vk.device);
+		SPALL_BUFFER_END();
 
 		ctx->vk.queues = ArenaAlloc(&ctx->arena, num_queues, VkQueue);
 		size_t queue_array_idx = 0;
 		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
 			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; queue_idx += 1) {
+				SPALL_BUFFER_BEGIN_NAME("vkGetDeviceQueue");
 				vkGetDeviceQueue(ctx->vk.device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk.queues[queue_array_idx]);
+				SPALL_BUFFER_END();
 				++queue_array_idx;
 			}
 		}
