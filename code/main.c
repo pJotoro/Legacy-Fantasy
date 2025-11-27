@@ -1497,12 +1497,15 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchain");
 
-		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){ 
+		// Is it always guarunteed that the first one will be the best?
+		VkSurfaceFormatKHR format = ctx->vk.surface_formats[0];
+
+		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.surface = ctx->vk.surface,
 			.minImageCount = SDL_min(ctx->vk.surface_capabilities.minImageCount + 1, ctx->vk.surface_capabilities.maxImageCount),
-			.imageFormat = VK_FORMAT_R8G8B8A8_UNORM, // TODO
-			.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // TODO
+			.imageFormat = format.format,
+			.imageColorSpace = format.colorSpace,
 			.imageExtent = ctx->vk.surface_capabilities.currentExtent,
 			.imageArrayLayers = 1,
 			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
