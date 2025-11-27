@@ -1694,7 +1694,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateSemaphores
 	{
-		VkSemaphoreCreateInfo info = { 
+		VkSemaphoreCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
 
@@ -1719,6 +1719,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.maxAnisotropy = ctx->vk.physical_device_properties.limits.maxSamplerAnisotropy,
 			.compareOp = VK_COMPARE_OP_ALWAYS,
 			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+			.unnormalizedCoordinates = VK_FALSE,
 		};
 		VK_CHECK(vkCreateSampler(ctx->vk.device, &info, NULL, &ctx->vk.sampler));
 	}
