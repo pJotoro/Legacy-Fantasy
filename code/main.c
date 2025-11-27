@@ -954,20 +954,6 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 }
 #endif
 
-// TODO: Remove global variables.
-// TODO: Platform specific extensions should only be added conditionally.
-
-#ifdef _DEBUG
-static char const * const g_vk_layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
-static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain",};
-#else
-static char const * const g_vk_instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
-static char const * const g_vk_device_extensions[] = { "VK_KHR_swapchain", };
-#endif
-
-static float const g_queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-
 int32_t main(int32_t argc, char* argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
@@ -1259,6 +1245,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateInstance");
 
+	// TODO: Platform specific extensions like VK_KHR_win32_surface should only be added conditionally.
+	#ifdef _DEBUG
+		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
+		static char const * const instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
+	#else
+		static char const * const instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
+	#endif
+
 		VkApplicationInfo app_info = { 
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 			.pApplicationName = "Legacy Fantasy",
@@ -1272,11 +1266,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
 	#ifdef _DEBUG
-			.enabledLayerCount = SDL_arraysize(g_vk_layers),
-			.ppEnabledLayerNames = g_vk_layers,
+			.enabledLayerCount = SDL_arraysize(layers),
+			.ppEnabledLayerNames = layers,
 	#endif
-			.enabledExtensionCount = SDL_arraysize(g_vk_instance_extensions),
-			.ppEnabledExtensionNames = g_vk_instance_extensions,
+			.enabledExtensionCount = SDL_arraysize(instance_extensions),
+			.ppEnabledExtensionNames = instance_extensions,
 		};
 
 	#ifdef _DEBUG
@@ -1442,6 +1436,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
 
+		static float const queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
 		VkDeviceQueueCreateInfo* queue_infos = StackAlloc(&ctx->stack, ctx->vk.num_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t num_queue_infos = 0;
 		size_t num_queues = 0;
@@ -1451,19 +1447,25 @@ int32_t main(int32_t argc, char* argv[]) {
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 				.queueFamilyIndex = (uint32_t)queue_family_idx,
 				.queueCount = ctx->vk.queue_family_properties[queue_family_idx].queueCount,
-				.pQueuePriorities = g_queue_priorities,
+				.pQueuePriorities = queue_priorities,
 			};
 			num_queue_infos += 1;
 			num_queues += (size_t)ctx->vk.queue_family_properties[queue_family_idx].queueCount;
 		}
+
+	#ifdef _DEBUG
+		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
+	#else
+		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
+	#endif
 
 		VkDeviceCreateInfo device_info = { 
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			.pNext = &physical_device_features,
 			.queueCreateInfoCount = (uint32_t)num_queue_infos,
 			.pQueueCreateInfos = queue_infos,
-			.enabledExtensionCount = SDL_arraysize(g_vk_device_extensions),
-			.ppEnabledExtensionNames = g_vk_device_extensions,
+			.enabledExtensionCount = SDL_arraysize(vk_device_extensions),
+			.ppEnabledExtensionNames = vk_device_extensions,
 		};
 		SPALL_BUFFER_BEGIN_NAME("vkCreateDevice");
 		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
