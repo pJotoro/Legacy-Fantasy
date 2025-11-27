@@ -449,6 +449,41 @@ function void VulkanSetImageName(VkDevice device, VkImage image, char* name) {
 #endif
 }
 
+function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) {
+#ifdef _DEBUG
+	{
+		VkDebugUtilsObjectNameInfoEXT info = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
+			.objectHandle  = (uint64_t)image_view,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(image_view);
+	UNUSED(name);
+#endif
+}
+
+function void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) {
+#ifdef _DEBUG
+	{
+		VkDebugUtilsObjectNameInfoEXT info = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_BUFFER,
+			.objectHandle  = (uint64_t)buffer,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(buffer);
+	UNUSED(name);
+#endif
+}
 
 function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
@@ -636,9 +671,9 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 			// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
 			{
-				size_t buf_size = SDL_strlen(fname) + 1;
+				size_t buf_size = SDL_strlen(sprite_path) + 1;
 				sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
-				SDL_strlcpy(sd->name, fname, buf_size);
+				SDL_strlcpy(sd->name, sprite_path, buf_size);
 			}
 
 			sd->fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(sd->fs);
@@ -2177,6 +2212,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 		for (size_t cell_idx = 0; cell_idx < ctx->num_sprite_cells; cell_idx += 1) {
 			SpriteCell* cell = &ctx->sprite_cells[cell_idx];
@@ -2308,37 +2344,40 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sprite_idx == spr_tiles.idx) {
-				SDL_assert(sd->vk_image_array_layers == 1);
-				VkImageViewCreateInfo info = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-					.image = sd->vk_image,
-					.viewType = VK_IMAGE_VIEW_TYPE_2D,
-					.format = VK_FORMAT_R8G8B8A8_SRGB,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.baseMipLevel = 0,
-						.levelCount = 1,
-						.baseArrayLayer = 0,
-						.layerCount = 1,
-					},
-				};
-				VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
-			} else if (sd) {
-				VkImageViewCreateInfo info = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-					.image = sd->vk_image,
-					.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-					.format = VK_FORMAT_R8G8B8A8_SRGB,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.baseMipLevel = 0,
-						.levelCount = 1,
-						.baseArrayLayer = 0,
-						.layerCount = (uint32_t)sd->vk_image_array_layers,
-					},
-				};
-				VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
+			if (sd) {
+				if (sprite_idx == spr_tiles.idx) {
+					SDL_assert(sd->vk_image_array_layers == 1);
+					VkImageViewCreateInfo info = {
+						.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+						.image = sd->vk_image,
+						.viewType = VK_IMAGE_VIEW_TYPE_2D,
+						.format = VK_FORMAT_R8G8B8A8_SRGB,
+						.subresourceRange = {
+							.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+							.baseMipLevel = 0,
+							.levelCount = 1,
+							.baseArrayLayer = 0,
+							.layerCount = 1,
+						},
+					};
+					VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
+				} else {
+					VkImageViewCreateInfo info = {
+						.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+						.image = sd->vk_image,
+						.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+						.format = VK_FORMAT_R8G8B8A8_SRGB,
+						.subresourceRange = {
+							.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+							.baseMipLevel = 0,
+							.levelCount = 1,
+							.baseArrayLayer = 0,
+							.layerCount = (uint32_t)sd->vk_image_array_layers,
+						},
+					};
+					VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
+				}
+				VulkanSetImageViewName(ctx->vk.device, sd->vk_image_view, sd->name);
 			}
 		}
 	}
@@ -2422,6 +2461,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			size += level->num_entities*sizeof(EntityInstance);
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
 	}
 
@@ -2437,6 +2477,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
 	}
 
 	// InitReplayFrames
