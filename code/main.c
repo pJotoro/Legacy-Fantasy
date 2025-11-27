@@ -50,6 +50,7 @@ typedef struct SpriteFrame {
 } SpriteFrame;
 
 typedef struct SpriteDesc {
+	char* name;
 	SDL_IOStream* fs; // invalid after sprite has been loaded
 
 	ivec2s size;
@@ -430,6 +431,25 @@ function void VulkanResetBuffer(VulkanBuffer* buffer) {
 	buffer->write_offset = 0;
 }
 
+function void VulkanSetImageName(VkDevice device, VkImage image, char* name) {
+#ifdef _DEBUG
+	{
+		VkDebugUtilsObjectNameInfoEXT info = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_IMAGE,
+			.objectHandle  = (uint64_t)image,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(image);
+	UNUSED(name);
+#endif
+}
+
+
 function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->num_frames);
@@ -613,6 +633,13 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 			SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 			SDL_assert(!sd && "Collision");
 			sd = &ctx->sprites[sprite.idx];
+
+			// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
+			{
+				size_t buf_size = SDL_strlen(fname) + 1;
+				sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
+				SDL_strlcpy(sd->name, fname, buf_size);
+			}
 
 			sd->fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(sd->fs);
 
@@ -2251,6 +2278,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				sd->vk_image_array_layers = (size_t)info.arrayLayers;
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
+				VulkanSetImageName(ctx->vk.device, sd->vk_image, sd->name);
 
 				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[i]);
 				memory_offset = AlignForward(memory_offset, mem_reqs[i].alignment);
