@@ -1223,6 +1223,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		size_t level_idx = 0;
 
 		// LoadLevel
+		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
 		cJSON_ArrayForEach(level_node, level_nodes) {
 			Level level = {0};
 
@@ -1354,6 +1355,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 			ctx->levels[level_idx++] = level;
 		}
+		SPALL_BUFFER_END();
 
 		cJSON* defs = cJSON_GetObjectItem(head, "defs");
 		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
@@ -1389,21 +1391,43 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// CreateWindow
 	{
-		SDL_DisplayID display = SDL_GetPrimaryDisplay();
-		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); SDL_CHECK(display_mode);
-		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
-	#if !FULLSCREEN
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_HIDDEN); SDL_CHECK(ctx->window);
-	#else
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN); SDL_CHECK(ctx->window);
-	#endif
+		SPALL_BUFFER_BEGIN_NAME("CreateWindow");
 
+		SPALL_BUFFER_BEGIN_NAME("SDL_GetPrimaryDisplay");
+		SDL_DisplayID display = SDL_GetPrimaryDisplay();
+		SPALL_BUFFER_END();
+
+		SPALL_BUFFER_BEGIN_NAME("SDL_GetDesktopDisplayMode");
+		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); 
+		SPALL_BUFFER_END();
+		SDL_CHECK(display_mode);
+		
+		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
+
+		SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
+	#if !FULLSCREEN
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_HIDDEN);
+	#else
+		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN);
+	#endif
+		SPALL_BUFFER_END();
+		SDL_CHECK(ctx->window);
+
+		SPALL_BUFFER_BEGIN_NAME("SDL_Vulkan_GetVkGetInstanceProcAddr");
 		PFN_vkGetInstanceProcAddr f = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
+		SPALL_BUFFER_END();
+
+		SPALL_BUFFER_BEGIN_NAME("volkInitializeCustom");
 		volkInitializeCustom(f);
+		SPALL_BUFFER_END();
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateInstance
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateInstance");
+
 		VkApplicationInfo app_info = { 
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 			.pApplicationName = "Legacy Fantasy",
@@ -1438,19 +1462,27 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
 		volkLoadInstanceOnly(ctx->vk.instance);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetInstanceLayers
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetInstanceLayers");
+
 		uint32_t count;
 		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, NULL));
 		ctx->vk.num_instance_layers = (size_t)count;
 		ctx->vk.instance_layers = ArenaAlloc(&ctx->arena, ctx->vk.num_instance_layers, VkLayerProperties);
 		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, ctx->vk.instance_layers));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetInstanceExtensions
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetInstanceExtensions");
+
 		uint32_t count;
 
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
@@ -1478,10 +1510,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				&count, 
 				&ctx->vk.instance_extensions[extension_idx]));
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetPhysicalDevice
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetPhysicalDevice");
+
 		// HACK: This only happens to work and make sense on my laptop!.
 		uint32_t physical_device_count = 2;
 		VkPhysicalDevice physical_devices[2];
@@ -1490,10 +1526,14 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		vkGetPhysicalDeviceProperties(ctx->vk.physical_device, &ctx->vk.physical_device_properties);
 		vkGetPhysicalDeviceMemoryProperties(ctx->vk.physical_device, &ctx->vk.physical_device_memory_properties);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetDeviceExtensions
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetDeviceExtensions");
+
 		uint32_t count;
 
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
@@ -1527,25 +1567,37 @@ int32_t main(int32_t argc, char* argv[]) {
 					&ctx->vk.device_extensions[extension_idx]));
 
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateSurface
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSurface");
+
 		SDL_CHECK(SDL_Vulkan_CreateSurface(ctx->window, ctx->vk.instance, NULL, &ctx->vk.surface));
 		VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx->vk.physical_device, ctx->vk.surface, &ctx->vk.surface_capabilities));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetPhysicalDeviceSurfaceFormats
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetPhysicalDeviceSurfaceFormats");
+
 		uint32_t count;
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, NULL));
 		ctx->vk.num_surface_formats = (size_t)count;
 		ctx->vk.surface_formats = ArenaAlloc(&ctx->arena, ctx->vk.num_surface_formats, VkSurfaceFormatKHR);
 		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(ctx->vk.physical_device, ctx->vk.surface, &count, ctx->vk.surface_formats));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDeviceAndGetDeviceQueues
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDeviceAndGetDeviceQueues");
+
 		{
 			uint32_t count;
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, NULL);
@@ -1597,10 +1649,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
 
 		StackFree(&ctx->stack, queue_infos);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateSwapchain
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchain");
+
 		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){ 
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.surface = ctx->vk.surface,
@@ -1617,19 +1673,27 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		
 		VK_CHECK(vkCreateSwapchainKHR(ctx->vk.device, &ctx->vk.swapchain_info, NULL, &ctx->vk.swapchain));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanGetSwapchainImages
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanGetSwapchainImages");
+
 		uint32_t count;
 		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, NULL));
 		ctx->vk.num_swapchain_images = (size_t)count;
 		ctx->vk.swapchain_images = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkImage);
 		VK_CHECK(vkGetSwapchainImagesKHR(ctx->vk.device, ctx->vk.swapchain, &count, ctx->vk.swapchain_images));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateSwapchainImageView
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchainImageView");
+
 		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkImageView);
 		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.num_swapchain_images; swapchain_image_idx += 1) {
 			VkImageViewCreateInfo info = { 
@@ -1641,6 +1705,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 			VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &ctx->vk.swapchain_image_views[swapchain_image_idx]));
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDepthStencilImage
@@ -1715,6 +1781,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateCommandPool
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateCommandPool");
+
 		VkCommandPoolCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
@@ -1722,10 +1790,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	
 		// TODO: Search for graphics queue family index.
 		VK_CHECK(vkCreateCommandPool(ctx->vk.device, &info, NULL, &ctx->vk.command_pool));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanAllocateCommandBuffers
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanAllocateCommandBuffers");
+
 		VkCommandBufferAllocateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.commandPool = ctx->vk.command_pool,
@@ -1740,10 +1812,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 		StackFree(&ctx->stack, command_buffers);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateFences
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateFences");
+
 		VkFenceCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
@@ -1752,10 +1828,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
 			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateSemaphores
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSemaphores");
+
 		VkSemaphoreCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
@@ -1764,11 +1844,15 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 
 	// VulkanCreateSampler
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSampler");
+
 		VkSamplerCreateInfo info = { 
 			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			.magFilter = VK_FILTER_NEAREST,
@@ -1781,10 +1865,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
 		};
 		VK_CHECK(vkCreateSampler(ctx->vk.device, &info, NULL, &ctx->vk.sampler));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDescriptorSetLayout
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorSetLayout");
+
 		VkDescriptorSetLayoutBinding binding = {
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -1799,10 +1887,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		
 		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreatePipelineLayout
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineLayout");
+
 		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.setLayoutCount = 1,
@@ -1810,10 +1902,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreatePipelineLayout(ctx->vk.device, &pipeline_layout_info, NULL, &ctx->vk.pipeline_layout));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateRenderPass
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateRenderPass");
+
 		VkAttachmentDescription color_attachment = {
 			.format = ctx->vk.swapchain_info.imageFormat,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
@@ -1875,10 +1971,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreateRenderPass(ctx->vk.device, &info, NULL, &ctx->vk.render_pass));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateFramebuffers
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateFramebuffers");
+
 		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkFramebuffer);
 		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
 			VkImageView attachments[] = {
@@ -1897,18 +1997,26 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 			VK_CHECK(vkCreateFramebuffer(ctx->vk.device, &info, NULL, &ctx->vk.framebuffers[i]));
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreatePipelineCache
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineCache");
+
 		VkPipelineCacheCreateInfo info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
 		};
 		VK_CHECK(vkCreatePipelineCache(ctx->vk.device, &info, NULL, &ctx->vk.pipeline_cache));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateGraphicsPipelines
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateGraphicsPipelines");
+
 		VkDynamicState dynamic_states[] = {
 			VK_DYNAMIC_STATE_VIEWPORT,
 			VK_DYNAMIC_STATE_SCISSOR,
@@ -2067,10 +2175,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
+
+		SPALL_BUFFER_END();
 	}
 	
 	// LoadSprites
 	{
+		SPALL_BUFFER_BEGIN_NAME("LoadSprites");
 		/*
 		EnumerateSpriteDirectory sets the following globals:
 		- ctx->num_sprite_layers
@@ -2226,6 +2337,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		StackFree(&ctx->stack, dst_bufs);
+
+		SPALL_BUFFER_END();
 	}
 
 	// TestSpriteLayers
@@ -2287,6 +2400,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 	// VulkanCreateImages
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateImages");
+
 		VkMemoryRequirements mem_reqs[MAX_SPRITES];
 		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
 		VkDeviceSize memory_offset = 0;
@@ -2377,10 +2492,14 @@ int32_t main(int32_t argc, char* argv[]) {
 				VulkanSetImageViewName(ctx->vk.device, sd->vk_image_view, sd->name);
 			}
 		}
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDescriptorPool
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorPool");
+
 		VkDescriptorPoolSize size = {
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			(uint32_t)ctx->num_sprites,
@@ -2394,10 +2513,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDescriptorSets
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorSets");
+
 		VkDescriptorSetLayout* descriptor_set_layouts = StackAlloc(&ctx->stack, ctx->num_sprites, VkDescriptorSetLayout);
 		for (size_t i = 0; i < ctx->num_sprites; i += 1) {
 			descriptor_set_layouts[i] = ctx->vk.descriptor_set_layout;
@@ -2448,10 +2571,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		StackFree(&ctx->stack, image_infos);
 		StackFree(&ctx->stack, descriptor_sets);
 		StackFree(&ctx->stack, descriptor_set_layouts);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateDynamicStagingBuffer
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDynamicStagingBuffer");
+
 		VkDeviceSize size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
@@ -2460,10 +2587,14 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
+
+		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateVertexBuffer
 	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateVertexBuffer");
+
 		size_t size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
@@ -2475,6 +2606,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
+
+		SPALL_BUFFER_END();
 	}
 
 	// InitReplayFrames
@@ -2657,6 +2790,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// VulkanCopyEntitiesToDynamicStagingBuffer
 		{
+			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
+
 			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
 			EntityInstance* instances = StackAlloc(&ctx->stack, num_entities, EntityInstance);
 			for (size_t i = 0; i < num_entities; i += 1) {
@@ -2669,6 +2804,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 			VulkanCopyBuffer(num_entities * sizeof(EntityInstance), instances, &ctx->vk.dynamic_staging_buffer);
 			StackFree(&ctx->stack, instances);
+
+			SPALL_BUFFER_END();
 		}
 
 		uint32_t image_idx;
@@ -2926,6 +3063,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// Draw
 		{
+			SPALL_BUFFER_BEGIN_NAME("Draw");
+
 			{
 				uint32_t first_viewport = 0;
 				uint32_t num_viewports = 1;
@@ -2981,10 +3120,14 @@ int32_t main(int32_t argc, char* argv[]) {
 					first_instance += num_instances;
 				}
 			}
+
+			SPALL_BUFFER_END();
 		}
 
 		// DrawEnd
 		{
+			SPALL_BUFFER_BEGIN_NAME("DrawEnd");
+
 			vkCmdEndRenderPass(cb);
 
 			VK_CHECK(vkEndCommandBuffer(cb));
@@ -3017,6 +3160,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
 			VulkanResetBuffer(&ctx->vk.vertex_buffer);		
+
+			SPALL_BUFFER_END();
 		}
 	#if 0
 

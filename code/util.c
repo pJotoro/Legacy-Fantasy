@@ -203,7 +203,7 @@ function void StackFree(Stack* stack, void* ptr) {
         uintptr_t curr_addr = (uintptr_t)ptr;
 
         if (!(start <= curr_addr && curr_addr < end)) {
-            assert(0 && "Out of bounds memory address passed to stack allocator (free)");
+            SDL_assert(0 && "Out of bounds memory address passed to stack allocator (free)");
             return;
         }
 
