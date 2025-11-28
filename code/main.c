@@ -334,12 +334,12 @@ function void ShiftEntity(Entity* entity, ivec2s shift) {
 	entity->pos = glms_ivec2_add(entity->pos, shift);
 }
 
-function bool SetEntitySprite(Entity* entity, Sprite sprite) {
+function bool SetAnimSprite(Anim* anim, Sprite sprite) {
     bool sprite_changed = false;
-    if (!SpritesEqual(entity->anim.sprite, sprite)) {
+    if (!SpritesEqual(anim->sprite, sprite)) {
         sprite_changed = true;
-        ResetAnim(&entity->anim);
-        entity->anim.sprite = sprite;
+        ResetAnim(anim);
+        anim->sprite = sprite;
     }
     return sprite_changed;
 }
@@ -354,7 +354,7 @@ function void ResetGame(Context* ctx) {
 			Entity* player = &level->entities[0];
 			
 			ResetAnim(&player->anim);
-			SetEntitySprite(player, player_idle);
+			SetAnimSprite(&player->anim, player_idle);
 			player->pos = player->start_pos;
 			player->state = EntityState_Free;
 			player->vel = (vec2s){0.0f};
@@ -366,7 +366,7 @@ function void ResetGame(Context* ctx) {
 
 			ResetAnim(&enemy->anim);
 			if (enemy->type == EntityType_Boar) {
-				SetEntitySprite(enemy, boar_idle);
+				SetAnimSprite(&enemy->anim, boar_idle);
 			} // else if (entity->type == EntityType_) {}
 			enemy->pos = enemy->start_pos;
 			enemy->state = EntityState_Free;
@@ -444,24 +444,24 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return true;
 }
 
-function void UpdateAnim(Context* ctx, Entity* entity, bool loop) {
+function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	SPALL_BUFFER_BEGIN();
 
-    SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-    SDL_assert(entity->anim.frame_idx >= 0 && (size_t)entity->anim.frame_idx < sd->num_frames);
-	float dur = sd->frames[entity->anim.frame_idx].dur;
+    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+    SDL_assert(anim->frame_idx >= 0 && (size_t)anim->frame_idx < sd->num_frames);
+	float dur = sd->frames[anim->frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
-    if (loop || !entity->anim.ended) {
-        entity->anim.dt_accumulator += dt;
-        if (entity->anim.dt_accumulator >= dur) {
-            entity->anim.dt_accumulator = 0.0f;
-            entity->anim.frame_idx += 1;
-            if ((size_t)entity->anim.frame_idx >= num_frames) {
-                if (loop) entity->anim.frame_idx = 0;
+    if (loop || !anim->ended) {
+        anim->dt_accumulator += dt;
+        if (anim->dt_accumulator >= dur) {
+            anim->dt_accumulator = 0.0f;
+            anim->frame_idx += 1;
+            if ((size_t)anim->frame_idx >= num_frames) {
+                if (loop) anim->frame_idx = 0;
                 else {
-                    entity->anim.frame_idx -= 1;
-                    entity->anim.ended = true;
+                    anim->frame_idx -= 1;
+                    anim->ended = true;
                 }
             }
         }
@@ -796,16 +796,16 @@ function void UpdatePlayer(Context* ctx) {
 	case EntityState_Inactive:
 		break;
     case EntityState_Die: {
-		SetEntitySprite(player, player_die);
+		SetAnimSprite(&player->anim, player_die);
 		bool loop = false;
-		UpdateAnim(ctx, player, loop);
+		UpdateAnim(ctx, &player->anim, loop);
 		if (player->anim.ended) {
 			ResetGame(ctx);
 		}
 	} break;
 
     case EntityState_Attack: {
-		SetEntitySprite(player, player_attack);
+		SetAnimSprite(&player->anim, player_attack);
 
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
 		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
@@ -822,25 +822,25 @@ function void UpdatePlayer(Context* ctx) {
 		}
 		
 		bool loop = false;
-		UpdateAnim(ctx, player, loop);
+		UpdateAnim(ctx, &player->anim, loop);
 		if (player->anim.ended) {
 			player->state = EntityState_Free;
 		}
 	} break;
     	
     case EntityState_Fall: {
-    	SetEntitySprite(player, player_jump_end);
+    	SetAnimSprite(&player->anim, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
     	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	bool loop = false;
-    	UpdateAnim(ctx, player, loop);
+    	UpdateAnim(ctx, &player->anim, loop);
 	} break;
     	
 	case EntityState_Jump: {
 		vec2s acc = {0.0f};
-		if (SetEntitySprite(player, player_jump_start)) {
+		if (SetAnimSprite(&player->anim, player_jump_start)) {
 			acc.y -= PLAYER_JUMP;
 		}
 
@@ -848,7 +848,7 @@ function void UpdatePlayer(Context* ctx) {
     	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 		bool loop = false;
-    	UpdateAnim(ctx, player, loop);
+    	UpdateAnim(ctx, &player->anim, loop);
 	} break;
 
 	case EntityState_Free: {
@@ -863,9 +863,9 @@ function void UpdatePlayer(Context* ctx) {
 		}
 
 		if (input_dir == 0 && player->vel.x == 0.0f) {
-			SetEntitySprite(player, player_idle);
+			SetAnimSprite(&player->anim, player_idle);
 		} else {
-			SetEntitySprite(player, player_run);
+			SetAnimSprite(&player->anim, player_run);
 			if (player->vel.x != 0.0f) {
 				player->dir = (int16_t)glm_signf(player->vel.x);
 			} else if (input_dir != 0) {
@@ -876,7 +876,7 @@ function void UpdatePlayer(Context* ctx) {
 		player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
 
 		bool loop = true;
-		UpdateAnim(ctx, player, loop);
+		UpdateAnim(ctx, &player->anim, loop);
 	} break;
 
 	default: {
@@ -892,10 +892,10 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 
 	switch (boar->state) {
 	case EntityState_Hurt: {
-		SetEntitySprite(boar, boar_hit);
+		SetAnimSprite(&boar->anim, boar_hit);
 
 		bool loop = false;
-		UpdateAnim(ctx, boar, loop);
+		UpdateAnim(ctx, &boar->anim, loop);
 
 		if (boar->anim.ended) {
 			boar->state = EntityState_Inactive;
@@ -903,23 +903,23 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 	} break;
 
 	case EntityState_Fall: {
-		SetEntitySprite(boar, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
+		SetAnimSprite(&boar->anim, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
 
 		vec2s acc = {0.0f, GRAVITY};
 		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
-		UpdateAnim(ctx, boar, loop);
+		UpdateAnim(ctx, &boar->anim, loop);
 	} break;
 
 	case EntityState_Free: {
-		SetEntitySprite(boar, boar_idle);
+		SetAnimSprite(&boar->anim, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
 		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
-		UpdateAnim(ctx, boar, loop);
+		UpdateAnim(ctx, &boar->anim, loop);
 	} break;
 
 	default: {
@@ -1751,16 +1751,16 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateRenderPass");
 
-		VkAttachmentDescription color_attachment = {
-			.format = ctx->vk.swapchain_info.imageFormat,
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-		};
+VkAttachmentDescription color_attachment = {
+	.format = ctx->vk.swapchain_info.imageFormat,
+	.samples = VK_SAMPLE_COUNT_1_BIT,
+	.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+	.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+	.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+	.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+	.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+};
 
 		VkAttachmentReference color_attachment_ref = {
 			.attachment = 0, // index in attachments array
