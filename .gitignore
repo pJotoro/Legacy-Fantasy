@@ -13,3 +13,4 @@ libraries/SDL3/lib/SDL2.lib
 libraries/SDL3/lib/SDL2main.lib
 profile/*
 code/main.cpp
+captures/*.rdc
