@@ -2915,12 +2915,10 @@ VkAttachmentDescription color_attachment = {
 
 			// VulkanBeginRenderPass
 			{
-				/*VkClearValue clear_values[2];
-				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
-				clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};*/
-
-				VkClearValue clear_values[2];
-				clear_values[0].color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f };
+				VkClearValue clear_values[] = {
+					{ .color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f} },
+					//{ .depthStencil = (VkClearDepthStencilValue){1.0f, 0} },
+				};
 
 				VkRenderPassBeginInfo info = { 
 					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
