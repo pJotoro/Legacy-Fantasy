@@ -1213,20 +1213,28 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 
 		SPALL_BUFFER_BEGIN_NAME("SDL_GetDesktopDisplayMode");
-		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display); 
+		const SDL_DisplayMode* display_mode = SDL_GetDesktopDisplayMode(display);
 		SPALL_BUFFER_END();
 		SDL_CHECK(display_mode);
 		
 		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
 
-		SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
-	#if !FULLSCREEN
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w/2, display_mode->h/2, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_HIDDEN);
-	#else
-		ctx->window = SDL_CreateWindow("LegacyFantasy", display_mode->w, display_mode->h, SDL_WINDOW_VULKAN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN);
-	#endif
-		SPALL_BUFFER_END();
-		SDL_CHECK(ctx->window);
+		{
+			SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
+
+			int32_t window_width = display_mode->w/2;
+			int32_t window_height = display_mode->h/2;
+			SDL_WindowFlags window_flags = SDL_WINDOW_HIDDEN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_VULKAN;
+		#if FULLSCREEN
+			window_width *= 2;
+			window_height *= 2;
+			window_flags |= SDL_WINDOW_FULLSCREEN;
+		#endif
+			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
+			SDL_CHECK(ctx->window);
+			
+			SPALL_BUFFER_END();
+		}
 
 		SPALL_BUFFER_BEGIN_NAME("SDL_Vulkan_GetVkGetInstanceProcAddr");
 		PFN_vkGetInstanceProcAddr f = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
