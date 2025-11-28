@@ -1251,16 +1251,27 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateInstance");
 
-	// TODO: Platform specific extensions like VK_KHR_win32_surface should only be added conditionally.
+	#ifdef SDL_PLATFORM_WINDOWS
+		#define VK_KHR_platform_surface "VK_KHR_win32_surface"
+	#else
+		#error Unsupported platform.
+	#endif
+
 	#ifdef _DEBUG
 		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
-		static char const * const instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_utils"};
+		#define DEBUG_LAYERS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
 	#else
-		static char const * const instance_extensions[] = { "VK_KHR_surface", "VK_KHR_win32_surface" };
+		#define DEBUG_LAYERS
 	#endif
+		static char const * const instance_extensions[] = { 
+			DEBUG_LAYERS
+			"VK_KHR_surface", 
+			VK_KHR_platform_surface, 
+		};
 
 		VkApplicationInfo app_info = { 
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+			.pNext = NULL,
 			.pApplicationName = "Legacy Fantasy",
 			.applicationVersion = VK_API_VERSION_1_0,
 			.pEngineName = "Legacy Fantasy",
@@ -1288,7 +1299,22 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pUserData = ctx,
 		};
 
+		VkValidationFeatureEnableEXT validation_enabled[] = {
+			VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+			VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+			VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+		};
+
+		VkValidationFeaturesEXT validation_info = {
+			.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+			.enabledValidationFeatureCount = SDL_arraysize(validation_enabled),
+			.pEnabledValidationFeatures = validation_enabled,
+			.disabledValidationFeatureCount = 0,
+			.pDisabledValidationFeatures = NULL,
+		};
+
 		create_info.pNext = &debug_info;
+		debug_info.pNext = &validation_info;
 	#endif
 
 		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
