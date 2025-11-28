@@ -1784,16 +1784,16 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateRenderPass");
 
-VkAttachmentDescription color_attachment = {
-	.format = ctx->vk.swapchain_info.imageFormat,
-	.samples = VK_SAMPLE_COUNT_1_BIT,
-	.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-	.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-	.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-	.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-	.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-	.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-};
+		VkAttachmentDescription color_attachment = {
+			.format = ctx->vk.swapchain_info.imageFormat,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		};
 
 		VkAttachmentReference color_attachment_ref = {
 			.attachment = 0, // index in attachments array
