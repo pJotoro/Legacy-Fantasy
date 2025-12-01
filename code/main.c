@@ -2847,52 +2847,16 @@ int32_t main(int32_t argc, char* argv[]) {
 				StackFree(&ctx->stack, image_memory_barriers_after);
 				StackFree(&ctx->stack, image_memory_barriers);
 			} else {
-				size_t num_image_memory_barriers = ctx->num_sprites;
-				VkImageMemoryBarrier* image_memory_barriers = StackAlloc(&ctx->stack, num_image_memory_barriers, VkImageMemoryBarrier);
-				size_t i = 0;
-				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-					if (!sd) continue;
-
-					VkImageSubresourceRange subresource_range = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.baseMipLevel = 0,
-						.levelCount = 1,
-						.baseArrayLayer = 0,
-						.layerCount = (uint32_t)sd->vk_image_array_layers,
-					};
-
-					image_memory_barriers[i] = (VkImageMemoryBarrier){
-						.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-						.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-						.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-						.image = sd->vk_image,
-						.subresourceRange = subresource_range,
-					};
-
-					i += 1;
-				}
-				SDL_assert(i == ctx->num_sprites);
-
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
-						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-						.buffer = ctx->vk.dynamic_staging_buffer.handle,
-						.size = ctx->vk.dynamic_staging_buffer.size,
-					},
-					{
-						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-						.srcAccessMask = 0,
+						.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
+				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 
@@ -2906,10 +2870,6 @@ int32_t main(int32_t argc, char* argv[]) {
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
-
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)num_image_memory_barriers, image_memory_barriers);
-
-				StackFree(&ctx->stack, image_memory_barriers);
 			}
 
 			// VulkanBeginRenderPass
