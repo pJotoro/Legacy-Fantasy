@@ -1,6 +1,8 @@
 #include "main.h"
 #include "aseprite.h"
 
+#define FULLSCREEN 1
+
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 

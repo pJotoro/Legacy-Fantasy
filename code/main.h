@@ -1,5 +1,4 @@
 #define ENABLE_PROFILING 1
-#define FULLSCREEN 1
 
 #pragma warning(push, 0)
 #include <SDL.h>
