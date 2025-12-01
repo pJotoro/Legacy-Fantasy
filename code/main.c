@@ -2843,9 +2843,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprites, image_memory_barriers_after);
 
-				StackFree(&ctx->stack, image_memory_barriers_before);
-				StackFree(&ctx->stack, image_memory_barriers_after);
 				StackFree(&ctx->stack, image_memory_barriers);
+				StackFree(&ctx->stack, image_memory_barriers_after);				
+				StackFree(&ctx->stack, image_memory_barriers_before);
 			} else {
 				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
 					{
