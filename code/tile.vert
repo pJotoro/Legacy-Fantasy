@@ -14,7 +14,6 @@ void main() {
     ivec2 a[6] = {ivec2(0, 0), ivec2(16, 0), ivec2(16, 16), ivec2(16, 16), ivec2(0, 16), ivec2(0, 0)};
     
     ivec2 dst = in_dst;
-    int i = gl_VertexIndex % 6;
     dst += a[gl_VertexIndex];
     vec2 pos;
     pos.x = float(dst.x)/960.0 - 1.0;
