@@ -32,7 +32,6 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     return res;
 }
 
-// TODO: Remove this function. All buffers should share the same memory object.
 function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memory_properties) {
 	VulkanBuffer res = {.size = size};
 	{
