@@ -1541,7 +1541,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
 			.clipped = VK_TRUE,
 		};
-		
+
 		VK_CHECK(vkCreateSwapchainKHR(ctx->vk.device, &ctx->vk.swapchain_info, NULL, &ctx->vk.swapchain));
 
 		SPALL_BUFFER_END();
