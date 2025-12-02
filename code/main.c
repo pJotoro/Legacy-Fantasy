@@ -159,7 +159,7 @@ typedef struct VulkanFrame {
 	VkFence fence_in_flight;
 } VulkanFrame;
 
-#define PIPELINE_COUNT 2
+#define PIPELINE_COUNT 3
 
 typedef struct VulkanBuffer {
 	VkBuffer handle;
@@ -1945,17 +1945,35 @@ int32_t main(int32_t argc, char* argv[]) {
 		entity_graphics_pipeline_info.pStages = entity_shader_stages;
 		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
 
+		// VulkanCreateGraphicsPipelineTriangle
+		VkPipelineShaderStageCreateInfo triangle_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		VkPipelineShaderStageCreateInfo triangle_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkPipelineShaderStageCreateInfo triangle_shader_stages[] = {
+			triangle_vert,
+			triangle_frag,
+		};
+		VkPipelineVertexInputStateCreateInfo triangle_vertex_input_info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		};
+		VkGraphicsPipelineCreateInfo triangle_graphics_pipeline_info = graphics_pipline_info;
+		triangle_graphics_pipeline_info.stageCount = SDL_arraysize(triangle_shader_stages);
+		triangle_graphics_pipeline_info.pStages = triangle_shader_stages;
+		triangle_graphics_pipeline_info.pVertexInputState = &triangle_vertex_input_info;
+
 		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = {
 			tile_graphics_pipeline_info,
 			entity_graphics_pipeline_info,
+			triangle_graphics_pipeline_info,
 		};
 
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, ctx->vk.pipeline_cache, SDL_arraysize(infos), infos, NULL, ctx->vk.pipelines));
 
-		vkDestroyShaderModule(ctx->vk.device, tile_vert.module, NULL);
-		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
-		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, triangle_frag.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, triangle_vert.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
+		vkDestroyShaderModule(ctx->vk.device, tile_vert.module, NULL);
 
 		SPALL_BUFFER_END();
 	}
@@ -2845,6 +2863,10 @@ int32_t main(int32_t argc, char* argv[]) {
 					SDL_assert(num_entities < ctx->levels[ctx->level_idx].num_entities);
 					first_instance += num_instances;
 				}
+			}
+			{
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[2]);
+				vkCmdDraw(cb, 3, 1, 0, 0);
 			}
 
 			SPALL_BUFFER_END();
