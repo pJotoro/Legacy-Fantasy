@@ -1831,7 +1831,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 		VkPipelineRasterizationStateCreateInfo rasterization_info = { 
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-			.cullMode = VK_CULL_MODE_FRONT_BIT,
+			.cullMode = VK_CULL_MODE_BACK_BIT,
 			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 			.lineWidth = 1.0f
 		};
