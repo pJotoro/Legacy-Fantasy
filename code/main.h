@@ -1,5 +1,3 @@
-#define ENABLE_PROFILING 1
-
 #pragma warning(push, 0)
 #include <SDL.h>
 #include <SDL_main.h>
@@ -23,7 +21,7 @@
 #define RADDBG_MARKUP_IMPLEMENTATION
 #include <raddbg_markup.h>
 
-#if ENABLE_PROFILING
+#if TOGGLE_PROFILING
 #include <spall/spall.h>
 #define SPALL_BUFFER_BEGIN_NAME(NAME) STMT( \
 	SDL_Time time; \

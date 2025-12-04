@@ -16,8 +16,8 @@ void main() {
     ivec2 dst = in_dst;
     dst += a[gl_VertexIndex];
     vec2 pos;
-    pos.x = float(dst.x)/960.0 - 1.0;
-    pos.y = float(dst.y)/540.0 - 1.0;
+    pos.x = float(dst.x)/480.0 - 1.0;
+    pos.y = float(dst.y)/270.0 - 1.0;
     gl_Position = vec4(pos, 0.0, 1.0);
 
     ivec2 src = in_src;

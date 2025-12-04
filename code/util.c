@@ -36,6 +36,7 @@ function FORCEINLINE float NormInt16(int16_t i16) {
     return res;
 }
 
+#if TOGGLE_TILES
 function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) {
     SDL_assert(num_tiles);
     ivec2s size = level->size;
@@ -43,6 +44,18 @@ function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) {
     return level->tiles;
 }
 
+function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
+    return &level->tile_layers[tile_layer_idx];
+}
+
+function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) {
+    SDL_assert(num_tiles);
+    *num_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
+    return level->tile_layers[tile_layer_idx].tiles;
+}
+#endif // TOGGLE_TILES
+
+#if TOGGLE_ENTITIES
 function FORCEINLINE Entity* GetPlayer(Context* ctx) {
     return &ctx->levels[ctx->level_idx].entities[0];
 }
@@ -69,6 +82,13 @@ function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) {
     }
 }
 
+function FORCEINLINE void ResetAnim(Anim* anim) {
+    anim->frame_idx = 0;
+    anim->dt_accumulator = 0.0;
+    anim->ended = false;
+}
+#endif // TOGGLE_ENTITIES
+
 function FORCEINLINE Level* GetCurrentLevel(Context* ctx) {
     return &ctx->levels[ctx->level_idx];
 }
@@ -89,22 +109,6 @@ function FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {
 
 function FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) {
     return a.idx == b.idx;
-}
-
-function FORCEINLINE void ResetAnim(Anim* anim) {
-    anim->frame_idx = 0;
-    anim->dt_accumulator = 0.0;
-    anim->ended = false;
-}
-
-function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) {
-	return &level->tile_layers[tile_layer_idx];
-}
-
-function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) {
-    SDL_assert(num_tiles);
-    *num_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
-    return level->tile_layers[tile_layer_idx].tiles;
 }
 
 // https://www.gingerbill.org/series/memory-allocation-strategies/
