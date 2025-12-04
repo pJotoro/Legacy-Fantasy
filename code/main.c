@@ -3,8 +3,8 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 1
-#define TOGGLE_ENTITIES 0
+#define TOGGLE_TILES 0
+#define TOGGLE_ENTITIES 1
 #define TOGGLE_TRIANGLE 0
 #define TOGGLE_REPLAY_FRAMES 0
 
@@ -661,9 +661,6 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 // certain states might not make sense.
 function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	SPALL_BUFFER_BEGIN();
-	Level* level = GetCurrentLevel(ctx);
-	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
-
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
 	if (entity->state == EntityState_Free) {
@@ -672,8 +669,14 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-	bool horizontal_collision_happened = false;
+	bool touching_floor = false;
 	vec2s vel = entity->vel;
+#if TOGGLE_TILES
+	Level* level = GetCurrentLevel(ctx);
+	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+
+	bool horizontal_collision_happened = false;
+	bool vertical_collision_happened = false;
 	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
@@ -695,8 +698,6 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 			}
 		}
 	}
-	bool touching_floor = false;
-	bool vertical_collision_happened = false;
 	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
@@ -721,9 +722,11 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 			}
 		}
 	}
+#endif
 
 	MoveEntity(entity, vel);
 
+#if TOGGLE_TILES
     Rect hitbox = GetEntityHitbox(ctx, entity);
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
@@ -776,6 +779,7 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 			}
 		}
 	}
+#endif
 
 	EntityState res;
 	if (!touching_floor && entity->vel.y > 0.0f) {
