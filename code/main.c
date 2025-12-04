@@ -225,10 +225,8 @@ typedef struct Vulkan {
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
-#if PIPELINE_COUNT > 0
 	VkPipeline pipelines[PIPELINE_COUNT];
 	VkPipelineCache pipeline_cache;
-#endif
 	VkRenderPass render_pass;
 	VkSampler sampler;
 
@@ -1873,8 +1871,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
-#if PIPELINE_COUNT > 0
-
 	// VulkanCreatePipelineCache
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineCache");
@@ -2062,8 +2058,6 @@ int32_t main(int32_t argc, char* argv[]) {
 #endif
 		SPALL_BUFFER_END();
 	}
-
-#endif // PIPELINE_COUNT > 0
 	
 	// LoadSprites
 	{
