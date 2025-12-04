@@ -2697,7 +2697,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 #endif
 
-		#if 0
+#if 0
 			// RecordReplayFrame
 			{
 				SPALL_BUFFER_BEGIN_NAME("RecordReplayFrame");
@@ -2719,7 +2719,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				SPALL_BUFFER_END();
 			}
-		#endif
+#endif
 		}
 		
 		// VulkanCopyEntitiesToDynamicStagingBuffer
@@ -3200,7 +3200,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			SPALL_BUFFER_END();
 		}
-	#endif
+#endif
 	}
 
 	// NOTE: If we don't do this, we might not get the last few events.
