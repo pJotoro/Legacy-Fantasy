@@ -3,8 +3,8 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 1
-#define TOGGLE_ENTITIES 0
+#define TOGGLE_TILES 0
+#define TOGGLE_ENTITIES 1
 #define TOGGLE_REPLAY_FRAMES 0
 
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
@@ -2865,7 +2865,9 @@ int32_t main(int32_t argc, char* argv[]) {
 					StackFree(&ctx->stack, regions);
 				}
 				
+#if TOGGLE_TILES
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
+#endif
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
 					{
@@ -2950,6 +2952,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				VkDeviceSize offset = 0;
 				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
 			}
+
 #if TOGGLE_TILES
 			// DrawTiles
 			{
@@ -2968,7 +2971,8 @@ int32_t main(int32_t argc, char* argv[]) {
 #if TOGGLE_ENTITIES
 			// DrawEntities
 			{
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
+				// HACK: Really this should be 1, not TOGGLE_TILES.
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
 				
 				// DrawPlayer
 				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
