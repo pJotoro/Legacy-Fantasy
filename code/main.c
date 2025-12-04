@@ -1957,8 +1957,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			tile_vert,
 			tile_frag,
 		};
-		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
-		{
+		VkVertexInputBindingDescription tile_vertex_input_bindings[] = {
 			{
 				.binding = 0,
 				.stride = sizeof(Tile),
@@ -2520,8 +2519,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->num_tiles*sizeof(Tile);
 			}
-		}
 #endif
+		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
 
