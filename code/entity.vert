@@ -16,7 +16,7 @@ void main() {
     size.y *= a[gl_VertexIndex].y;
     pos += size;
 
-    out_pos.x = float(pos.x)/float(sprite_size.x);
-    out_pos.y = float(pos.y)/float(sprite_size.y);
+    out_pos.x = float(pos.x)/480.0 - 1.0;
+    out_pos.y = float(pos.y)/270.0 - 1.0;
     out_frame_idx = in_frame_idx;
 }
