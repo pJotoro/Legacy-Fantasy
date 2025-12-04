@@ -218,8 +218,10 @@ typedef struct Vulkan {
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkPipelineLayout pipeline_layout;
+#if PIPELINE_COUNT > 0
 	VkPipeline pipelines[PIPELINE_COUNT];
 	VkPipelineCache pipeline_cache;
+#endif
 	VkRenderPass render_pass;
 	VkSampler sampler;
 
@@ -1191,8 +1193,7 @@ int32_t main(int32_t argc, char* argv[]) {
 						SDL_assert(i < tile_layer->num_tiles);
 						tile_layer->tiles[i++] = (Tile){src, dst};
 					}
-				}
-					
+				}	
 			}
 #endif // TOGGLE_TILES
 
@@ -1591,8 +1592,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchain");
 
-		// Is it always guarunteed that the first one will be the best?
 		VkSurfaceFormatKHR format = ctx->vk.surface_formats[0];
+		for (size_t i = 1; i < ctx->vk.num_surface_formats; i += 1) {
+			if (ctx->vk.surface_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || ctx->vk.surface_formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
+				format = ctx->vk.surface_formats[i];
+				break;
+			}
+		}
 
 		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -1856,6 +1862,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_END();
 	}
 
+#if PIPELINE_COUNT > 0
+
 	// VulkanCreatePipelineCache
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineCache");
@@ -1937,8 +1945,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			.renderPass = ctx->vk.render_pass,
 		};
 
-		// VulkanCreateGraphicsPipelineTile
 #if TOGGLE_TILES
+		// VulkanCreateGraphicsPipelineTile
 		VkPipelineShaderStageCreateInfo tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkPipelineShaderStageCreateInfo tile_shader_stages[] = {
@@ -1980,8 +1988,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		tile_graphics_pipeline_info.pVertexInputState = &tile_vertex_input_info;
 #endif // TOGGLE_TILES
 
-		// VulkanCreateGraphicsPipelineEntity
 #if TOGGLE_ENTITIES
+		// VulkanCreateGraphicsPipelineEntity
 		VkPipelineShaderStageCreateInfo entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkPipelineShaderStageCreateInfo entity_shader_stages[] = {
@@ -2023,8 +2031,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
 #endif // TOGGLE_ENTITIES
 
-		// VulkanCreateGraphicsPipelineTriangle
 #if TOGGLE_TRIANGLE
+		// VulkanCreateGraphicsPipelineTriangle
 		VkPipelineShaderStageCreateInfo triangle_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo triangle_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkPipelineShaderStageCreateInfo triangle_shader_stages[] = {
@@ -2068,6 +2076,8 @@ int32_t main(int32_t argc, char* argv[]) {
 #endif
 		SPALL_BUFFER_END();
 	}
+
+#endif // PIPELINE_COUNT > 0
 	
 	// LoadSprites
 	{
@@ -2351,7 +2361,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 			if (sd) {
-				if (sprite_idx == spr_tiles.idx) {
+				bool is_tileset = false;
+#if TOGGLE_TILES
+				is_tileset = sprite_idx == spr_tiles.idx;
+#endif
+				if (is_tileset) {
 					SDL_assert(sd->vk_image_array_layers == 1);
 					VkImageViewCreateInfo info = {
 						.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -2950,6 +2964,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				VkDeviceSize offset = 0;
 				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
 			}
+#if TOGGLE_TILES
 			// DrawTiles
 			{
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
@@ -2963,8 +2978,9 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 				vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
 			}
+#endif // TOGGLE_TILES
+#if TOGGLE_ENTITIES
 			// DrawEntities
-			/*
 			{
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
 				
@@ -2992,14 +3008,14 @@ int32_t main(int32_t argc, char* argv[]) {
 					first_instance += num_instances;
 				}
 			}
-			*/
+#endif // TOGGLE_ENTITIES
+#if TOGGLE_TRIANGLE
 			// DrawTriangle
-			/*
 			{
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[2]);
 				vkCmdDraw(cb, 3, 1, 0, 0);
 			}
-			*/
+#endif // TOGGLE_TRIANGLE
 
 			SPALL_BUFFER_END();
 		}

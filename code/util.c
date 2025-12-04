@@ -53,6 +53,20 @@ function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, si
     *num_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
     return level->tile_layers[tile_layer_idx].tiles;
 }
+
+function FORCEINLINE bool TileIsSolid(Level* level, ivec2s pos) {
+    if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
+    size_t idx = (size_t)(pos.x + pos.y*level->size.x);
+    return level->tiles[idx];
+}
+
+function FORCEINLINE bool TileIsValid(Tile tile) {
+    return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
+}
+
+function FORCEINLINE bool TilesEqual(Tile a, Tile b) {
+    return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
+}
 #endif // TOGGLE_TILES
 
 #if TOGGLE_ENTITIES
@@ -232,20 +246,6 @@ function void StackFree(Stack* stack, void* ptr) {
 
 function void StackFreeAll(Stack* stack) {
     stack->curr_offset = 0;
-}
-
-function FORCEINLINE bool TileIsSolid(Level* level, ivec2s pos) {
-    if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
-    size_t idx = (size_t)(pos.x + pos.y*level->size.x);
-    return level->tiles[idx];
-}
-
-function FORCEINLINE bool TileIsValid(Tile tile) {
-    return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
-}
-
-function FORCEINLINE bool TilesEqual(Tile a, Tile b) {
-    return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
 }
 
 function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) {
