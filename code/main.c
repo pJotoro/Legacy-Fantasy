@@ -999,7 +999,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		// This is the only time that we set the sprite variables.
 		// After that, they are effectively constants.
 
-	#if TOGGLE_ENTITIES
+#if TOGGLE_ENTITIES
 		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
@@ -1011,11 +1011,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
 		boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
 		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
-	#endif
+#endif
 
-	#if TOGGLE_TILES
+#if TOGGLE_TILES
 		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-	#endif
+#endif
 	}
 
 	// InitContext
@@ -1293,11 +1293,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			int32_t window_width = display_mode->w/2;
 			int32_t window_height = display_mode->h/2;
 			SDL_WindowFlags window_flags = SDL_WINDOW_HIDDEN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_VULKAN;
-		#if TOGGLE_FULLSCREEN
+#if TOGGLE_FULLSCREEN
 			window_width *= 2;
 			window_height *= 2;
 			window_flags |= SDL_WINDOW_FULLSCREEN;
-		#endif
+#endif
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
 			
@@ -1319,18 +1319,18 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateInstance");
 
-	#ifdef SDL_PLATFORM_WINDOWS
+#ifdef SDL_PLATFORM_WINDOWS
 		#define VK_KHR_platform_surface "VK_KHR_win32_surface"
-	#else
+#else
 		#error Unsupported platform.
-	#endif
+#endif
 
-	#ifdef _DEBUG
+#ifdef _DEBUG
 		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 		#define DEBUG_LAYERS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
-	#else
+#else
 		#define DEBUG_LAYERS
-	#endif
+#endif
 		static char const * const instance_extensions[] = { 
 			DEBUG_LAYERS
 			"VK_KHR_surface", 
@@ -1350,15 +1350,15 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkInstanceCreateInfo create_info = { 
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
-	#ifdef _DEBUG
+#ifdef _DEBUG
 			.enabledLayerCount = SDL_arraysize(layers),
 			.ppEnabledLayerNames = layers,
-	#endif
+#endif
 			.enabledExtensionCount = SDL_arraysize(instance_extensions),
 			.ppEnabledExtensionNames = instance_extensions,
 		};
 
-	#ifdef _DEBUG
+#ifdef _DEBUG
 		VkDebugUtilsMessengerCreateInfoEXT debug_info = {
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
@@ -1382,7 +1382,7 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		create_info.pNext = &debug_info;
 		debug_info.pNext = &validation_info;
-	#endif
+#endif
 
 		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
 		volkLoadInstanceOnly(ctx->vk.instance);
@@ -1552,11 +1552,11 @@ int32_t main(int32_t argc, char* argv[]) {
 			num_queues += (size_t)ctx->vk.queue_family_properties[queue_family_idx].queueCount;
 		}
 
-	#ifdef _DEBUG
+#ifdef _DEBUG
 		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
-	#else
+#else
 		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
-	#endif
+#endif
 
 		VkDeviceCreateInfo device_info = { 
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -1936,9 +1936,9 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		VkGraphicsPipelineCreateInfo graphics_pipline_info = { 
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-		#ifdef _DEBUG
+#ifdef _DEBUG
 			.flags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT,
-		#endif
+#endif
 			.pInputAssemblyState = &input_assembly_info,
 			.pViewportState = &viewport_info,
 			.pRasterizationState = &rasterization_info,
