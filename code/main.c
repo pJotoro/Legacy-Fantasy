@@ -3,10 +3,17 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 0
-#define TOGGLE_ENTITIES 1
-#define TOGGLE_TRIANGLE 0
+#define TOGGLE_TILES 1
+#define TOGGLE_ENTITIES 0
 #define TOGGLE_REPLAY_FRAMES 0
+
+#if !TOGGLE_TILES && !TOGGLE_ENTITIES
+#error Either tiles or entities may be toggled off, but not both.
+#endif
+
+#if TOGGLE_REPLAY_FRAMES && !TOGGLE_ENTITIES
+#error If replay frames are toggled, entities must also be toggled.
+#endif
 
 #define TOGGLE_FULLSCREEN 1
 
@@ -176,7 +183,7 @@ typedef struct VulkanFrame {
 	VkFence fence_in_flight;
 } VulkanFrame;
 
-#define PIPELINE_COUNT (TOGGLE_TILES + TOGGLE_ENTITIES + TOGGLE_TRIANGLE)
+#define PIPELINE_COUNT (TOGGLE_TILES + TOGGLE_ENTITIES)
 
 typedef struct VulkanBuffer {
 	VkBuffer handle;
@@ -2034,23 +2041,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
 #endif // TOGGLE_ENTITIES
 
-#if TOGGLE_TRIANGLE
-		// VulkanCreateGraphicsPipelineTriangle
-		VkPipelineShaderStageCreateInfo triangle_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		VkPipelineShaderStageCreateInfo triangle_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/triangle_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VkPipelineShaderStageCreateInfo triangle_shader_stages[] = {
-			triangle_vert,
-			triangle_frag,
-		};
-		VkPipelineVertexInputStateCreateInfo triangle_vertex_input_info = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-		};
-		VkGraphicsPipelineCreateInfo triangle_graphics_pipeline_info = graphics_pipline_info;
-		triangle_graphics_pipeline_info.stageCount = SDL_arraysize(triangle_shader_stages);
-		triangle_graphics_pipeline_info.pStages = triangle_shader_stages;
-		triangle_graphics_pipeline_info.pVertexInputState = &triangle_vertex_input_info;
-#endif // TOGGLE_TRIANGLE
-
 		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = {
 #if TOGGLE_TILES
 			tile_graphics_pipeline_info,
@@ -2058,17 +2048,10 @@ int32_t main(int32_t argc, char* argv[]) {
 #if TOGGLE_ENTITIES
 			entity_graphics_pipeline_info,
 #endif
-#if TOGGLE_TRIANGLE
-			triangle_graphics_pipeline_info,
-#endif
 		};
 
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, ctx->vk.pipeline_cache, SDL_arraysize(infos), infos, NULL, ctx->vk.pipelines));
 
-#if TOGGLE_TRIANGLE
-		vkDestroyShaderModule(ctx->vk.device, triangle_frag.module, NULL);
-		vkDestroyShaderModule(ctx->vk.device, triangle_vert.module, NULL);
-#endif
 #if TOGGLE_ENTITIES
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
@@ -3012,13 +2995,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 			}
 #endif // TOGGLE_ENTITIES
-#if TOGGLE_TRIANGLE
-			// DrawTriangle
-			{
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[2]);
-				vkCmdDraw(cb, 3, 1, 0, 0);
-			}
-#endif // TOGGLE_TRIANGLE
 
 			SPALL_BUFFER_END();
 		}
