@@ -3,8 +3,8 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 0
-#define TOGGLE_ENTITIES 1
+#define TOGGLE_TILES 1
+#define TOGGLE_ENTITIES 0
 #define TOGGLE_REPLAY_FRAMES 0
 
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
@@ -2908,17 +2908,15 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanBeginRenderPass
 			{
-				VkClearValue clear_values[] = {
-					{ .color = (VkClearColorValue){0.0f, 0.0f, 0.0f, 1.0f} },
-				};
+				VkClearValue clear_value = {0};
 
 				VkRenderPassBeginInfo info = { 
 					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 					.renderPass = ctx->vk.render_pass,
 					.framebuffer = ctx->vk.framebuffers[image_idx],
 					.renderArea = { .extent = ctx->vk.swapchain_info.imageExtent },
-					.clearValueCount = SDL_arraysize(clear_values),
-					.pClearValues = clear_values,
+					.clearValueCount = 1,
+					.pClearValues = &clear_value,
 				};
 				vkCmdBeginRenderPass(cb, &info, VK_SUBPASS_CONTENTS_INLINE);
 			}
