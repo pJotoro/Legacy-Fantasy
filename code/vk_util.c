@@ -89,6 +89,7 @@ function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
 }
 
 function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) {
+	SDL_assert(src_size > 0);
 	SDL_assert(buffer->mapped_memory);
 	SDL_assert(buffer->write_offset + src_size <= buffer->size);
 

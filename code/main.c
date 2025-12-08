@@ -3,19 +3,18 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 1
-#define TOGGLE_ENTITIES 0
+#define TOGGLE_TILES 0
+#define TOGGLE_ENTITIES 1
 #define TOGGLE_REPLAY_FRAMES 0
-
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
 #error Either tiles or entities may be toggled off, but not both.
 #endif
-
 #if TOGGLE_REPLAY_FRAMES && !TOGGLE_ENTITIES
 #error If replay frames are toggled, entities must also be toggled.
 #endif
 
 #define TOGGLE_FULLSCREEN 1
+#define TOGGLE_UNIT_TESTS 0
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -42,10 +41,6 @@ typedef struct Rect {
 	ivec2s max;
 } Rect;
 
-typedef struct SpriteLayer {
-	char* name;
-} SpriteLayer;
-
 typedef struct SpriteCell {
 	void* dst_buf; // invalid after copied to staging buffer
 
@@ -68,7 +63,6 @@ typedef struct SpriteDesc {
 	SDL_IOStream* fs; // invalid after sprite has been loaded
 
 	ivec2s size;
-	SpriteLayer* layers; size_t num_layers;
 	SpriteFrame* frames; size_t num_frames;
 	
 	VkImage vk_image;
@@ -295,7 +289,6 @@ typedef struct Context {
 	Level* levels; size_t num_levels;
 	size_t level_idx;
 
-	SpriteLayer* sprite_layers; size_t num_sprite_layers;
 	SpriteCell* sprite_cells; size_t num_sprite_cells;
 	SpriteFrame* sprite_frames; size_t num_sprite_frames;
 
@@ -559,6 +552,8 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 			sd->num_frames = header.num_frames;
 			ctx->num_sprite_frames += sd->num_frames;
 
+			size_t layer_idx = 0;
+
 			int64_t fs_pos = SDL_TellIO(sd->fs);
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 				ASE_Frame frame;
@@ -567,6 +562,39 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 				// Would mean this aseprite file is very old.
 				SDL_assert(frame.num_chunks != 0);
+
+				int64_t fs_pos = SDL_TellIO(sd->fs);
+
+				size_t hitbox_layer_idx = UINT64_MAX;
+				size_t origin_layer_idx = UINT64_MAX; 
+
+				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+					ASE_ChunkHeader chunk_header;
+					SDL_ReadStructChecked(sd->fs, &chunk_header);
+					if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+
+					size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+					void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
+					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
+
+					if (chunk_header.type == ASE_ChunkType_Layer) {
+						ASE_LayerChunk* chunk = raw_chunk;
+
+						ASE_LayerChunk* chunk = raw_chunk;
+						SpriteLayer sprite_layer = {0};
+						if (chunk->layer_name.len > 0) {
+							sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
+							SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+						}
+						ctx->sprite_layers[sprite_layer_idx++] = sprite_layer;
+
+						layer_idx += 1;
+					}
+
+					StackFree(&ctx->stack, raw_chunk);
+				}
+
+				SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
@@ -578,10 +606,6 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 					SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
 					switch (chunk_header.type) {
-					case ASE_ChunkType_Layer: {
-						sd->num_layers += 1;
-						ctx->num_sprite_layers += 1;
-					} break;
 					case ASE_ChunkType_Cell: {
 						ctx->num_sprite_cells += 1;
 
@@ -2077,7 +2101,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		*/
 		SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
-		ctx->sprite_layers = ArenaAlloc(&ctx->arena, ctx->num_sprite_layers, SpriteLayer);
 		ctx->sprite_frames = ArenaAlloc(&ctx->arena, ctx->num_sprite_frames, SpriteFrame);
 		ctx->sprite_cells = ArenaAlloc(&ctx->arena, ctx->num_sprite_cells, SpriteCell);
 
@@ -2090,7 +2113,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
 			SpriteDesc* sd = &ctx->sprites[sprite_idx];
-			if (!sd->fs) continue;
+			if (!sd->fs) {
+				SpriteDesc zero_sprite_desc = {0};
+				SDL_assert(SDL_memcmp(sd, &zero_sprite_desc, sizeof(SpriteDesc)) == 0);
+				continue;
+			}
 			SDL_IOStream* fs = sd->fs;
 
 			sd->layers = &ctx->sprite_layers[sprite_layer_idx];
@@ -2104,8 +2131,6 @@ int32_t main(int32_t argc, char* argv[]) {
 				sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
 				sd->frames[frame_idx].cells = &ctx->sprite_cells[sprite_cell_idx];
 				sd->frames[frame_idx].num_cells = 0;
-
-				bool found_hitbox = false;
 
 				for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 					ASE_ChunkHeader chunk_header;
@@ -2139,9 +2164,6 @@ int32_t main(int32_t argc, char* argv[]) {
 						};
 
 						if (SDL_strcmp(sd->layers[cell.layer_idx].name, "Hitbox") == 0) {
-							SDL_assert(!found_hitbox);
-							found_hitbox = true;
-
 							Rect* hitbox = &sd->frames[frame_idx].hitbox;
 							*hitbox = (Rect){
 								.min.x = cell.offset.x,
@@ -2179,6 +2201,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_CloseIO(sd->fs);
 			sd->fs = NULL;
 		}
+		SDL_assert(sprite_frame_idx == ctx->num_sprite_frames);
+		SDL_assert(sprite_layer_idx == ctx->num_sprite_layers);
+		SDL_assert(sprite_cell_idx == ctx->num_sprite_cells);
 
 		// I don't want to use these for the rest of the scope!
 		sprite_frame_idx = UINT64_MAX;
@@ -2206,6 +2231,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 		for (size_t cell_idx = 0; cell_idx < ctx->num_sprite_cells; cell_idx += 1) {
 			SpriteCell* cell = &ctx->sprite_cells[cell_idx];
+			if (cell->size.x == 0 || cell->size.y == 0) {
+				SDL_Log("Fuck");
+				continue;
+			}
 			VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
 			cell->dst_buf = NULL;
 		}
@@ -2222,28 +2251,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		StackFree(&ctx->stack, dst_bufs);
 
+		SDL_assert(ctx->vk.static_staging_buffer.write_offset == ctx->vk.static_staging_buffer.size);
+
 		SPALL_BUFFER_END();
 	}
 
-	// TestSpriteLayers
-	{
-		size_t layer_idx = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
-			if (sd) {
-				for (size_t sprite_layer_idx = 0; 
-					sprite_layer_idx < sd->num_layers && layer_idx < ctx->num_sprite_layers; 
-					++sprite_layer_idx, ++layer_idx) {
-					if (SDL_strcmp(sd->layers[sprite_layer_idx].name, ctx->sprite_layers[layer_idx].name) != 0) {
-						SDL_Log("FAIL: %s != %s", sd->layers[sprite_layer_idx].name, ctx->sprite_layers[layer_idx].name);
-					} else {
-						SDL_Log("SUCCESS: %s", sd->layers[sprite_layer_idx].name);
-					}
-				}
-			}
-		}
-	}
-
+#if TOGGLE_UNIT_TESTS
 	// TestSpriteFrames
 	{
 		size_t frame_idx = 0;
@@ -2281,6 +2294,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 	}
+#endif
 
 	// VulkanCreateImages
 	{
