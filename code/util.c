@@ -111,9 +111,7 @@ function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) {
     if (!(sprite.idx >= 0 && sprite.idx < MAX_SPRITES)) return false;
     SpriteDesc* sd = &ctx->sprites[sprite.idx];
     bool size_check = sd->size.x != 0 && sd->size.y != 0;
-    bool layers_check = sd->num_layers > 0 && sd->num_layers < (uint16_t)ctx->num_sprite_layers;
-    bool frames_check = sd->num_frames > 0 && sd->num_frames < (uint16_t)ctx->num_sprite_frames;
-    return size_check && layers_check && frames_check;
+    return size_check;
 }
 
 function FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) {

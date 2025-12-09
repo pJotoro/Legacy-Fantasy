@@ -42,10 +42,12 @@ typedef struct Rect {
 } Rect;
 
 typedef struct SpriteCell {
+	void* dst_buf; // only valid in LoadSprite
+
 	ivec2s offset;
 	ivec2s size;
 	int32_t z_idx;
-	size_t layer_idx;
+	uint32_t layer_idx;
 } SpriteCell;
 
 typedef struct SpriteFrame {
@@ -492,144 +494,120 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return true;
 }
 
-function void LoadSprite(Context* ctx, SpriteDesc* sd) {
-	ASE_Header header;
-	SDL_ReadStructChecked(sd->fs, &header);
+function void LoadSprite(Context* ctx, char* path) {
+	SDL_CHECK(SDL_GetPathInfo(path, NULL));
+
+	Sprite sprite = GetSprite(path);
+	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SDL_assert(!sd && "Collision");
+	sd = &ctx->sprites[sprite.idx];
+
+	// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
+	{
+		size_t buf_size = SDL_strlen(path) + 1;
+		sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
+		SDL_strlcpy(sd->name, path, buf_size);
+	}
+
+	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); SDL_CHECK(fs);
+
+	ASE_Header header; 
+	SDL_ReadStructChecked(fs, &header);
 
 	SDL_assert(header.magic_number == 0xA5E0);
 	SDL_assert(header.color_depth == 32);
 	SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
-	
-	sd->size.x = (int32_t)header.w;
-	sd->size.y = (int32_t)header.h;
 	SDL_assert(header.grid_x == 0);
 	SDL_assert(header.grid_y == 0);
 	SDL_assert(header.grid_w == 0 || header.grid_w == 16);
 	SDL_assert(header.grid_h == 0 || header.grid_h == 16);
 
+	sd->size.x = (int32_t)header.w;
+	sd->size.y = (int32_t)header.h;
+
 	sd->num_frames = header.num_frames;
 	sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
 
-	size_t layer_idx = 0;
+	// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame before anything else.
+	// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
+	uint16_t layer_idx = 0;
+	uint16_t hitbox_layer_idx = UINT16_MAX;
+	uint16_t origin_layer_idx = UINT16_MAX;
 
-	int64_t fs_pos = SDL_TellIO(sd->fs);
 	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 		ASE_Frame frame;
-		SDL_ReadStructChecked(sd->fs, &frame);
-		SDL_assert(frame.magic_number == 0xF1FA);
+		SDL_ReadStructChecked(fs, &frame);
 
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.num_chunks != 0);
 
-		int64_t fs_pos = SDL_TellIO(sd->fs);
+		sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
+
+		int64_t fs_pos = SDL_TellIO(fs);
 
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
-			SDL_ReadStructChecked(sd->fs, &chunk_header);
-			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
+			SDL_ReadStruct(fs, &chunk_header);
+			if (chunk_header.size <= sizeof(ASE_ChunkHeader)) continue;
 			size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 			void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-			SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
 
 			switch (chunk_header.type) {
 			case ASE_ChunkType_Layer: {
 				ASE_LayerChunk* chunk = raw_chunk;
-				SpriteLayer sprite_layer = {0};
-				if (chunk->layer_name.len > 0) {
-					sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
-					SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+				SDL_assert(chunk->layer_name.len > 0);
+				char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
+				SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+
+				if (SDL_strcmp(layer_name, "Hitbox") == 0) {
+					SDL_assert(hitbox_layer_idx == UINT16_MAX);
+					hitbox_layer_idx = layer_idx;
+				} else if (SDL_strcmp(layer_name, "Origin") == 0) {
+					SDL_assert(origin_layer_idx == UINT16_MAX);
+					origin_layer_idx = layer_idx;					
 				}
-				ctx->sprite_layers[sprite_layer_idx++] = sprite_layer;
-
 				layer_idx += 1;
+
+				StackFree(&ctx->stack, layer_name);
 			} break;
 
 			case ASE_ChunkType_Cell: {
-				ctx->num_sprite_cells += 1;
-
 				ASE_CellChunk* chunk = raw_chunk;
-				SDL_assert(chunk->type == ASE_CellType_CompressedImage);
-				ctx->vk.static_staging_buffer.size += chunk->compressed_image.w*chunk->compressed_image.h*sizeof(uint32_t);
+				if (chunk->layer_idx == hitbox_layer_idx) {
+					sd->frames[frame_idx].hitbox = (Rect){
+						.min.x = (int32_t)chunk->x,
+						.min.y = (int32_t)chunk->y,
+						.max.x = (int32_t)(chunk->x + chunk->compressed_image.w - 1), // HACK: Shouldn't have to subtract 1.
+						.max.y = (int32_t)(chunk->y + chunk->compressed_image.h - 1), // HACK: Shouldn't have to subtract 1.
+					};
+				} else if (chunk->layer_idx == origin_layer_idx) {
+					sd->frames[frame_idx].origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
+				} else {
+					sd->frames[frame_idx].num_cells += 1;
+					SDL_assert(chunk->type == ASE_CellType_CompressedImage);
+				}
 			} break;
 			}
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
 
-		SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
+		if (sd->frames[frame_idx].num_cells > 0) {
+			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
 
-		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-			ASE_ChunkHeader chunk_header;
-			SDL_ReadStructChecked(sd->fs, &chunk_header);
-			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
-			size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-			void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-			SDL_ReadIOChecked(sd->fs, raw_chunk, raw_chunk_size);
-
-			switch (chunk_header.type) {
-			case ASE_ChunkType_Cell: {
-				ctx->num_sprite_cells += 1;
-
-				ASE_CellChunk* chunk = raw_chunk;
-				SDL_assert(chunk->type == ASE_CellType_CompressedImage);
-				ctx->vk.static_staging_buffer.size += chunk->compressed_image.w*chunk->compressed_image.h*sizeof(uint32_t);
-			} break;
-			}
-
-			StackFree(&ctx->stack, raw_chunk);
-		}
-	}
-	SDL_CHECK(SDL_SeekIO(sd->fs, fs_pos, SDL_IO_SEEK_SET) != -1);
-
-
-
-	// TODO:
-
-	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
-		SpriteDesc* sd = &ctx->sprites[sprite_idx];
-		if (!sd->fs) {
-			SpriteDesc zero_sprite_desc = {0};
-			SDL_assert(SDL_memcmp(sd, &zero_sprite_desc, sizeof(SpriteDesc)) == 0);
-			continue;
-		}
-		SDL_IOStream* fs = sd->fs;
-
-		sd->layers = &ctx->sprite_layers[sprite_layer_idx];
-		sd->frames = &ctx->sprite_frames[sprite_frame_idx];
-		sprite_frame_idx += sd->num_frames;
-
-		for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-			ASE_Frame frame;
-			SDL_ReadStruct(fs, &frame);
-
-			sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
-			sd->frames[frame_idx].cells = &ctx->sprite_cells[sprite_cell_idx];
-			sd->frames[frame_idx].num_cells = 0;
-
+			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 				ASE_ChunkHeader chunk_header;
 				SDL_ReadStruct(fs, &chunk_header);
-				if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-
+				if (chunk_header.size <= sizeof(ASE_ChunkHeader)) continue;
 				size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 				void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-				SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
 
-				switch (chunk_header.type) {
-				case ASE_ChunkType_Layer: {
-					ASE_LayerChunk* chunk = raw_chunk;
-					SpriteLayer sprite_layer = {0};
-					if (chunk->layer_name.len > 0) {
-						sprite_layer.name = ArenaAlloc(&ctx->arena, chunk->layer_name.len + 1, char);
-						SDL_strlcpy(sprite_layer.name, (const char*)(chunk+1), chunk->layer_name.len + 1);
-					}
-					ctx->sprite_layers[sprite_layer_idx++] = sprite_layer;
-				} break;
+				ASE_CellChunk* chunk = raw_chunk;
+				if (chunk_header.type == ASE_ChunkType_Cell && 
+					chunk->layer_idx != hitbox_layer_idx && 
+					chunk->layer_idx != origin_layer_idx) {
 
-				case ASE_ChunkType_Cell: {
-					ASE_CellChunk* chunk = raw_chunk;
 					SpriteCell cell = {
 						.offset.x = chunk->x,
 						.offset.y = chunk->y,
@@ -639,59 +617,34 @@ function void LoadSprite(Context* ctx, SpriteDesc* sd) {
 						.size.y = (int32_t)chunk->compressed_image.h,
 					};
 
-					if (SDL_strcmp(sd->layers[cell.layer_idx].name, "Hitbox") == 0) {
-						Rect* hitbox = &sd->frames[frame_idx].hitbox;
-						*hitbox = (Rect){
-							.min.x = cell.offset.x,
-							.max.x = cell.offset.x + cell.size.x - 1, // HACK: Shouldn't have to subtract 1.
-							.min.y = cell.offset.y,
-							.max.y = cell.offset.y + cell.size.y - 1, // HACK: Shouldn't have to subtract 1.
-						};
-					} else if (SDL_strcmp(sd->layers[cell.layer_idx].name, "Origin") == 0) {
-						sd->frames[frame_idx].origin = cell.offset;
-					} else {
-						size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
-						cell.dst_buf = dst_bufs + dst_bufs_offset;
+					size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
+					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
 
-						// It's the zero-sized array at the end of ASE_CellChunk.
-						size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
-						void* src_buf = (void*)((&chunk->compressed_image.h)+1);
+					// It's the zero-sized array at the end of ASE_CellChunk.
+					size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
+					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
 
-						SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
-						size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
-						SPALL_BUFFER_END();
-						SDL_assert(res > 0);
-
-						dst_bufs_offset += dst_buf_size;
-
-						sd->frames[frame_idx].num_cells += 1;
-						ctx->sprite_cells[sprite_cell_idx++] = cell;
-					}
-				} break;
+					SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
+					size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
+					SPALL_BUFFER_END();
+					SDL_assert(res > 0);
 				}
-			
+
 				StackFree(&ctx->stack, raw_chunk);
 			}
+
+			// Makes the cells draw in the correct order.
+			SDL_qsort(
+				&sd->frames[frame_idx].cells, 
+				sd->frames[frame_idx].num_cells, 
+				sizeof(SpriteCell), 
+				(SDL_CompareCallback)CompareSpriteCells);
 		}
-
-		SDL_CloseIO(sd->fs);
-		sd->fs = NULL;
-	}
-	SDL_assert(sprite_frame_idx == ctx->num_sprite_frames);
-	SDL_assert(sprite_layer_idx == ctx->num_sprite_layers);
-	SDL_assert(sprite_cell_idx == ctx->num_sprite_cells);
-
-	// I don't want to use these for the rest of the scope!
-	sprite_frame_idx = UINT64_MAX;
-	sprite_layer_idx = UINT64_MAX;
-	sprite_cell_idx = UINT64_MAX;
-
-	// SortSprites
-	for (size_t frame_idx = 0; frame_idx < ctx->num_sprite_frames; frame_idx += 1) {
-		SpriteFrame* sf = &ctx->sprite_frames[frame_idx];
-		SDL_qsort(sf->cells, sf->num_cells, sizeof(SpriteCell), (SDL_CompareCallback)CompareSpriteCells);
 	}
 
+
+
+	SDL_CloseIO(fs);
 }
 
 function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
@@ -712,31 +665,10 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
 			char* file = files[file_idx];
-
 			char sprite_path[1024];
 			SDL_CHECK(SDL_snprintf(sprite_path, sizeof(sprite_path), "%s\\%s", dir_path, file) >= 0);
-			SDL_CHECK(SDL_GetPathInfo(sprite_path, NULL));
 
-			Sprite sprite = GetSprite(sprite_path);
-			SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-			SDL_assert(!sd && "Collision");
-			sd = &ctx->sprites[sprite.idx];
-
-			// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
-			{
-				size_t buf_size = SDL_strlen(sprite_path) + 1;
-				sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
-				SDL_strlcpy(sd->name, sprite_path, buf_size);
-			}
-
-			sd->fs = SDL_IOFromFile(sprite_path, "r"); SDL_CHECK(sd->fs);
-
-			LoadSprite(ctx, sd);
-
-			SDL_assert(sd->size.x != 0);
-			SDL_assert(sd->size.y != 0);
-			SDL_assert(sd->num_frames != 0);
-			SDL_assert(sd->num_layers != 0);
+			LoadSprite(ctx, sprite_path);
 		}
 	}
 	
@@ -2215,15 +2147,26 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-		for (size_t cell_idx = 0; cell_idx < ctx->num_sprite_cells; cell_idx += 1) {
-			SpriteCell* cell = &ctx->sprite_cells[cell_idx];
-			if (cell->size.x == 0 || cell->size.y == 0) {
-				SDL_Log("Fuck");
-				continue;
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			if (sd) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
+						SpriteCell* cell = &sd->frames[frame_idx].cells[cell_idx];
+						if (cell->size.x == 0 || cell->size.y == 0) {
+							SDL_Log("Fuck");
+							continue;
+						}
+						
+						VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
+						
+						SDL_free(cell->dst_buf); 
+						cell->dst_buf = NULL;
+					}
+				}
 			}
-			VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
-			cell->dst_buf = NULL;
 		}
+
 #if TOGGLE_TILES
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
@@ -2234,8 +2177,6 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 #endif
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-
-		StackFree(&ctx->stack, dst_bufs);
 
 		SDL_assert(ctx->vk.static_staging_buffer.write_offset == ctx->vk.static_staging_buffer.size);
 
