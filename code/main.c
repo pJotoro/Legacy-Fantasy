@@ -513,8 +513,8 @@ function void LoadSprite(Context* ctx, char* path) {
 
 	ASE_Header header; 
 	SDL_ReadStructChecked(fs, &header);
-
 	SDL_assert(header.magic_number == 0xA5E0);
+
 	SDL_assert(header.color_depth == 32);
 	SDL_assert((header.pixel_w == 0 || header.pixel_w == 1) && (header.pixel_h == 0 || header.pixel_h == 1));
 	SDL_assert(header.grid_x == 0);
@@ -537,6 +537,7 @@ function void LoadSprite(Context* ctx, char* path) {
 	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
+		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.num_chunks != 0);
@@ -551,6 +552,7 @@ function void LoadSprite(Context* ctx, char* path) {
 			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 			size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 			void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
+			SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
 
 			switch (chunk_header.type) {
 			case ASE_ChunkType_Layer: {
@@ -602,6 +604,7 @@ function void LoadSprite(Context* ctx, char* path) {
 				if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 				size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 				void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
+				SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
 
 				ASE_CellChunk* chunk = raw_chunk;
 				if (chunk_header.type == ASE_ChunkType_Cell && 
