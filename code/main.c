@@ -547,8 +547,8 @@ function void LoadSprite(Context* ctx, char* path) {
 
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 			ASE_ChunkHeader chunk_header;
-			SDL_ReadStruct(fs, &chunk_header);
-			if (chunk_header.size <= sizeof(ASE_ChunkHeader)) continue;
+			SDL_ReadStructChecked(fs, &chunk_header);
+			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 			size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 			void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
 
@@ -577,8 +577,8 @@ function void LoadSprite(Context* ctx, char* path) {
 					sd->frames[frame_idx].hitbox = (Rect){
 						.min.x = (int32_t)chunk->x,
 						.min.y = (int32_t)chunk->y,
-						.max.x = (int32_t)(chunk->x + chunk->compressed_image.w - 1), // HACK: Shouldn't have to subtract 1.
-						.max.y = (int32_t)(chunk->y + chunk->compressed_image.h - 1), // HACK: Shouldn't have to subtract 1.
+						.max.x = (int32_t)(chunk->x + chunk->w - 1), // HACK: Shouldn't have to subtract 1.
+						.max.y = (int32_t)(chunk->y + chunk->h - 1), // HACK: Shouldn't have to subtract 1.
 					};
 				} else if (chunk->layer_idx == origin_layer_idx) {
 					sd->frames[frame_idx].origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
@@ -599,7 +599,7 @@ function void LoadSprite(Context* ctx, char* path) {
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 				ASE_ChunkHeader chunk_header;
 				SDL_ReadStruct(fs, &chunk_header);
-				if (chunk_header.size <= sizeof(ASE_ChunkHeader)) continue;
+				if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
 				size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
 				void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
 
@@ -613,8 +613,8 @@ function void LoadSprite(Context* ctx, char* path) {
 						.offset.y = chunk->y,
 						.z_idx = chunk->z_idx,
 						.layer_idx = (size_t)chunk->layer_idx,
-						.size.x = (int32_t)chunk->compressed_image.w,
-						.size.y = (int32_t)chunk->compressed_image.h,
+						.size.x = (int32_t)chunk->w,
+						.size.y = (int32_t)chunk->h,
 					};
 
 					size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
@@ -622,7 +622,7 @@ function void LoadSprite(Context* ctx, char* path) {
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
 					size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
-					void* src_buf = (void*)((&chunk->compressed_image.h)+1);
+					void* src_buf = (void*)((&chunk->h)+1);
 
 					SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
 					size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);

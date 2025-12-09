@@ -53,7 +53,6 @@ typedef struct ASE_Header {
 	uint16_t grid_w;
 	uint16_t grid_h;
 	uint8_t reserved4[84];
-
 } ASE_Header;
 static_assert(sizeof(ASE_Header) == 128);
 
@@ -163,13 +162,11 @@ typedef struct ASE_CellChunk {
 	ASE_CellType type;
 	int16_t z_idx;
 	uint8_t reserved0[5];
-	struct {
-		uint16_t w;
-		uint16_t h;
-	#if 0
-		ASE_Pixel pixels[];
-	#endif
-	} compressed_image;
+	uint16_t w;
+	uint16_t h;
+#if 0
+	ASE_Pixel pixels[];
+#endif
 } ASE_CellChunk;
 
 enum {
