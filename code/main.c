@@ -494,6 +494,16 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return true;
 }
 
+function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk) {
+	ASE_ChunkHeader chunk_header;
+	SDL_ReadStructChecked(fs, &chunk_header);
+	if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
+	size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+	*out_raw_chunk = StackAllocRaw(&stack, raw_chunk_size, alignof(ASE_ChunkHeader));
+	SDL_ReadIOChecked(fs, *out_raw_chunk, raw_chunk_size);
+	return chunk_header.type;
+}
+
 function void LoadSprite(Context* ctx, char* path) {
 	SDL_CHECK(SDL_GetPathInfo(path, NULL));
 
@@ -544,18 +554,13 @@ function void LoadSprite(Context* ctx, char* path) {
 
 		int64_t fs_pos = SDL_TellIO(fs);
 
-		// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else.
+		// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
 		if (frame_idx == 0) {
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-				ASE_ChunkHeader chunk_header;
-				SDL_ReadStructChecked(fs, &chunk_header);
-				if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-				size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-				void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-				SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
-
-				if (chunk_header.type == ASE_ChunkType_Layer) {
+				void* raw_chunk;
+				ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk);
+				if (chunk_type == ASE_ChunkType_Layer) {
 					ASE_LayerChunk* chunk = raw_chunk;
 					SDL_assert(chunk->layer_name.len > 0);
 					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
@@ -579,13 +584,10 @@ function void LoadSprite(Context* ctx, char* path) {
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 		}
 		
+		sd->frames[frame_idx].num_cells = 0;
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-			ASE_ChunkHeader chunk_header;
-			SDL_ReadStructChecked(fs, &chunk_header);
-			if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-			size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-			void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-			SDL_ReadIOChecked(fs, raw_chunk, raw_chunk_size);
+			void* raw_chunk;
+			ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk);
 
 			if (chunk_header.type == ASE_ChunkType_Cell) {
 				ASE_CellChunk* chunk = raw_chunk;
@@ -609,16 +611,13 @@ function void LoadSprite(Context* ctx, char* path) {
 
 		if (sd->frames[frame_idx].num_cells > 0) {
 			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
+			size_t cell_idx = 0;
 
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-				ASE_ChunkHeader chunk_header;
-				SDL_ReadStruct(fs, &chunk_header);
-				if (chunk_header.size == sizeof(ASE_ChunkHeader)) continue;
-				size_t raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-				void* raw_chunk = StackAllocRaw(&ctx->stack, raw_chunk_size, alignof(ASE_ChunkHeader));
-				SDL_ReadIO(fs, raw_chunk, raw_chunk_size);
+				void* raw_chunk;
+				ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk);
 
 				ASE_CellChunk* chunk = raw_chunk;
 				if (chunk_header.type == ASE_ChunkType_Cell && 
@@ -634,7 +633,7 @@ function void LoadSprite(Context* ctx, char* path) {
 						.size.y = (int32_t)chunk->h,
 					};
 
-					size_t dst_buf_size = cell.size.x*cell.size.y*sizeof(uint32_t);
+					size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
 					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
@@ -648,6 +647,8 @@ function void LoadSprite(Context* ctx, char* path) {
 
 					// NOTE: See static staging buffer memory layout.
 					ctx->vk.static_staging_buffer.size += dst_buf_size;
+
+					sd->frames[frame_idx].cells[cell_idx++] = cell;
 				}
 
 				StackFree(&ctx->stack, raw_chunk);
