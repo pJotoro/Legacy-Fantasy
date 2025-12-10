@@ -495,7 +495,7 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 }
 
 function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) {
-	ASE_ChunkHeader chunk_header;
+	ASE_ChunkHeader chunk_header = {0};
 	SDL_ReadStructChecked(fs, &chunk_header);
 	if (chunk_header.size == sizeof(ASE_ChunkHeader)) return chunk_header.type;
 	*out_raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
@@ -558,7 +558,8 @@ function void LoadSprite(Context* ctx, char* path) {
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
 		if (frame_idx == 0) {
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-				void* raw_chunk; size_t raw_chunk_size;
+				void* raw_chunk = NULL; 
+				size_t raw_chunk_size = 0;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 				if (chunk_type == ASE_ChunkType_Layer) {
 					ASE_LayerChunk* chunk = raw_chunk;
@@ -586,7 +587,8 @@ function void LoadSprite(Context* ctx, char* path) {
 		
 		sd->frames[frame_idx].num_cells = 0;
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-			void* raw_chunk; size_t raw_chunk_size;
+			void* raw_chunk = NULL; 
+			size_t raw_chunk_size = 0;
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
 			if (chunk_type == ASE_ChunkType_Cell) {
@@ -616,7 +618,8 @@ function void LoadSprite(Context* ctx, char* path) {
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
-				void* raw_chunk; size_t raw_chunk_size;
+				void* raw_chunk = NULL; 
+				size_t raw_chunk_size = 0;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
 				ASE_CellChunk* chunk = raw_chunk;
