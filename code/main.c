@@ -673,9 +673,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
 
-	// dirname\fname\file
-
-	char dir_path[1024];
+	char dir_path[1024]; // dirname\fname
 	SDL_CHECK(SDL_snprintf(dir_path, sizeof(dir_path), "%s%s", dirname, fname) >= 0);
 
 	int32_t num_files;
@@ -687,7 +685,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
 			char* file = files[file_idx];
-			char sprite_path[1024];
+			char sprite_path[1024]; // dirname\fname\file
 			SDL_CHECK(SDL_snprintf(sprite_path, sizeof(sprite_path), "%s\\%s", dir_path, file) >= 0);
 
 			LoadSprite(ctx, sprite_path);
