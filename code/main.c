@@ -543,6 +543,9 @@ function void LoadSprite(Context* ctx, char* path) {
 	uint16_t origin_layer_idx = UINT16_MAX;
 
 	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+		// NOTE: This shouldn't really be needed, but for some reason it is. ArenaAlloc should already zero out the memory.
+		sd->frames[frame_idx] = (SpriteFrame){0};
+
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
@@ -585,7 +588,6 @@ function void LoadSprite(Context* ctx, char* path) {
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 		}
 		
-		sd->frames[frame_idx].num_cells = 0;
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
 			void* raw_chunk = NULL; 
 			size_t raw_chunk_size = 0;
@@ -610,6 +612,7 @@ function void LoadSprite(Context* ctx, char* path) {
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
+		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 
 		if (sd->frames[frame_idx].num_cells > 0) {
 			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
