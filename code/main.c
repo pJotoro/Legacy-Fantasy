@@ -102,10 +102,10 @@ enum {
 };
 typedef uint32_t EntityState;
 
-typedef struct EntityInstance {
+typedef struct Instance {
 	Rect rect;
 	uint32_t anim_frame_idx;
-} EntityInstance;
+} Instance;
 
 typedef struct Entity {
 	Anim anim;
@@ -2089,7 +2089,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		{
 			{
 				.binding = 0,
-				.stride = sizeof(EntityInstance),
+				.stride = sizeof(Instance),
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
@@ -2098,13 +2098,13 @@ int32_t main(int32_t argc, char* argv[]) {
 				.location = 0,
 				.binding = 0,
 				.format = VK_FORMAT_R32G32B32A32_SINT,
-				.offset = offsetof(EntityInstance, rect),
+				.offset = offsetof(Instance, rect),
 			},
 			{
 				.location = 1,
 				.binding = 0,
 				.format = VK_FORMAT_R32_UINT,
-				.offset = offsetof(EntityInstance, anim_frame_idx),
+				.offset = offsetof(Instance, anim_frame_idx),
 			},
 		};
 		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
@@ -2443,7 +2443,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDeviceSize size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_entities*sizeof(EntityInstance);
+			size += level->num_entities*sizeof(Instance)*64; // TODO: Find a better way to determine the size!
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
@@ -2461,7 +2461,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 #if TOGGLE_ENTITIES
-			size += level->num_entities*sizeof(EntityInstance);
+			size += level->num_entities*sizeof(Instance)*64; // TODO: Find a better way to determine the size!
 #endif
 #if TOGGLE_TILES
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2682,11 +2682,10 @@ int32_t main(int32_t argc, char* argv[]) {
 				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
 			}
-			EntityInstance* instances = StackAlloc(&ctx->stack, num_instances, EntityInstance);
+			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
 			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
 				Entity* entity = &entities[entity_idx];
 				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				ivec2s origin = GetSpriteOrigin(ctx, entities[entity_idx].anim.sprite, entities[entity_idx].anim.frame_idx, entities[entity_idx].dir);
 				size_t base_frame_idx = 0;
 				for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
 					base_frame_idx += sd->frames[frame_idx].num_cells;
@@ -2695,12 +2694,14 @@ int32_t main(int32_t argc, char* argv[]) {
 					size_t cell_idx = 0; 
 					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
 					++cell_idx, ++instance_idx) {
+					ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
+					ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
 					instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
-					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, sd->size);
+					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
 					instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
 				}			
 			}
-			VulkanCopyBuffer(num_entities * sizeof(EntityInstance), instances, &ctx->vk.dynamic_staging_buffer);
+			VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
 			StackFree(&ctx->stack, instances);
 
 			SPALL_BUFFER_END();
