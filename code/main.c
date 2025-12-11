@@ -2670,41 +2670,42 @@ int32_t main(int32_t argc, char* argv[]) {
 #endif
 		}
 		
-		// VulkanCopyEntitiesToDynamicStagingBuffer
+		// VulkanCopyInstancesToDynamicStagingBuffer
 #if TOGGLE_ENTITIES
+		//size_t num_instances;
 		{
-			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
+			// SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
 
-			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
-			size_t num_instances = 0;
-			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
-				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
-			}
-			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
-			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
-				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				size_t base_frame_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
-					base_frame_idx += sd->frames[frame_idx].num_cells;
-				}
-				for (
-					size_t cell_idx = 0; 
-					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
-					++cell_idx, ++instance_idx) {
-					ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
-					ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
-					instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
-					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
-					instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
-				}			
-			}
-			VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
-			StackFree(&ctx->stack, instances);
+			// size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			// num_instances = 0;
+			// for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
+			// 	Entity* entity = &entities[entity_idx];
+			// 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+			// 	num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+			// }
+			// Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
+			// for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
+			// 	Entity* entity = &entities[entity_idx];
+			// 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+			// 	size_t base_frame_idx = 0;
+			// 	for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
+			// 		base_frame_idx += sd->frames[frame_idx].num_cells;
+			// 	}
+			// 	for (
+			// 		size_t cell_idx = 0; 
+			// 		cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
+			// 		++cell_idx, ++instance_idx) {
+			// 		ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
+			// 		ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
+			// 		instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
+			// 		instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
+			// 		instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
+			// 	}			
+			// }
+			// VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
+			// StackFree(&ctx->stack, instances);
 
-			SPALL_BUFFER_END();
+			// SPALL_BUFFER_END();
 		}
 #endif
 
@@ -2952,31 +2953,35 @@ int32_t main(int32_t argc, char* argv[]) {
 			// DrawEntities
 			{
 				// HACK: Really this should be 1, not TOGGLE_TILES.
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
+				//vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
 				
 				// DrawPlayer
-				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
-				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-				vkCmdDraw(cb, 6, 1, 0, 0);
+				// SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
+				// vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
+				// size_t num_instances_player = sd->frames[ctx->levels[ctx->level_idx].entities[0].anim.frame_idx].num_cells;
+				// vkCmdDraw(cb, 6, 0, 0, (uint32_t)num_instances_player);
 
 				// DrawEnemies
 				// TODO: Sort the enemies every frame so that way, as few calls of vkCmdBindDescriptorSets are made as possible.
-				size_t num_entities = ctx->levels[ctx->level_idx].num_entities - 1;
-				size_t first_instance = 1;
-				while (num_entities > 0) {
-					SDL_assert(first_instance < ctx->levels[ctx->level_idx].num_entities);
-					Sprite sprite = ctx->levels[ctx->level_idx].entities[first_instance].anim.sprite;
-					size_t num_instances = 1;
-					while (num_instances < num_entities && SpritesEqual(sprite, ctx->levels[ctx->level_idx].entities[first_instance+num_instances].anim.sprite)) {
-						num_instances += 1;
-					}
-					sd = GetSpriteDesc(ctx, sprite);
-					vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-					vkCmdDraw(cb, 6, (uint32_t)num_instances, 0, (uint32_t)first_instance);
-					num_entities -= num_instances;
-					SDL_assert(num_entities < ctx->levels[ctx->level_idx].num_entities);
-					first_instance += num_instances;
-				}
+				// See VulkanCopyInstancesToDynamicStagingBuffer to see how num_instances was defined.
+				// num_instances -= num_instances_player;
+				// size_t first_instance = num_instances_player;
+				// size_t entity_idx = 0;
+				// while (num_instances > 0) {
+				// 	SDL_assert(first_instance < num_instances);
+				// 	Sprite sprite = ctx->levels[ctx->level_idx].entities[entity_idx].anim.sprite;
+				// 	size_t num_entities = 1;
+				// 	while (entity_idx < num_entities && SpritesEqual(sprite, ctx->levels[ctx->level_idx].entities[entity_idx].anim.sprite)) {
+				// 		num_entities += 1;
+				// 	}
+
+				// 	sd = GetSpriteDesc(ctx, sprite);
+				// 	vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
+				// 	vkCmdDraw(cb, 6, (uint32_t)num_instances, 0, (uint32_t)first_instance);
+				// 	num_entities -= num_instances;
+				// 	SDL_assert(num_entities < ctx->levels[ctx->level_idx].num_entities);
+				// 	first_instance += num_instances;
+				// }
 			}
 #endif // TOGGLE_ENTITIES
 
