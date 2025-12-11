@@ -2629,22 +2629,20 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (!paused) {
 			// UpdateGame
 #if TOGGLE_ENTITIES
-			Entity* player = GetPlayer(ctx);
-			UpdateAnim(ctx, &player->anim, true);
-			// {
-			// 	SPALL_BUFFER_BEGIN_NAME("UpdateGame");
+			{
+				SPALL_BUFFER_BEGIN_NAME("UpdateGame");
 
-			// 	UpdatePlayer(ctx);
-			// 	size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-			// 	for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
-			// 		Entity* enemy = &enemies[enemy_idx];
-			// 		if (enemy->type == EntityType_Boar) {
-			// 			UpdateBoar(ctx, enemy);
-			// 		}
-			// 	}
+				UpdatePlayer(ctx);
+				size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
+				for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+					Entity* enemy = &enemies[enemy_idx];
+					if (enemy->type == EntityType_Boar) {
+						UpdateBoar(ctx, enemy);
+					}
+				}
 
-			// 	SPALL_BUFFER_END();
-			// }
+				SPALL_BUFFER_END();
+			}
 #endif
 
 #if TOGGLE_REPLAY_FRAMES
