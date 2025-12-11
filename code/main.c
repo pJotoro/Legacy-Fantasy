@@ -2208,9 +2208,9 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 		}
 #endif
-		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		SDL_assert(ctx->vk.static_staging_buffer.write_offset == ctx->vk.static_staging_buffer.size);
+		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		SPALL_BUFFER_END();
 	}
