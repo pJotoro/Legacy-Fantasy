@@ -2691,7 +2691,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				ivec2s player_origin = GetSpriteOrigin(ctx, player->anim.sprite, player->anim.frame_idx, player->dir);
 				ivec2s cell_origin = sd->frames[player->anim.frame_idx].cells[i].offset;
 				ivec2s cell_size = sd->frames[player->anim.frame_idx].cells[i].size;
-				ivec2s cell_pos = glms_ivec2_sub(glms_ivec2_sub(player->pos, cell_origin), player_origin);
+				ivec2s cell_pos = glms_ivec2_sub(glms_ivec2_add(player->pos, cell_origin), player_origin);
 				instance->rect.min = cell_pos;
 				instance->rect.max = glms_ivec2_add(cell_pos, cell_size);
 				instance->anim_frame_idx = (uint32_t)(base_frame_idx + i);
