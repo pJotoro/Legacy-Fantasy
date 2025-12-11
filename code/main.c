@@ -1344,7 +1344,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (dst.x == -1 || dst.y == -1) continue;
 					Level* level = GetCurrentLevel(ctx); // TODO
 					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
-					SDL_assert(tile_idx < tile_layer->num_tiles);
+					SDL_assert(tile_idx < (size_t)(level->size.x*level->size.y));
 					level->tiles[tile_idx] = true;
 				}
 				break_all = true;
