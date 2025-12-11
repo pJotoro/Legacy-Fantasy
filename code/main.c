@@ -639,6 +639,7 @@ function void LoadSprite(Context* ctx, char* path) {
 						.size.y = (int32_t)chunk->h,
 					};
 
+					SDL_assert(cell.size.x != 0 && cell.size.y != 0);
 					size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
 					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
 
