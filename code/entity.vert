@@ -7,7 +7,7 @@ layout (location = 0) out vec2 out_texture_pos;
 layout (location = 1) flat out uint out_frame_idx;
 
 void main() {
-    ivec2 a[6] = {ivec2(0, 0), ivec2(1, 0), ivec2(1, 1), ivec2(1, 1), ivec2(0, 1), ivec2(0, 0)};
+    ivec2 a[6] = {ivec2(0, 0), ivec2(0, 1), ivec2(1, 1), ivec2(1, 1), ivec2(1, 0), ivec2(0, 0)};
     
     ivec2 pos = in_rect.xy;
     ivec2 size = in_rect.zw - in_rect.xy;
