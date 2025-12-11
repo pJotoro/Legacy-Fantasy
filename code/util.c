@@ -142,7 +142,7 @@ function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align) {
 
 function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) {
 #if 1
-    SDL_assert(size > 0);
+    if (size == 0) return NULL;
 
     // Align 'curr_offset' forward to the specified alignment
     uintptr_t curr_ptr = (uintptr_t)arena->buf + (uintptr_t)arena->curr_offset;
@@ -194,7 +194,7 @@ function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t
 
 function void* StackAllocRaw(Stack* stack, size_t size, size_t align) {
 #if 1
-    SDL_assert(size > 0);
+    if (size == 0) return NULL;
     SDL_assert(IsPowerOf2(align));
 
     uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
