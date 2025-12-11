@@ -2674,10 +2674,33 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// VulkanCopyInstancesToDynamicStagingBuffer
 #if TOGGLE_ENTITIES
-		size_t num_instances;
+		//size_t num_instances;
 		{
 			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
 
+			Entity* player = GetPlayer(ctx);
+			SpriteDesc* sd = GetSpriteDesc(ctx, player->anim.sprite);
+			size_t num_instances = sd->frames[player->anim.frame_idx].num_cells;
+			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
+			size_t base_frame_idx = 0;
+			for (size_t frame_idx = 0; frame_idx < player->anim.frame_idx; frame_idx += 1) {
+				base_frame_idx += sd->frames[frame_idx].num_cells;
+			}
+			for (size_t i = 0; i < sd->frames[player->anim.frame_idx].num_cells; i += 1) {
+				Instance* instance = &instances[i];
+				ivec2s player_origin = GetSpriteOrigin(ctx, player->anim.sprite, player->anim.frame_idx, player->dir);
+				ivec2s cell_origin = sd->frames[player->anim.frame_idx].cells[i].offset;
+				ivec2s cell_size = sd->frames[player->anim.frame_idx].cells[i].size;
+				ivec2s cell_pos = glms_ivec2_sub(glms_ivec2_sub(player->pos, cell_origin), player_origin);
+				instance->rect.min = cell_pos;
+				instance->rect.max = glms_ivec2_add(cell_pos, cell_size);
+				instance->anim_frame_idx = (uint32_t)(base_frame_idx + i);
+			}
+			VulkanCopyBuffer(num_instances * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
+			StackFree(&ctx->stack, instances);
+
+			// TODO: Add this back once rendering the player works again.
+#if 0
 			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
 			num_instances = 0;
 			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
@@ -2708,6 +2731,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 			VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
 			StackFree(&ctx->stack, instances);
+#endif
 
 			SPALL_BUFFER_END();
 		}
