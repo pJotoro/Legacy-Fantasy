@@ -3,7 +3,7 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 1
+#define TOGGLE_TILES 0
 #define TOGGLE_ENTITIES 1
 #define TOGGLE_REPLAY_FRAMES 0
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
@@ -2443,7 +2443,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDeviceSize size = 0;
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
-			size += level->num_entities*sizeof(Instance)*64; // TODO: Find a better way to determine the size!
+			size += level->num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
 		}
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
@@ -2461,7 +2461,7 @@ int32_t main(int32_t argc, char* argv[]) {
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
 			Level* level = &ctx->levels[level_idx];
 #if TOGGLE_ENTITIES
-			size += level->num_entities*sizeof(Instance)*64; // TODO: Find a better way to determine the size!
+			size += level->num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
 #endif
 #if TOGGLE_TILES
 			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
@@ -2672,40 +2672,40 @@ int32_t main(int32_t argc, char* argv[]) {
 		
 		// VulkanCopyInstancesToDynamicStagingBuffer
 #if TOGGLE_ENTITIES
-		//size_t num_instances;
+		size_t num_instances;
 		{
-			// SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
+			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
 
-			// size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
-			// num_instances = 0;
-			// for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
-			// 	Entity* entity = &entities[entity_idx];
-			// 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-			// 	num_instances += sd->frames[entity->anim.frame_idx].num_cells;
-			// }
-			// Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
-			// for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
-			// 	Entity* entity = &entities[entity_idx];
-			// 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-			// 	size_t base_frame_idx = 0;
-			// 	for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
-			// 		base_frame_idx += sd->frames[frame_idx].num_cells;
-			// 	}
-			// 	for (
-			// 		size_t cell_idx = 0; 
-			// 		cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
-			// 		++cell_idx, ++instance_idx) {
-			// 		ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
-			// 		ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
-			// 		instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
-			// 		instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
-			// 		instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
-			// 	}			
-			// }
-			// VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
-			// StackFree(&ctx->stack, instances);
+			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			num_instances = 0;
+			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
+				Entity* entity = &entities[entity_idx];
+				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+			}
+			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
+			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
+				Entity* entity = &entities[entity_idx];
+				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+				size_t base_frame_idx = 0;
+				for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
+					base_frame_idx += sd->frames[frame_idx].num_cells;
+				}
+				for (
+					size_t cell_idx = 0; 
+					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
+					++cell_idx, ++instance_idx) {
+					ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
+					ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
+					instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
+					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
+					instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
+				}			
+			}
+			VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
+			StackFree(&ctx->stack, instances);
 
-			// SPALL_BUFFER_END();
+			SPALL_BUFFER_END();
 		}
 #endif
 
@@ -2953,13 +2953,13 @@ int32_t main(int32_t argc, char* argv[]) {
 			// DrawEntities
 			{
 				// HACK: Really this should be 1, not TOGGLE_TILES.
-				//vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
 				
 				// DrawPlayer
-				// SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
-				// vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-				// size_t num_instances_player = sd->frames[ctx->levels[ctx->level_idx].entities[0].anim.frame_idx].num_cells;
-				// vkCmdDraw(cb, 6, 0, 0, (uint32_t)num_instances_player);
+				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
+				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
+				size_t num_instances_player = sd->frames[ctx->levels[ctx->level_idx].entities[0].anim.frame_idx].num_cells;
+				vkCmdDraw(cb, 6, 0, 0, (uint32_t)num_instances_player);
 
 				// DrawEnemies
 				// TODO: Sort the enemies every frame so that way, as few calls of vkCmdBindDescriptorSets are made as possible.
