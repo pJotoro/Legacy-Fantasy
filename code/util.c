@@ -141,7 +141,7 @@ function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align) {
 }
 
 function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) {
-#if 0
+#if 1
     SDL_assert(size > 0);
 
     // Align 'curr_offset' forward to the specified alignment
@@ -193,12 +193,12 @@ function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t
 }
 
 function void* StackAllocRaw(Stack* stack, size_t size, size_t align) {
-#if 0
+#if 1
     SDL_assert(size > 0);
-    SDL_assert(IsPowerOf2(alignment));
+    SDL_assert(IsPowerOf2(align));
 
     uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
-    size_t padding = CalcPaddingWithHeader(curr_addr, (uintptr_t)alignment, sizeof(StackAllocHeader));
+    size_t padding = CalcPaddingWithHeader(curr_addr, (uintptr_t)align, sizeof(StackAllocHeader));
     SDL_assert(stack->curr_offset + padding + size <= stack->buf_len);
 
     stack->prev_offset = stack->curr_offset; // Store the previous offset
@@ -223,7 +223,7 @@ function void* StackAllocRaw(Stack* stack, size_t size, size_t align) {
 #define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
 
 function void StackFree(Stack* stack, void* ptr) {
-#if 0
+#if 1
     if (ptr) {
         uintptr_t start = (uintptr_t)stack->buf;
         uintptr_t end = start + (uintptr_t)stack->buf_len;
