@@ -2629,20 +2629,22 @@ int32_t main(int32_t argc, char* argv[]) {
 		if (!paused) {
 			// UpdateGame
 #if TOGGLE_ENTITIES
-			{
-				SPALL_BUFFER_BEGIN_NAME("UpdateGame");
+			Entity* player = GetPlayer(ctx);
+			UpdateAnim(ctx, &player->anim, true);
+			// {
+			// 	SPALL_BUFFER_BEGIN_NAME("UpdateGame");
 
-				UpdatePlayer(ctx);
-				size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-				for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
-					Entity* enemy = &enemies[enemy_idx];
-					if (enemy->type == EntityType_Boar) {
-						UpdateBoar(ctx, enemy);
-					}
-				}
+			// 	UpdatePlayer(ctx);
+			// 	size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
+			// 	for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+			// 		Entity* enemy = &enemies[enemy_idx];
+			// 		if (enemy->type == EntityType_Boar) {
+			// 			UpdateBoar(ctx, enemy);
+			// 		}
+			// 	}
 
-				SPALL_BUFFER_END();
-			}
+			// 	SPALL_BUFFER_END();
+			// }
 #endif
 
 #if TOGGLE_REPLAY_FRAMES
@@ -2688,17 +2690,19 @@ int32_t main(int32_t argc, char* argv[]) {
 				Entity* entity = &entities[entity_idx];
 				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 				size_t base_frame_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
+				for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) {
 					base_frame_idx += sd->frames[frame_idx].num_cells;
 				}
 				for (
 					size_t cell_idx = 0; 
 					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
 					++cell_idx, ++instance_idx) {
-					ivec2s origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
-					ivec2s size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
-					instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
-					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, size);
+					ivec2s entity_origin = GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir);
+					ivec2s cell_origin = sd->frames[entity->anim.frame_idx].cells[cell_idx].offset;
+					ivec2s cell_size = sd->frames[entity->anim.frame_idx].cells[cell_idx].size;
+					ivec2s cell_pos = glms_ivec2_sub(glms_ivec2_sub(entity->pos, cell_origin), entity_origin);
+					instances[instance_idx].rect.min = cell_pos;
+					instances[instance_idx].rect.max = glms_ivec2_add(cell_pos, cell_size);
 					instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
 				}			
 			}
@@ -2830,6 +2834,7 @@ int32_t main(int32_t argc, char* argv[]) {
 									.layerCount = 1,
 								},
 								.imageOffset = (VkOffset3D){
+									// TODO: Is this correct?
 									.x = cell->offset.x,
 									.y = cell->offset.y,
 									.z = 0,
@@ -2959,7 +2964,7 @@ int32_t main(int32_t argc, char* argv[]) {
 				SpriteDesc* sd = GetSpriteDesc(ctx, ctx->levels[ctx->level_idx].entities[0].anim.sprite);
 				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 				size_t num_instances_player = sd->frames[ctx->levels[ctx->level_idx].entities[0].anim.frame_idx].num_cells;
-				vkCmdDraw(cb, 6, 0, 0, (uint32_t)num_instances_player);
+				vkCmdDraw(cb, 6, (uint32_t)num_instances_player, 0, 0);
 
 				// DrawEnemies
 				// TODO: Sort the enemies every frame so that way, as few calls of vkCmdBindDescriptorSets are made as possible.
