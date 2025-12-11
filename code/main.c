@@ -2676,14 +2676,29 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
 
 			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
-			EntityInstance* instances = StackAlloc(&ctx->stack, num_entities, EntityInstance);
-			for (size_t i = 0; i < num_entities; i += 1) {
-				SpriteDesc* sd = GetSpriteDesc(ctx, entities[i].anim.sprite);
-				ivec2s origin = GetSpriteOrigin(ctx, entities[i].anim.sprite, entities[i].anim.frame_idx, entities[i].dir);
-				ivec2s size = sd->size;
-				instances[i].rect.min = glms_ivec2_sub(entities[i].pos, origin);
-				instances[i].rect.max = glms_ivec2_add(instances[i].rect.min, size);
-				instances[i].anim_frame_idx = entities[i].anim.frame_idx;
+			size_t num_instances = 0;
+			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) {
+				Entity* entity = &entities[entity_idx];
+				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+			}
+			EntityInstance* instances = StackAlloc(&ctx->stack, num_instances, EntityInstance);
+			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) {
+				Entity* entity = &entities[entity_idx];
+				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+				ivec2s origin = GetSpriteOrigin(ctx, entities[entity_idx].anim.sprite, entities[entity_idx].anim.frame_idx, entities[entity_idx].dir);
+				size_t base_frame_idx = 0;
+				for (size_t frame_idx = 0; frame_idx < entities[entity_idx].anim.frame_idx; frame_idx += 1) {
+					base_frame_idx += sd->frames[frame_idx].num_cells;
+				}
+				for (
+					size_t cell_idx = 0; 
+					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
+					++cell_idx, ++instance_idx) {
+					instances[instance_idx].rect.min = glms_ivec2_sub(entities[entity_idx].pos, origin);
+					instances[instance_idx].rect.max = glms_ivec2_add(instances[instance_idx].rect.min, sd->size);
+					instances[instance_idx].anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
+				}			
 			}
 			VulkanCopyBuffer(num_entities * sizeof(EntityInstance), instances, &ctx->vk.dynamic_staging_buffer);
 			StackFree(&ctx->stack, instances);
