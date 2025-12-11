@@ -655,6 +655,7 @@ function void LoadSprite(Context* ctx, char* path) {
 					// NOTE: See static staging buffer memory layout.
 					ctx->vk.static_staging_buffer.size += dst_buf_size;
 
+					SDL_assert(cell_idx < sd->frames[frame_idx].num_cells);
 					sd->frames[frame_idx].cells[cell_idx++] = cell;
 				}
 
@@ -662,8 +663,9 @@ function void LoadSprite(Context* ctx, char* path) {
 			}
 
 			// Makes the cells draw in the correct order.
+			SDL_assert(frame_idx < sd->num_frames);
 			SDL_qsort(
-				&sd->frames[frame_idx].cells, 
+				sd->frames[frame_idx].cells, 
 				sd->frames[frame_idx].num_cells, 
 				sizeof(SpriteCell), 
 				(SDL_CompareCallback)CompareSpriteCells);
@@ -1318,6 +1320,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 #endif // TOGGLE_ENTITIES
 
+			SDL_assert(level_idx < ctx->num_levels);
 			ctx->levels[level_idx++] = level;
 		}
 		SPALL_BUFFER_END();
@@ -1337,10 +1340,12 @@ int32_t main(int32_t argc, char* argv[]) {
 				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) {
 					size_t src_idx = (int32_t)cJSON_GetNumberValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
+					SDL_assert(src_idx < tile_layer->num_tiles);
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
 					if (dst.x == -1 || dst.y == -1) continue;
 					Level* level = GetCurrentLevel(ctx); // TODO
 					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
+					SDL_assert(tile_idx < level->num_tiles);
 					level->tiles[tile_idx] = true;
 				}
 				break_all = true;
