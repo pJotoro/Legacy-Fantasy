@@ -3,7 +3,7 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 0
+#define TOGGLE_TILES 1
 #define TOGGLE_ENTITIES 1
 #define TOGGLE_REPLAY_FRAMES 0
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
@@ -467,7 +467,6 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 #if TOGGLE_TILES
 function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
-	SDL_assert(sd->num_layers == 1);
 	SDL_assert(sd->num_frames == 1);
 	SDL_assert(sd->frames[0].num_cells == 1);
 	return sd->size;
@@ -1345,7 +1344,7 @@ int32_t main(int32_t argc, char* argv[]) {
 					if (dst.x == -1 || dst.y == -1) continue;
 					Level* level = GetCurrentLevel(ctx); // TODO
 					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
-					SDL_assert(tile_idx < level->num_tiles);
+					SDL_assert(tile_idx < tile_layer->num_tiles);
 					level->tiles[tile_idx] = true;
 				}
 				break_all = true;
