@@ -530,7 +530,6 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	}
 	if (res.max.x <= res.min.x || res.max.y <= res.min.y) return false;
 
-	// TODO: Should we get the origin right after LoadSprites instead?
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
 	res.min = glms_ivec2_sub(res.min, origin);
 	res.max = glms_ivec2_sub(res.max, origin);
@@ -1170,7 +1169,7 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 
 	case EntityState_Fall: 
 	{
-		SetAnimSprite(&boar->anim, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
+		SetAnimSprite(&boar->anim, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
 		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
@@ -3041,15 +3040,7 @@ int32_t main(int32_t argc, char* argv[])
 
 			VulkanCopyBuffer(num_instances * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
 			StackFree(&ctx->stack, instances);
-
-			// TODO: Add this back once rendering the player works again.
-#if 0
 			
-			
-			VulkanCopyBuffer(num_entities * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
-			StackFree(&ctx->stack, instances);
-#endif
-
 			SPALL_BUFFER_END();
 		}
 #endif
@@ -3189,7 +3180,6 @@ int32_t main(int32_t argc, char* argv[])
 								},
 								.imageOffset = (VkOffset3D)
 								{
-									// TODO: Is this correct?
 									.x = cell->offset.x,
 									.y = cell->offset.y,
 									.z = 0,
