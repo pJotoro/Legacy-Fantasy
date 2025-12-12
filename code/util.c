@@ -228,38 +228,36 @@ function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t
 
 function void* StackAllocRaw(Stack* stack, size_t size, size_t align) 
 {
-#if 1
-    if (size == 0) return NULL;
+    void* res = NULL;
+
     SDL_assert(IsPowerOf2(align));
 
     uintptr_t curr_addr = (uintptr_t)stack->buf + (uintptr_t)stack->curr_offset;
     size_t padding = CalcPaddingWithHeader(curr_addr, (uintptr_t)align, sizeof(StackAllocHeader));
     SDL_assert(stack->curr_offset + padding + size <= stack->buf_len);
 
-    stack->prev_offset = stack->curr_offset; // Store the previous offset
-    stack->curr_offset += padding;
+    if (size != 0) 
+    {
+        stack->prev_offset = stack->curr_offset; // Store the previous offset
+        stack->curr_offset += padding;
 
-    uintptr_t next_addr = curr_addr + (uintptr_t)padding;
-    StackAllocHeader* header = (StackAllocHeader*)(next_addr - sizeof(StackAllocHeader));
-    header->padding = padding;
-    header->prev_offset = stack->prev_offset;
+        uintptr_t next_addr = curr_addr + (uintptr_t)padding;
+        StackAllocHeader* header = (StackAllocHeader*)(next_addr - sizeof(StackAllocHeader));
+        header->padding = padding;
+        header->prev_offset = stack->prev_offset;
 
-    stack->curr_offset += size;
+        stack->curr_offset += size;
 
-    return SDL_memset((void*)next_addr, 0, size);
-#else
-    UNUSED(stack);
-    UNUSED(align);
-    void* ptr = SDL_calloc(1, size); SDL_CHECK(ptr);
-    return ptr;
-#endif
+        res = SDL_memset((void*)next_addr, 0, size);
+    }
+
+    return res;
 }
 
 #define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
 
 function void StackFree(Stack* stack, void* ptr) 
 {
-#if 1
     if (ptr) 
     {
         uintptr_t start = (uintptr_t)stack->buf;
@@ -286,10 +284,6 @@ function void StackFree(Stack* stack, void* ptr)
         stack->curr_offset = stack->prev_offset;
         stack->prev_offset = header->prev_offset;
     }
-#else
-    UNUSED(stack);
-    UNUSED(ptr);
-#endif
 }
 
 function void StackFreeAll(Stack* stack) 

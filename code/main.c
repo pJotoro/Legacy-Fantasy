@@ -519,38 +519,50 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
 {
-	SDL_assert(hitbox);
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
-	SDL_assert(frame_idx < sd->num_frames); SpriteFrame* frame = &sd->frames[frame_idx];
-	Rect res = frame->hitbox;
+	SDL_assert(frame_idx < sd->num_frames); 
+	SpriteFrame* frame = &sd->frames[frame_idx];
+	
+	SDL_assert(hitbox);
+	*hitbox = frame->hitbox;
 	if (dir == -1) 
 	{
-		res.min.x = -frame->hitbox.max.x + sd->size.x;
-		res.max.x = -frame->hitbox.min.x + sd->size.x;
+		hitbox->min.x = -frame->hitbox.max.x + sd->size.x;
+		hitbox->max.x = -frame->hitbox.min.x + sd->size.x;
 	}
-	if (res.max.x <= res.min.x || res.max.y <= res.min.y) return false;
+	if (hitbox->max.x > hitbox->min.x && hitbox->max.y > hitbox->min.y) 
+	{
+		ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
+		hitbox->min = glms_ivec2_sub(hitbox->min, origin);
+		hitbox->max = glms_ivec2_sub(hitbox->max, origin);
+		res = true;
+	}
 
-	ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
-	res.min = glms_ivec2_sub(res.min, origin);
-	res.max = glms_ivec2_sub(res.max, origin);
-
-	*hitbox = res;
-	return true;
+	SPALL_BUFFER_END();
+	return res;
 }
 
 function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) 
 {
 	ASE_ChunkHeader chunk_header = {0};
 	SDL_ReadStructChecked(fs, &chunk_header);
-	if (chunk_header.size == sizeof(ASE_ChunkHeader)) return chunk_header.type;
-	*out_raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
-	*out_raw_chunk = StackAllocRaw(stack, *out_raw_chunk_size, alignof(ASE_ChunkHeader));
-	SDL_ReadIOChecked(fs, *out_raw_chunk, *out_raw_chunk_size);
+	if (chunk_header.size != sizeof(ASE_ChunkHeader))
+	{
+		*out_raw_chunk_size = chunk_header.size - sizeof(ASE_ChunkHeader);
+		*out_raw_chunk = StackAllocRaw(stack, *out_raw_chunk_size, alignof(ASE_ChunkHeader));
+		SDL_ReadIOChecked(fs, *out_raw_chunk, *out_raw_chunk_size);
+	}
+
 	return chunk_header.type;
 }
 
 function void LoadSprite(Context* ctx, char* path) 
 {
+	SPALL_BUFFER_BEGIN();
+
 	SDL_CHECK(SDL_GetPathInfo(path, NULL));
 
 	Sprite sprite = GetSprite(path);
@@ -560,15 +572,26 @@ function void LoadSprite(Context* ctx, char* path)
 
 	// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
 	{
+		SPALL_BUFFER_BEGIN_NAME("SDL_strlen");
 		size_t buf_size = SDL_strlen(path) + 1;
+		SPALL_BUFFER_END();
+		SPALL_BUFFER_BEGIN_NAME("ArenaAllocRaw");
 		sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
+		SPALL_BUFFER_END();
+		SPALL_BUFFER_BEGIN_NAME("SDL_strlcpy");
 		SDL_strlcpy(sd->name, path, buf_size);
+		SPALL_BUFFER_END();
 	}
 
-	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); SDL_CHECK(fs);
+	SPALL_BUFFER_BEGIN_NAME("SDL_IOFromFile");
+	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); 
+	SPALL_BUFFER_END();
+	SDL_CHECK(fs);
 
 	ASE_Header header; 
+	SPALL_BUFFER_BEGIN_NAME("SDL_ReadStructChecked");
 	SDL_ReadStructChecked(fs, &header);
+	SPALL_BUFFER_END();
 	SDL_assert(header.magic_number == 0xA5E0);
 
 	SDL_assert(header.color_depth == 32);
@@ -582,7 +605,9 @@ function void LoadSprite(Context* ctx, char* path)
 	sd->size.y = (int32_t)header.h;
 
 	sd->num_frames = header.num_frames;
+	SPALL_BUFFER_BEGIN_NAME("ArenaAlloc");
 	sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
+	SPALL_BUFFER_END();
 
 	uint16_t layer_idx = 0;
 	uint16_t hitbox_layer_idx = UINT16_MAX;
@@ -594,7 +619,9 @@ function void LoadSprite(Context* ctx, char* path)
 		sd->frames[frame_idx] = (SpriteFrame){0};
 
 		ASE_Frame frame;
+		SPALL_BUFFER_BEGIN_NAME("SDL_ReadStructChecked");
 		SDL_ReadStructChecked(fs, &frame);
+		SPALL_BUFFER_END();
 		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
@@ -602,7 +629,9 @@ function void LoadSprite(Context* ctx, char* path)
 
 		sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
 
+		SPALL_BUFFER_BEGIN_NAME("SDL_TellIO");
 		int64_t fs_pos = SDL_TellIO(fs);
+		SPALL_BUFFER_END();
 
 		// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
@@ -612,14 +641,23 @@ function void LoadSprite(Context* ctx, char* path)
 			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
+				SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+				SPALL_BUFFER_END();
 				if (chunk_type == ASE_ChunkType_Layer) 
 				{
 					ASE_LayerChunk* chunk = raw_chunk;
 					SDL_assert(chunk->layer_name.len > 0);
-					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
-					SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 
+					SPALL_BUFFER_BEGIN_NAME("StackAlloc");
+					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
+					SPALL_BUFFER_END();
+
+					SPALL_BUFFER_BEGIN_NAME("SDL_strlcpy");
+					SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
+					SPALL_BUFFER_END();
+
+					SPALL_BUFFER_BEGIN_NAME("SDL_strcmp");
 					if (SDL_strcmp(layer_name, "Hitbox") == 0) 
 					{
 						SDL_assert(hitbox_layer_idx == UINT16_MAX);
@@ -630,22 +668,31 @@ function void LoadSprite(Context* ctx, char* path)
 						SDL_assert(origin_layer_idx == UINT16_MAX);
 						origin_layer_idx = layer_idx;					
 					}
+					SPALL_BUFFER_END();
 					layer_idx += 1;
 
+					SPALL_BUFFER_BEGIN_NAME("StackFree");
 					StackFree(&ctx->stack, layer_name);
+					SPALL_BUFFER_END();
 				}
 
+				SPALL_BUFFER_BEGIN_NAME("StackFree");
 				StackFree(&ctx->stack, raw_chunk);
+				SPALL_BUFFER_END();
 			}
 
+			SPALL_BUFFER_BEGIN_NAME("SDL_SeekIO");
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+			SPALL_BUFFER_END();
 		}
 		
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 		{
 			void* raw_chunk = NULL; 
 			size_t raw_chunk_size = 0;
+			SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+			SPALL_BUFFER_END();
 
 			if (chunk_type == ASE_ChunkType_Cell) 
 			{
@@ -671,22 +718,30 @@ function void LoadSprite(Context* ctx, char* path)
 				}
 			}
 
+			SPALL_BUFFER_BEGIN_NAME("StackFree");
 			StackFree(&ctx->stack, raw_chunk);
+			SPALL_BUFFER_END();
 		}
 		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 
 		if (sd->frames[frame_idx].num_cells > 0) 
 		{
+			SPALL_BUFFER_BEGIN_NAME("ArenaAlloc");
 			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
+			SPALL_BUFFER_END();
 			size_t cell_idx = 0;
 
+			SPALL_BUFFER_BEGIN_NAME("SDL_SeekIO");
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
+			SPALL_BUFFER_END();
 
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
+				SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
+				SPALL_BUFFER_END();
 
 				ASE_CellChunk* chunk = raw_chunk;
 				if (chunk_type == ASE_ChunkType_Cell && 
@@ -706,7 +761,10 @@ function void LoadSprite(Context* ctx, char* path)
 
 					SDL_assert(cell.size.x != 0 && cell.size.y != 0);
 					size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
-					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
+					SPALL_BUFFER_BEGIN_NAME("SDL_malloc");
+					cell.dst_buf = SDL_malloc(dst_buf_size); 
+					SPALL_BUFFER_END();
+					SDL_CHECK(cell.dst_buf);
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
 					size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
@@ -734,7 +792,10 @@ function void LoadSprite(Context* ctx, char* path)
 		}
 	}
 
+	SPALL_BUFFER_BEGIN_NAME("SDL_CloseIO");
 	SDL_CloseIO(fs);
+	SPALL_BUFFER_END();
+	SPALL_BUFFER_END();
 }
 
 function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) 
@@ -808,10 +869,18 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 
 function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
 {
-    if (a->state == EntityState_Inactive || b->state == EntityState_Inactive) return false;
-    Rect ha = GetEntityHitbox(ctx, a);
-    Rect hb = GetEntityHitbox(ctx, b);
-    return RectsIntersect(ha, hb);
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
+    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
+    {
+    	Rect ha = GetEntityHitbox(ctx, a);
+    	Rect hb = GetEntityHitbox(ctx, b);
+    	res = RectsIntersect(ha, hb);
+    } 
+
+    SPALL_BUFFER_END();
+    return res;
 }
 
 // This returns a new EntityState instead of setting the 
@@ -1300,9 +1369,19 @@ int32_t main(int32_t argc, char* argv[])
 		cJSON* head;
 		{
 			size_t file_len;
-			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); SDL_CHECK(file_data);
+
+			SPALL_BUFFER_BEGIN_NAME("SDL_LoadFile");
+			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
+			SPALL_BUFFER_END();
+			SDL_CHECK(file_data);
+
+			SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
 			head = cJSON_ParseWithLength((const char*)file_data, file_len);
+			SPALL_BUFFER_END();
+
+			SPALL_BUFFER_BEGIN_NAME("SDL_free");
 			SDL_free(file_data);
+			SPALL_BUFFER_END();
 		}
 		SDL_assert(HAS_FLAG(head->type, cJSON_Object));
 
@@ -3568,7 +3647,7 @@ int32_t main(int32_t argc, char* argv[])
 	}
 
 	// NOTE: If we don't do this, we might not get the last few events.
-#if ENABLE_PROFILING
+#if TOGGLE_PROFILING
 	spall_buffer_quit(&ctx->spall_ctx, &ctx->spall_buffer);
 	spall_quit(&ctx->spall_ctx);
 #endif
