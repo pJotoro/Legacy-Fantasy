@@ -3,7 +3,7 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 0
+#define TOGGLE_TILES 1
 #define TOGGLE_ENTITIES 1
 #define TOGGLE_REPLAY_FRAMES 0
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
@@ -716,9 +716,6 @@ function void LoadSprite(Context* ctx, char* path)
 					size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
 					SPALL_BUFFER_END();
 					SDL_assert(res > 0);
-
-					// NOTE: See static staging buffer memory layout.
-					ctx->vk.static_staging_buffer.size += dst_buf_size;
 
 					SDL_assert(cell_idx < sd->frames[frame_idx].num_cells);
 					sd->frames[frame_idx].cells[cell_idx++] = cell;
@@ -2420,6 +2417,21 @@ int32_t main(int32_t argc, char* argv[])
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateStaticStagingBuffer");
 
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
+			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			if (sd) 
+			{
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+				{
+					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
+					{
+						SpriteCell* cell = &sd->frames[frame_idx].cells[cell_idx];
+						ctx->vk.static_staging_buffer.size += cell->size.x*cell->size.y * sizeof(uint32_t);
+					}
+				}
+			}
+		}
 #if TOGGLE_TILES
 		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
 		{
