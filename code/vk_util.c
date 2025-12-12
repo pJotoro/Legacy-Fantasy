@@ -1,8 +1,11 @@
-function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) {
+function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) 
+{
     uint32_t memory_type_idx;
     bool found_memory_type_idx = false;
-    for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; memory_type_idx += 1) {
-        if ((mem_req->memoryTypeBits & (1 << memory_type_idx)) && (vk->physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & properties)) {
+    for (memory_type_idx = 0; memory_type_idx < vk->physical_device_memory_properties.memoryTypeCount; memory_type_idx += 1) 
+    {
+        if ((mem_req->memoryTypeBits & (1 << memory_type_idx)) && (vk->physical_device_memory_properties.memoryTypes[memory_type_idx].propertyFlags & properties)) 
+        {
             found_memory_type_idx = true;
             break;
         }
@@ -11,8 +14,10 @@ function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_r
     return memory_type_idx;
 }
 
-function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device, const char* path, VkShaderStageFlags stage) {
-    VkPipelineShaderStageCreateInfo res = {
+function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device, const char* path, VkShaderStageFlags stage) 
+{
+    VkPipelineShaderStageCreateInfo res = 
+    {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = stage,
         .pName = "main",
@@ -21,7 +26,8 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     size_t len;
     void* data = SDL_LoadFile(path, &len); SDL_CHECK(data);
 
-    VkShaderModuleCreateInfo info = { 
+    VkShaderModuleCreateInfo info = 
+    { 
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = len,
         .pCode = (uint32_t*)data,
@@ -32,11 +38,13 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     return res;
 }
 
-function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memory_properties) {
+function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memory_properties) 
+{
 	VulkanBuffer res = {.size = size};
 	{
 		uint32_t queue_family_idx = 0; // TODO
-		VkBufferCreateInfo buffer_info = {
+		VkBufferCreateInfo buffer_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = size,
 			.usage = usage,
@@ -51,7 +59,8 @@ function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBuffer
 		VkMemoryRequirements mem_req;
 		vkGetBufferMemoryRequirements(vk->device, res.handle, &mem_req);
 		uint32_t memory_type_idx = VulkanGetMemoryTypeIdx(vk, &mem_req, memory_properties);
-		VkMemoryAllocateInfo mem_info = {
+		VkMemoryAllocateInfo mem_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = mem_req.size,
 			.memoryTypeIndex = memory_type_idx,
@@ -65,7 +74,8 @@ function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBuffer
 	return res;
 }
 
-function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) {
+function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) 
+{
 	SDL_assert(!buffer->mapped_memory);
 	SDL_assert(buffer->handle);
 	SDL_assert(buffer->memory);
@@ -76,19 +86,22 @@ function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) {
 	*buffer = (VulkanBuffer){0};
 }
 
-function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
+function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
+{
 	SDL_assert(!buffer->mapped_memory);
 	VK_CHECK(vkMapMemory(vk->device, buffer->memory, buffer->write_offset, buffer->size, 0, &buffer->mapped_memory));
 }
 
-function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) {
+function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
+{
 	SDL_assert(buffer->mapped_memory);
 	vkUnmapMemory(vk->device, buffer->memory);
 	buffer->mapped_memory = NULL;
 	buffer->write_offset = 0;
 }
 
-function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) {
+function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) 
+{
 	SDL_assert(src_size > 0);
 	SDL_assert(buffer->mapped_memory);
 	SDL_assert(buffer->write_offset + src_size <= buffer->size);
@@ -98,8 +111,10 @@ function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* b
 	buffer->write_offset += src_size;
 }
 
-function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) {
-	VkBufferCopy region = {
+function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) 
+{
+	VkBufferCopy region = 
+	{
 		.srcOffset = src->read_offset,
 		.dstOffset = dst->write_offset,
 		.size = SDL_min(size, SDL_min(src->size - src->read_offset, dst->size - dst->write_offset)),
@@ -110,15 +125,18 @@ function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanB
 	dst->write_offset += region.size;
 }
 
-function void VulkanResetBuffer(VulkanBuffer* buffer) {
+function void VulkanResetBuffer(VulkanBuffer* buffer) 
+{
 	buffer->read_offset = 0;
 	buffer->write_offset = 0;
 }
 
-function void VulkanSetImageName(VkDevice device, VkImage image, char* name) {
+function void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
+{
 #ifdef _DEBUG
 	{
-		VkDebugUtilsObjectNameInfoEXT info = {
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
 			.objectType = VK_OBJECT_TYPE_IMAGE,
 			.objectHandle  = (uint64_t)image,
@@ -133,10 +151,12 @@ function void VulkanSetImageName(VkDevice device, VkImage image, char* name) {
 #endif
 }
 
-function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) {
+function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
+{
 #ifdef _DEBUG
 	{
-		VkDebugUtilsObjectNameInfoEXT info = {
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
 			.objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
 			.objectHandle  = (uint64_t)image_view,
@@ -151,10 +171,12 @@ function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, ch
 #endif
 }
 
-function void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) {
+function void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
+{
 #ifdef _DEBUG
 	{
-		VkDebugUtilsObjectNameInfoEXT info = {
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
 			.objectType = VK_OBJECT_TYPE_BUFFER,
 			.objectHandle  = (uint64_t)buffer,

@@ -36,12 +36,14 @@
 
 #define MAX_SPRITES 256
 
-typedef struct Rect {
+typedef struct Rect 
+{
 	ivec2s min;
 	ivec2s max;
 } Rect;
 
-typedef struct SpriteCell {
+typedef struct SpriteCell 
+{
 	void* dst_buf; // only valid in LoadSprite
 
 	ivec2s offset;
@@ -50,7 +52,8 @@ typedef struct SpriteCell {
 	uint32_t layer_idx;
 } SpriteCell;
 
-typedef struct SpriteFrame {
+typedef struct SpriteFrame 
+{
 	SpriteCell* cells; size_t num_cells;
 	Rect hitbox;
 	Rect hurtbox; // TODO
@@ -58,7 +61,8 @@ typedef struct SpriteFrame {
 	float dur;
 } SpriteFrame;
 
-typedef struct SpriteDesc {
+typedef struct SpriteDesc 
+{
 	char* name;
 
 	ivec2s size;
@@ -70,25 +74,30 @@ typedef struct SpriteDesc {
 	VkDescriptorSet vk_descriptor_set;
 } SpriteDesc;
 
-typedef struct Sprite {
+typedef struct Sprite 
+{
 	size_t idx;
 } Sprite;
 
 #if TOGGLE_ENTITIES
-typedef struct Anim {
+typedef struct Anim 
+{
 	Sprite sprite;
 	float dt_accumulator;
 	uint32_t frame_idx;
 	bool ended;
 } Anim;
 
-enum {
+typedef uint32_t EntityType;
+enum 
+{
 	EntityType_Player,
 	EntityType_Boar,
 };
-typedef uint32_t EntityType;
 
-enum {
+typedef uint32_t EntityState;
+enum 
+{
 	EntityState_Inactive,
 	EntityState_Die,
 	EntityState_Attack,
@@ -97,17 +106,17 @@ enum {
 	EntityState_Free,
 	
 	// TODO
-	EntityState_Hurt,
-	
+	EntityState_Hurt,	
 };
-typedef uint32_t EntityState;
 
-typedef struct Instance {
+typedef struct Instance 
+{
 	Rect rect;
 	uint32_t anim_frame_idx;
 } Instance;
 
-typedef struct Entity {
+typedef struct Entity 
+{
 	Anim anim;
 
 	ivec2s pos;
@@ -122,18 +131,21 @@ typedef struct Entity {
 #endif // TOGGLE_ENTITIES
 
 #if TOGGLE_TILES
-typedef struct Tile {
+typedef struct Tile 
+{
 	ivec2s src;
 	ivec2s dst;
 } Tile;
 
-typedef struct TileLayer {
+typedef struct TileLayer 
+{
 	Tile* tiles;
 	size_t num_tiles;
 } TileLayer;
 #endif // TOGGLE_TILES
 
-typedef struct Level {
+typedef struct Level 
+{
 	ivec2s size;
 
 	// NOTE: entities[0] is always the player.
@@ -148,13 +160,15 @@ typedef struct Level {
 } Level;
 
 #if TOGGLE_REPLAY_FRAMES
-typedef struct ReplayFrame {
+typedef struct ReplayFrame 
+{
 	Entity* entities; size_t num_entities;
 } ReplayFrame;
 #endif
 
 // https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
-typedef struct Arena {
+typedef struct Arena 
+{
 	uint8_t* buf;
 	size_t buf_len;
 	size_t prev_offset;
@@ -164,12 +178,14 @@ typedef struct Arena {
 // https://www.gingerbill.org/article/2019/02/15/memory-allocation-strategies-003/
 typedef Arena Stack;
 
-typedef struct StackAllocHeader {
+typedef struct StackAllocHeader 
+{
 	size_t prev_offset;
 	size_t padding;
 } StackAllocHeader;
 
-typedef struct VulkanFrame {
+typedef struct VulkanFrame 
+{
 	VkCommandBuffer command_buffer;
 	VkSemaphore sem_image_available;
 	VkSemaphore sem_render_finished;
@@ -178,7 +194,8 @@ typedef struct VulkanFrame {
 
 #define PIPELINE_COUNT (TOGGLE_TILES + TOGGLE_ENTITIES)
 
-typedef struct VulkanBuffer {
+typedef struct VulkanBuffer 
+{
 	VkBuffer handle;
 	VkDeviceSize size;
 	VkDeviceSize read_offset;
@@ -187,7 +204,8 @@ typedef struct VulkanBuffer {
 	void* mapped_memory;
 } VulkanBuffer;
 
-typedef struct Vulkan {
+typedef struct Vulkan 
+{
 	VkInstance instance;
 
 	VkPhysicalDevice physical_device;
@@ -260,7 +278,8 @@ typedef struct Vulkan {
 	bool staged;
 } Vulkan;
 
-typedef struct Context {
+typedef struct Context 
+{
 #if TOGGLE_PROFILING
 	SpallProfile spall_ctx;
 	SpallBuffer spall_buffer;
@@ -303,7 +322,8 @@ typedef struct Context {
 #endif
 } Context;
 
-typedef struct VkImageMemoryRequirements {
+typedef struct VkImageMemoryRequirements 
+{
 	VkMemoryRequirements memoryRequirements;
 	VkImage image;
 } VkImageMemoryRequirements;
@@ -331,20 +351,24 @@ static Sprite spr_tiles;
 
 static float dt;
 
-function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) {
+function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) 
+{
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(frame_idx < sd->num_frames);
 	ivec2s origin = sd->frames[frame_idx].origin;
-	if (dir == -1) {
+	if (dir == -1) 
+	{
 		origin.x = sd->size.x - origin.x;
 	}
 	return origin;
 }
 
 #if TOGGLE_ENTITIES
-function bool SetAnimSprite(Anim* anim, Sprite sprite) {
+function bool SetAnimSprite(Anim* anim, Sprite sprite) 
+{
     bool sprite_changed = false;
-    if (!SpritesEqual(anim->sprite, sprite)) {
+    if (!SpritesEqual(anim->sprite, sprite)) 
+    {
         sprite_changed = true;
         ResetAnim(anim);
         anim->sprite = sprite;
@@ -352,17 +376,20 @@ function bool SetAnimSprite(Anim* anim, Sprite sprite) {
     return sprite_changed;
 }
 
-function void MoveEntity(Entity* entity, vec2s vel) {
+function void MoveEntity(Entity* entity, vec2s vel) 
+{
 	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
 	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
 	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
 
-function void ShiftEntity(Entity* entity, ivec2s shift) {
+function void ShiftEntity(Entity* entity, ivec2s shift) 
+{
 	entity->pos = glms_ivec2_add(entity->pos, shift);
 }
 
-function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
+function void UpdateAnim(Context* ctx, Anim* anim, bool loop) 
+{
 	SPALL_BUFFER_BEGIN();
 
     SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
@@ -370,14 +397,18 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 	float dur = sd->frames[anim->frame_idx].dur;
 	size_t num_frames = sd->num_frames;
 
-    if (loop || !anim->ended) {
+    if (loop || !anim->ended) 
+    {
         anim->dt_accumulator += dt;
-        if (anim->dt_accumulator >= dur) {
+        if (anim->dt_accumulator >= dur) 
+        {
             anim->dt_accumulator = 0.0f;
             anim->frame_idx += 1;
-            if ((size_t)anim->frame_idx >= num_frames) {
+            if ((size_t)anim->frame_idx >= num_frames) 
+            {
                 if (loop) anim->frame_idx = 0;
-                else {
+                else 
+                {
                     anim->frame_idx -= 1;
                     anim->ended = true;
                 }
@@ -389,12 +420,14 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop) {
 }
 #endif
 
-function void ResetGame(Context* ctx) {
+function void ResetGame(Context* ctx) 
+{
 #if TOGGLE_ENTITIES
 	SPALL_BUFFER_BEGIN();
 
 	ctx->level_idx = 0;
-	for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+	for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
+	{
 		Level* level = &ctx->levels[level_idx];
 		{
 			Entity* player = &level->entities[0];
@@ -407,13 +440,17 @@ function void ResetGame(Context* ctx) {
 			player->dir = 1;
 
 		}
-		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) {
+		for (size_t entity_idx = 1; entity_idx < level->num_entities; entity_idx += 1) 
+		{
 			Entity* enemy = &level->entities[entity_idx];
 
 			ResetAnim(&enemy->anim);
-			if (enemy->type == EntityType_Boar) {
+			if (enemy->type == EntityType_Boar) 
+			{
 				SetAnimSprite(&enemy->anim, boar_idle);
-			} // else if (entity->type == EntityType_) {}
+			} 
+			// else if (entity->type == EntityType_) 
+			{}
 			enemy->pos = enemy->start_pos;
 			enemy->state = EntityState_Free;
 			enemy->vel = (vec2s){0.0f};
@@ -427,32 +464,38 @@ function void ResetGame(Context* ctx) {
 }
 
 #if 0
-function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) {
+function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, int32_t dir) 
+{
 	SPALL_BUFFER_BEGIN();
 
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	SDL_assert(sd->frames && "invalid sprite");
 	SpriteFrame* sf = &sd->frames[frame];
 	ivec2s origin = GetSpriteOrigin(ctx, sprite, dir);
-	for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
+	for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) 
+	{
 		SpriteCell* cell = &sf->cells[cell_idx];
 
-		// if (cell->texture) {
-		// 	SDL_FRect srcrect = {
+		// if (cell->texture) 
+		{
+		// 	SDL_FRect srcrect = 
+		{
 		// 		0.0f,
 		// 		0.0f,
 		// 		(float)(cell->size.x),
 		// 		(float)(cell->size.y),
 		// 	};
 
-		// 	SDL_FRect dstrect = {
+		// 	SDL_FRect dstrect = 
+		{
 		// 		pos.x + (float)(cell->offset.x*dir - origin.x),
 		// 		pos.y + (float)(cell->offset.y - origin.y),
 		// 		(float)(cell->size.x*dir),
 		// 		(float)(cell->size.y),
 		// 	};
 
-		// 	if (dir == -1) {
+		// 	if (dir == -1) 
+		{
 		// 		dstrect.x += (float)sd->size.x;
 		// 	}
 
@@ -465,7 +508,8 @@ function void DrawSprite(Context* ctx, Sprite sprite, size_t frame, vec2s pos, i
 #endif
 
 #if TOGGLE_TILES
-function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
+function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
+{
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->num_frames == 1);
 	SDL_assert(sd->frames[0].num_cells == 1);
@@ -473,12 +517,14 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) {
 }
 #endif
 
-function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) {
+function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
+{
 	SDL_assert(hitbox);
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
 	SDL_assert(frame_idx < sd->num_frames); SpriteFrame* frame = &sd->frames[frame_idx];
 	Rect res = frame->hitbox;
-	if (dir == -1) {
+	if (dir == -1) 
+	{
 		res.min.x = -frame->hitbox.max.x + sd->size.x;
 		res.max.x = -frame->hitbox.min.x + sd->size.x;
 	}
@@ -493,7 +539,8 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return true;
 }
 
-function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) {
+function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) 
+{
 	ASE_ChunkHeader chunk_header = {0};
 	SDL_ReadStructChecked(fs, &chunk_header);
 	if (chunk_header.size == sizeof(ASE_ChunkHeader)) return chunk_header.type;
@@ -503,7 +550,8 @@ function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_
 	return chunk_header.type;
 }
 
-function void LoadSprite(Context* ctx, char* path) {
+function void LoadSprite(Context* ctx, char* path) 
+{
 	SDL_CHECK(SDL_GetPathInfo(path, NULL));
 
 	Sprite sprite = GetSprite(path);
@@ -541,7 +589,8 @@ function void LoadSprite(Context* ctx, char* path) {
 	uint16_t hitbox_layer_idx = UINT16_MAX;
 	uint16_t origin_layer_idx = UINT16_MAX;
 
-	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+	{
 		// NOTE: This shouldn't really be needed, but for some reason it is. ArenaAlloc should already zero out the memory.
 		sd->frames[frame_idx] = (SpriteFrame){0};
 
@@ -558,21 +607,27 @@ function void LoadSprite(Context* ctx, char* path) {
 
 		// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
-		if (frame_idx == 0) {
-			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+		if (frame_idx == 0) 
+		{
+			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
-				if (chunk_type == ASE_ChunkType_Layer) {
+				if (chunk_type == ASE_ChunkType_Layer) 
+				{
 					ASE_LayerChunk* chunk = raw_chunk;
 					SDL_assert(chunk->layer_name.len > 0);
 					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
 					SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 
-					if (SDL_strcmp(layer_name, "Hitbox") == 0) {
+					if (SDL_strcmp(layer_name, "Hitbox") == 0) 
+					{
 						SDL_assert(hitbox_layer_idx == UINT16_MAX);
 						hitbox_layer_idx = layer_idx;
-					} else if (SDL_strcmp(layer_name, "Origin") == 0) {
+					} 
+					else if (SDL_strcmp(layer_name, "Origin") == 0) 
+					{
 						SDL_assert(origin_layer_idx == UINT16_MAX);
 						origin_layer_idx = layer_idx;					
 					}
@@ -587,23 +642,31 @@ function void LoadSprite(Context* ctx, char* path) {
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 		}
 		
-		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+		{
 			void* raw_chunk = NULL; 
 			size_t raw_chunk_size = 0;
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
-			if (chunk_type == ASE_ChunkType_Cell) {
+			if (chunk_type == ASE_ChunkType_Cell) 
+			{
 				ASE_CellChunk* chunk = raw_chunk;
-				if (chunk->layer_idx == hitbox_layer_idx) {
-					sd->frames[frame_idx].hitbox = (Rect){
+				if (chunk->layer_idx == hitbox_layer_idx) 
+				{
+					sd->frames[frame_idx].hitbox = (Rect)
+					{
 						.min.x = (int32_t)chunk->x,
 						.min.y = (int32_t)chunk->y,
 						.max.x = (int32_t)(chunk->x + chunk->w - 1), // HACK: Shouldn't have to subtract 1.
 						.max.y = (int32_t)(chunk->y + chunk->h - 1), // HACK: Shouldn't have to subtract 1.
 					};
-				} else if (chunk->layer_idx == origin_layer_idx) {
+				} 
+				else if (chunk->layer_idx == origin_layer_idx) 
+				{
 					sd->frames[frame_idx].origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
-				} else {
+				} 
+				else 
+				{
 					sd->frames[frame_idx].num_cells += 1;
 					SDL_assert(chunk->type == ASE_CellType_CompressedImage);
 				}
@@ -613,13 +676,15 @@ function void LoadSprite(Context* ctx, char* path) {
 		}
 		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 
-		if (sd->frames[frame_idx].num_cells > 0) {
+		if (sd->frames[frame_idx].num_cells > 0) 
+		{
 			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
 			size_t cell_idx = 0;
 
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 
-			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) {
+			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
@@ -627,9 +692,11 @@ function void LoadSprite(Context* ctx, char* path) {
 				ASE_CellChunk* chunk = raw_chunk;
 				if (chunk_type == ASE_ChunkType_Cell && 
 					chunk->layer_idx != hitbox_layer_idx && 
-					chunk->layer_idx != origin_layer_idx) {
+					chunk->layer_idx != origin_layer_idx) 
+				{
 
-					SpriteCell cell = {
+					SpriteCell cell = 
+				{
 						.offset.x = (int32_t)chunk->x,
 						.offset.y = (int32_t)chunk->y,
 						.z_idx = chunk->z_idx,
@@ -674,7 +741,8 @@ function void LoadSprite(Context* ctx, char* path) {
 	SDL_CloseIO(fs);
 }
 
-function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) {
+function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) 
+{
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
 
@@ -683,12 +751,16 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 
 	int32_t num_files;
 	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &num_files); SDL_CHECK(files);
-	if (num_files == 0) {
+	if (num_files == 0) 
+	{
 		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
-	} else {
+	} 
+	else 
+	{
 		ctx->num_sprites += (size_t)num_files;
 
-		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) {
+		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) 
+		{
 			char* file = files[file_idx];
 			char sprite_path[1024]; // dirname\fname\file
 			SDL_CHECK(SDL_snprintf(sprite_path, sizeof(sprite_path), "%s\\%s", dir_path, file) >= 0);
@@ -703,7 +775,8 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 }
 
 #if TOGGLE_ENTITIES
-function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
+function Rect GetEntityHitbox(Context* ctx, Entity* entity) 
+{
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
@@ -716,11 +789,14 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	*/
 	{
 		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) {
+		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) 
+		{
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 		}
-		if (!res && entity->anim.frame_idx == 0) {
-			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) {
+		if (!res && entity->anim.frame_idx == 0) 
+		{
+			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) 
+			{
 				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 			}
 		}
@@ -734,7 +810,8 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity) {
 	return hitbox;
 }
 
-function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
+function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
+{
     if (a->state == EntityState_Inactive || b->state == EntityState_Inactive) return false;
     Rect ha = GetEntityHitbox(ctx, a);
     Rect hb = GetEntityHitbox(ctx, b);
@@ -744,11 +821,13 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) {
 // This returns a new EntityState instead of setting the 
 // entity state directly because depending on the entity,
 // certain states might not make sense.
-function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
+{
 	SPALL_BUFFER_BEGIN();
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
-	if (entity->state == EntityState_Free) {
+	if (entity->state == EntityState_Free) 
+	{
 		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
 		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
@@ -762,42 +841,56 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 
 	bool horizontal_collision_happened = false;
 	bool vertical_collision_happened = false;
-	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
+	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) 
+	{
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
-			if (TileIsSolid(level, grid_pos)) {
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
+		{
+			if (TileIsSolid(level, grid_pos)) 
+			{
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
 			}
 		}
-	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) {
+	} 
+	else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) 
+	{
 		ivec2s grid_pos;
 		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) {
-			if (TileIsSolid(level, grid_pos)) {
+		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
+		{
+			if (TileIsSolid(level, grid_pos)) 
+			{
 				vel.x = 0.0f;
 				horizontal_collision_happened = true;
 				break;
 			}
 		}
 	}
-	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
+	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) 
+	{
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
-			if (TileIsSolid(level, grid_pos)) {
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
+		{
+			if (TileIsSolid(level, grid_pos)) 
+			{
 				vel.y = 0.0f;
 				vertical_collision_happened = true;
 				break;
 			}
 		}
-	} else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) {
+	} 
+	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) 
+	{
 		ivec2s grid_pos;
 		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) {
-			if (TileIsSolid(level, grid_pos)) {
+		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
+		{
+			if (TileIsSolid(level, grid_pos)) 
+			{
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
@@ -816,25 +909,32 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 	ivec2s grid_pos;
 	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
 		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
-		grid_pos.y += 1) {
+		grid_pos.y += 1) 
+	{
 		for (grid_pos.x = hitbox.min.x/TILE_SIZE; 
 			(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE;
-			 grid_pos.x += 1) {
-			if (TileIsSolid(level, grid_pos)) {
+			 grid_pos.x += 1) 
+		{
+			if (TileIsSolid(level, grid_pos)) 
+			{
 				Rect tile_rect;
 				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
 				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-				if (RectsIntersect(hitbox, tile_rect)) {
+				if (RectsIntersect(hitbox, tile_rect)) 
+				{
 					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
 
-					if (!horizontal_collision_happened) {
+					if (!horizontal_collision_happened) 
+					{
 						Rect h = prev_hitbox;
 						h.min.x = hitbox.min.x;
 						h.max.x = hitbox.max.x;
-						if (RectsIntersect(h, tile_rect)) {
+						if (RectsIntersect(h, tile_rect)) 
+						{
 							int32_t amount = 0;
 							int32_t incr = (int32_t)glm_signf(entity->vel.x);
-							while (RectsIntersect(h, tile_rect)) {
+							while (RectsIntersect(h, tile_rect)) 
+							{
 								h.min.x -= incr;
 								h.max.x -= incr;
 								amount += incr;
@@ -844,14 +944,17 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 						}
 
 					}
-					if (!vertical_collision_happened) {
+					if (!vertical_collision_happened) 
+					{
 						Rect h = prev_hitbox;
 						h.min.y = hitbox.min.y;
 						h.max.y = hitbox.max.y;
-						if (RectsIntersect(h, tile_rect)) {
+						if (RectsIntersect(h, tile_rect)) 
+						{
 							int32_t amount = 0;
 							int32_t incr = (int32_t)glm_signf(entity->vel.y);
-							while (RectsIntersect(h, tile_rect)) {
+							while (RectsIntersect(h, tile_rect)) 
+							{
 								h.min.y -= incr;
 								h.max.y -= incr;
 								amount += incr;
@@ -867,9 +970,12 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 #endif
 
 	EntityState res;
-	if (!touching_floor && entity->vel.y > 0.0f) {
+	if (!touching_floor && entity->vel.y > 0.0f) 
+	{
 		res = EntityState_Fall;
-	} else {
+	} 
+	else 
+	{
 		res = entity->state;
 	}
 
@@ -877,61 +983,82 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 	return res;
 }
 
-function void UpdatePlayer(Context* ctx) {
+function void UpdatePlayer(Context* ctx) 
+{
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
 
 	int16_t input_dir = 0;
-	if (ctx->gamepad) {
+	if (ctx->gamepad) 
+	{
 		if (ctx->gamepad_left_stick.x == 0.0f) input_dir = 0;
 		else if (ctx->gamepad_left_stick.x > 0.0f) input_dir = 1;
 		else if (ctx->gamepad_left_stick.x < 0.0f) input_dir = -1;
-	} else {
+	} 
+	else 
+	{
 		input_dir = ctx->button_right - ctx->button_left;
 	}
 
-	switch (player->state) {
-	case EntityState_Free: {
-		if (ctx->button_attack) {
+	switch (player->state) 
+	{
+	case EntityState_Free: 
+	{
+		if (ctx->button_attack) 
+		{
 			player->state = EntityState_Attack;
-		} else if (ctx->button_jump) {
+		} 
+		else if (ctx->button_jump) 
+		{
 			player->state = EntityState_Jump;
 		}
 	} break;
-	case EntityState_Jump: {
-		if (ctx->button_jump_released) {
+	case EntityState_Jump: 
+	{
+		if (ctx->button_jump_released) 
+		{
 			player->vel.y /= 2.0f;
 			player->state = EntityState_Fall;
 		}
 	} break;
-	default: {
+	default: 
+	{
 		// TODO?
 	} break;
 	}
 
-	if (player->pos.y > (float)level->size.y) {
+	if (player->pos.y > (float)level->size.y) 
+	{
 		ResetGame(ctx);
-	} else switch (player->state) {
+	} 
+	else switch (player->state) 
+	{
 	case EntityState_Inactive:
 		break;
-    case EntityState_Die: {
+    case EntityState_Die: 
+    {
 		SetAnimSprite(&player->anim, player_die);
 		bool loop = false;
 		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) {
+		if (player->anim.ended) 
+		{
 			ResetGame(ctx);
 		}
 	} break;
 
-    case EntityState_Attack: {
+    case EntityState_Attack: 
+    {
 		SetAnimSprite(&player->anim, player_attack);
 
 		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
+		{
 			Entity* enemy = &enemies[enemy_idx];
-			if (EntitiesIntersect(ctx, player, enemy)) {
-				switch (enemy->type) {
+			if (EntitiesIntersect(ctx, player, enemy)) 
+			{
+				switch (enemy->type) 
+				{
 				case EntityType_Boar:
 					enemy->state = EntityState_Hurt;
 					break;
@@ -943,12 +1070,14 @@ function void UpdatePlayer(Context* ctx) {
 		
 		bool loop = false;
 		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) {
+		if (player->anim.ended) 
+		{
 			player->state = EntityState_Free;
 		}
 	} break;
     	
-    case EntityState_Fall: {
+    case EntityState_Fall: 
+    {
     	SetAnimSprite(&player->anim, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
@@ -958,9 +1087,11 @@ function void UpdatePlayer(Context* ctx) {
     	UpdateAnim(ctx, &player->anim, loop);
 	} break;
     	
-	case EntityState_Jump: {
+	case EntityState_Jump: 
+	{
 		vec2s acc = {0.0f};
-		if (SetAnimSprite(&player->anim, player_jump_start)) {
+		if (SetAnimSprite(&player->anim, player_jump_start)) 
+		{
 			acc.y -= PLAYER_JUMP;
 		}
 
@@ -971,24 +1102,34 @@ function void UpdatePlayer(Context* ctx) {
     	UpdateAnim(ctx, &player->anim, loop);
 	} break;
 
-	case EntityState_Free: {
+	case EntityState_Free: 
+	{
 		vec2s acc = {0.0f, 0.0f};
 
 		acc.y += GRAVITY;
 
-		if (!ctx->gamepad) {
+		if (!ctx->gamepad) 
+		{
 			acc.x = (float)input_dir * PLAYER_ACC;
-		} else {
+		} 
+		else 
+		{
 			acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
 		}
 
-		if (input_dir == 0 && player->vel.x == 0.0f) {
+		if (input_dir == 0 && player->vel.x == 0.0f) 
+		{
 			SetAnimSprite(&player->anim, player_idle);
-		} else {
+		} 
+		else 
+		{
 			SetAnimSprite(&player->anim, player_run);
-			if (player->vel.x != 0.0f) {
+			if (player->vel.x != 0.0f) 
+			{
 				player->dir = (int16_t)glm_signf(player->vel.x);
-			} else if (input_dir != 0) {
+			} 
+			else if (input_dir != 0) 
+			{
 				player->dir = input_dir;
 			}
 		}
@@ -999,7 +1140,8 @@ function void UpdatePlayer(Context* ctx) {
 		UpdateAnim(ctx, &player->anim, loop);
 	} break;
 
-	default: {
+	default: 
+	{
 		// TODO?
 	} break;
 	}
@@ -1007,22 +1149,27 @@ function void UpdatePlayer(Context* ctx) {
 	SPALL_BUFFER_END();
 }
 
-function void UpdateBoar(Context* ctx, Entity* boar) {
+function void UpdateBoar(Context* ctx, Entity* boar) 
+{
 	SPALL_BUFFER_BEGIN();
 
-	switch (boar->state) {
-	case EntityState_Hurt: {
+	switch (boar->state) 
+	{
+	case EntityState_Hurt: 
+	{
 		SetAnimSprite(&boar->anim, boar_hit);
 
 		bool loop = false;
 		UpdateAnim(ctx, &boar->anim, loop);
 
-		if (boar->anim.ended) {
+		if (boar->anim.ended) 
+		{
 			boar->state = EntityState_Inactive;
 		}
 	} break;
 
-	case EntityState_Fall: {
+	case EntityState_Fall: 
+	{
 		SetAnimSprite(&boar->anim, boar_idle); // TODO: Is there a boar fall sprite? Could I make one?
 
 		vec2s acc = {0.0f, GRAVITY};
@@ -1032,7 +1179,8 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 		UpdateAnim(ctx, &boar->anim, loop);
 	} break;
 
-	case EntityState_Free: {
+	case EntityState_Free: 
+	{
 		SetAnimSprite(&boar->anim, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
@@ -1042,7 +1190,8 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 		UpdateAnim(ctx, &boar->anim, loop);
 	} break;
 
-	default: {
+	default: 
+	{
 		// TODO?
 	} break;
 	}
@@ -1052,7 +1201,8 @@ function void UpdateBoar(Context* ctx, Entity* boar) {
 #endif // TOGGLE_ENTITIES
 
 #if TOGGLE_REPLAY_FRAMES
-function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
+function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
+{
 	SPALL_BUFFER_BEGIN();
 
 	ctx->replay_frame_idx = replay_frame_idx;
@@ -1066,7 +1216,8 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) {
 #endif
 
 #ifdef _DEBUG
-VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) {
+VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) 
+{
 	UNUSED(severity);
 	UNUSED(types);
 	UNUSED(user_data);
@@ -1075,7 +1226,8 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 }
 #endif
 
-int32_t main(int32_t argc, char* argv[]) {
+int32_t main(int32_t argc, char* argv[]) 
+{
 	UNUSED(argc);
 	UNUSED(argv);
 
@@ -1136,7 +1288,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		int32_t buffer_size = 1 * 1024 * 1024;
 		uint8_t* buffer = SDL_malloc(buffer_size); SDL_CHECK(buffer);
-		ctx->spall_buffer = (SpallBuffer){
+		ctx->spall_buffer = (SpallBuffer)
+		{
 			.length = buffer_size,
 			.data = buffer,
 		};
@@ -1158,7 +1311,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		SDL_assert(HAS_FLAG(head->type, cJSON_Object));
 
 		cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
-		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) {
+		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) 
+		{
 			ctx->num_levels += 1;
 		}
 		ctx->levels = ArenaAlloc(&ctx->arena, ctx->num_levels, Level);
@@ -1166,7 +1320,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		// LoadLevel
 		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
-		cJSON_ArrayForEach(level_node, level_nodes) {
+		cJSON_ArrayForEach(level_node, level_nodes) 
+		{
 			Level level = {0};
 
 			cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
@@ -1196,36 +1351,48 @@ int32_t main(int32_t argc, char* argv[]) {
 #endif
 
 			cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
-			cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) {
+			cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
 				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
 				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
 				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
 
 #if TOGGLE_TILES
-				if (SDL_strcmp(type, "Tiles") == 0) {
+				if (SDL_strcmp(type, "Tiles") == 0) 
+				{
 					TileLayer* tile_layer = NULL;
 					// TODO
-	 				if (SDL_strcmp(ident, layer_tiles) == 0) {
+	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
+	 				{
 						tile_layer = &level.tile_layers[0];
-					} else if (SDL_strcmp(ident, layer_props) == 0) {
+					} 
+					else if (SDL_strcmp(ident, layer_props) == 0) 
+					{
 						tile_layer = &level.tile_layers[1];
-					} else if (SDL_strcmp(ident, layer_grass) == 0) {
+					} 
+					else if (SDL_strcmp(ident, layer_grass) == 0) 
+					{
 						tile_layer = &level.tile_layers[2];
-					} else {
+					} 
+					else 
+					{
 						SDL_assert(!"Invalid layer!");
 					}
 
 					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
-					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) {
+					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+					{
 						tile_layer->num_tiles += 1;
 					}
 				}
 
-				for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; tile_layer_idx += 1) {
+				for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; tile_layer_idx += 1) 
+				{
 					TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
 					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) {
+					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) 
+					{
 						tile_layer->tiles[i].src.x = -1;
 						tile_layer->tiles[i].src.x = -1;
 						tile_layer->tiles[i].dst.x = -1;
@@ -1235,9 +1402,11 @@ int32_t main(int32_t argc, char* argv[]) {
 #endif
 
 #if TOGGLE_ENTITIES
-				if (SDL_strcmp(ident, layer_enemies) == 0) {
+				if (SDL_strcmp(ident, layer_enemies) == 0) 
+				{
 					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
+					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+					{
 						level.num_entities += 1;
 					}
 				}
@@ -1245,36 +1414,48 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 
 #if TOGGLE_TILES
-			cJSON_ArrayForEach(layer_instance, layer_instances) {
+			cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
 				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
 				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
 				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-				if (SDL_strcmp(type, "Tiles") == 0) {
+				if (SDL_strcmp(type, "Tiles") == 0) 
+				{
 					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
 
 					// TODO
 					TileLayer* tile_layer = NULL;
-	 				if (SDL_strcmp(ident, layer_tiles) == 0) {
+	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
+	 				{
 						tile_layer = &level.tile_layers[0];
-					} else if (SDL_strcmp(ident, layer_props) == 0) {
+					} 
+					else if (SDL_strcmp(ident, layer_props) == 0) 
+					{
 						tile_layer = &level.tile_layers[1];
-					} else if (SDL_strcmp(ident, layer_grass) == 0) {
+					} 
+					else if (SDL_strcmp(ident, layer_grass) == 0) 
+					{
 						tile_layer = &level.tile_layers[2];
-					} else {
+					} 
+					else 
+					{
 						SDL_assert(!"Invalid layer!");
 					}
 
 					size_t i = 0;
-					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) {
+					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+					{
 						cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
-						ivec2s src = {
+						ivec2s src = 
+						{
 							(int32_t)cJSON_GetNumberValue(src_node->child),
 							(int32_t)cJSON_GetNumberValue(src_node->child->next),
 						};
 
 						cJSON* dst_node = cJSON_GetObjectItem(grid_tile, "px");
-						ivec2s dst = {
+						ivec2s dst = 
+						{
 							(int32_t)cJSON_GetNumberValue(dst_node->child),
 							(int32_t)cJSON_GetNumberValue(dst_node->child->next),
 						};
@@ -1289,27 +1470,34 @@ int32_t main(int32_t argc, char* argv[]) {
 #if TOGGLE_ENTITIES
 			level.entities = ArenaAlloc(&ctx->arena, level.num_entities, Entity);
 			Entity* enemy = &level.entities[1];
-			cJSON_ArrayForEach(layer_instance, layer_instances) {
+			cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
 				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
 				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
 				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
 				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-				if (SDL_strcmp(type, "Entities") == 0) {
+				if (SDL_strcmp(type, "Entities") == 0) 
+				{
 					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 
-					if (SDL_strcmp(ident, layer_player) == 0) {
+					if (SDL_strcmp(ident, layer_player) == 0) 
+					{
 						cJSON* entity_instance = entity_instances->child;
 						cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
 						cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
 						level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-					} else if (SDL_strcmp(ident, layer_enemies) == 0) {
-						cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) {
+					} 
+					else if (SDL_strcmp(ident, layer_enemies) == 0) 
+					{
+						cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+						{
 							cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
 							char* identifier = cJSON_GetStringValue(identifier_node);
 							cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
 							cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
 							enemy->start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-							if (SDL_strcmp(identifier, "Boar") == 0) {
+							if (SDL_strcmp(identifier, "Boar") == 0) 
+							{
 								enemy->type = EntityType_Boar;
 							} // else if (SDL_strcmp(identifier, "") == 0) {}
 							enemy += 1;
@@ -1328,15 +1516,18 @@ int32_t main(int32_t argc, char* argv[]) {
 		cJSON* defs = cJSON_GetObjectItem(head, "defs");
 		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
 		bool break_all = false;
-		cJSON* tileset; cJSON_ArrayForEach(tileset, tilesets) {
+		cJSON* tileset; cJSON_ArrayForEach(tileset, tilesets) 
+		{
 			cJSON* enum_tags = cJSON_GetObjectItem(tileset, "enumTags");
-			cJSON* enum_tag; cJSON_ArrayForEach(enum_tag, enum_tags) {
+			cJSON* enum_tag; cJSON_ArrayForEach(enum_tag, enum_tags) 
+			{
 				cJSON* id_node = cJSON_GetObjectItem(enum_tag, "enumValueId");
 				char* id = cJSON_GetStringValue(id_node);
 				if (SDL_strcmp(id, "Collide") != 0) continue;
 				
 				cJSON* tile_ids = cJSON_GetObjectItem(enum_tag, "tileIds");
-				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) {
+				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) 
+				{
 					size_t src_idx = (int32_t)cJSON_GetNumberValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
 					SDL_assert(src_idx < tile_layer->num_tiles);
@@ -1419,13 +1610,15 @@ int32_t main(int32_t argc, char* argv[]) {
 #else
 		#define DEBUG_LAYERS
 #endif
-		static char const * const instance_extensions[] = { 
+		static char const * const instance_extensions[] =
+		{ 
 			DEBUG_LAYERS
 			"VK_KHR_surface", 
 			VK_KHR_platform_surface, 
 		};
 
-		VkApplicationInfo app_info = { 
+		VkApplicationInfo app_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 			.pNext = NULL,
 			.pApplicationName = "Legacy Fantasy",
@@ -1435,7 +1628,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			.apiVersion = VK_API_VERSION_1_1,
 		};
 
-		VkInstanceCreateInfo create_info = { 
+		VkInstanceCreateInfo create_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
 #ifdef _DEBUG
@@ -1447,7 +1641,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		};
 
 #ifdef _DEBUG
-		VkDebugUtilsMessengerCreateInfoEXT debug_info = {
+		VkDebugUtilsMessengerCreateInfoEXT debug_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
 			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
 			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
@@ -1455,12 +1650,14 @@ int32_t main(int32_t argc, char* argv[]) {
 			.pUserData = ctx,
 		};
 
-		VkValidationFeatureEnableEXT validation_enabled[] = {
+		VkValidationFeatureEnableEXT validation_enabled[] = 
+		{
 			VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
 			VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
 		};
 
-		VkValidationFeaturesEXT validation_info = {
+		VkValidationFeaturesEXT validation_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
 			.enabledValidationFeatureCount = SDL_arraysize(validation_enabled),
 			.pEnabledValidationFeatures = validation_enabled,
@@ -1500,7 +1697,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
 		for (size_t layer_idx = 0; 
 			layer_idx < ctx->vk.num_instance_layers;
-			++layer_idx, ctx->vk.num_instance_extensions += (size_t)count) {
+			++layer_idx, ctx->vk.num_instance_extensions += (size_t)count) 
+		{
 			VK_CHECK(vkEnumerateInstanceExtensionProperties(
 				ctx->vk.instance_layers[layer_idx].layerName, 
 				&count, 
@@ -1512,7 +1710,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, ctx->vk.instance_extensions));
 		for (size_t layer_idx = 0, extension_idx = (size_t)count; 
 			layer_idx < ctx->vk.num_instance_layers && extension_idx < ctx->vk.num_instance_extensions;
-			++layer_idx, extension_idx += (size_t)count) {
+			++layer_idx, extension_idx += (size_t)count) 
+		{
 			VK_CHECK(vkEnumerateInstanceExtensionProperties(
 				ctx->vk.instance_layers[layer_idx].layerName, 
 				&count, 
@@ -1552,7 +1751,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		size_t layer_idx;
 		for (layer_idx = 0, ctx->vk.num_device_extensions = (size_t)count; 
 			layer_idx < ctx->vk.num_instance_layers;
-			++layer_idx, ctx->vk.num_device_extensions += (size_t)count) {
+			++layer_idx, ctx->vk.num_device_extensions += (size_t)count) 
+		{
 			VK_CHECK(vkEnumerateDeviceExtensionProperties(
 				ctx->vk.physical_device, 
 				ctx->vk.instance_layers[layer_idx].layerName, 
@@ -1566,7 +1766,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		size_t extension_idx;
 		for (layer_idx = 0, extension_idx = (size_t)count; 
 			layer_idx < ctx->vk.num_instance_layers && extension_idx < ctx->vk.num_device_extensions;
-			++layer_idx, extension_idx += (size_t)count) {
+			++layer_idx, extension_idx += (size_t)count) 
+		{
 			VK_CHECK(vkEnumerateDeviceExtensionProperties(
 					ctx->vk.physical_device,
 					ctx->vk.instance_layers[layer_idx].layerName, 
@@ -1618,7 +1819,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
 		}
 
-		VkPhysicalDeviceFeatures2 physical_device_features = {
+		VkPhysicalDeviceFeatures2 physical_device_features = 
+		{
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
@@ -1628,9 +1830,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkDeviceQueueCreateInfo* queue_infos = StackAlloc(&ctx->stack, ctx->vk.num_queue_family_properties, VkDeviceQueueCreateInfo);
 		size_t num_queue_infos = 0;
 		size_t num_queues = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) 
+		{
 			if (ctx->vk.queue_family_properties[queue_family_idx].queueCount == 0) continue;
-			queue_infos[num_queue_infos] = (VkDeviceQueueCreateInfo){
+			queue_infos[num_queue_infos] = (VkDeviceQueueCreateInfo)
+			{
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 				.queueFamilyIndex = (uint32_t)queue_family_idx,
 				.queueCount = ctx->vk.queue_family_properties[queue_family_idx].queueCount,
@@ -1646,7 +1850,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
 #endif
 
-		VkDeviceCreateInfo device_info = { 
+		VkDeviceCreateInfo device_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			.pNext = &physical_device_features,
 			.queueCreateInfoCount = (uint32_t)num_queue_infos,
@@ -1664,8 +1869,10 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		ctx->vk.queues = ArenaAlloc(&ctx->arena, num_queues, VkQueue);
 		size_t queue_array_idx = 0;
-		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) {
-			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; queue_idx += 1) {
+		for (size_t queue_family_idx = 0; queue_family_idx < ctx->vk.num_queue_family_properties; queue_family_idx += 1) 
+		{
+			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; queue_idx += 1) 
+			{
 				SPALL_BUFFER_BEGIN_NAME("vkGetDeviceQueue");
 				vkGetDeviceQueue(ctx->vk.device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk.queues[queue_array_idx]);
 				SPALL_BUFFER_END();
@@ -1685,14 +1892,17 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchain");
 
 		VkSurfaceFormatKHR format = ctx->vk.surface_formats[0];
-		for (size_t i = 1; i < ctx->vk.num_surface_formats; i += 1) {
-			if (ctx->vk.surface_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || ctx->vk.surface_formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) {
+		for (size_t i = 1; i < ctx->vk.num_surface_formats; i += 1) 
+		{
+			if (ctx->vk.surface_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB || ctx->vk.surface_formats[i].format == VK_FORMAT_R8G8B8A8_SRGB) 
+			{
 				format = ctx->vk.surface_formats[i];
 				break;
 			}
 		}
 
-		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR){
+		ctx->vk.swapchain_info = (VkSwapchainCreateInfoKHR)
+		{
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.surface = ctx->vk.surface,
 			.minImageCount = SDL_min(ctx->vk.surface_capabilities.minImageCount + 1, ctx->vk.surface_capabilities.maxImageCount),
@@ -1730,8 +1940,10 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSwapchainImageView");
 
 		ctx->vk.swapchain_image_views = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkImageView);
-		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.num_swapchain_images; swapchain_image_idx += 1) {
-			VkImageViewCreateInfo info = { 
+		for (size_t swapchain_image_idx = 0; swapchain_image_idx < ctx->vk.num_swapchain_images; swapchain_image_idx += 1) 
+		{
+			VkImageViewCreateInfo info = 
+			{
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 				.image = ctx->vk.swapchain_images[swapchain_image_idx],
 				.viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -1754,7 +1966,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateCommandPool");
 
-		VkCommandPoolCreateInfo info = { 
+		VkCommandPoolCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
 		};
@@ -1769,7 +1982,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanAllocateCommandBuffers");
 
-		VkCommandBufferAllocateInfo info = { 
+		VkCommandBufferAllocateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.commandPool = ctx->vk.command_pool,
 			.commandBufferCount = (uint32_t)ctx->vk.num_frames,
@@ -1778,7 +1992,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkCommandBuffer* command_buffers = StackAlloc(&ctx->stack, ctx->vk.num_frames, VkCommandBuffer);
 		VK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &info, command_buffers));
 
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) 
+		{
 			ctx->vk.frames[i].command_buffer = command_buffers[i];			
 		}
 
@@ -1791,12 +2006,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateFences");
 
-		VkFenceCreateInfo info = { 
+		VkFenceCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT,
 		};
 
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) 
+		{
 			VK_CHECK(vkCreateFence(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].fence_in_flight));
 		}
 
@@ -1807,11 +2024,13 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSemaphores");
 
-		VkSemaphoreCreateInfo info = {
+		VkSemaphoreCreateInfo info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
 
-		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) {
+		for (size_t i = 0; i < ctx->vk.num_frames; i += 1) 
+		{
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_image_available));
 			VK_CHECK(vkCreateSemaphore(ctx->vk.device, &info, NULL, &ctx->vk.frames[i].sem_render_finished));
 		}
@@ -1824,7 +2043,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateSampler");
 
-		VkSamplerCreateInfo info = { 
+		VkSamplerCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 			.magFilter = VK_FILTER_NEAREST,
 			.minFilter = VK_FILTER_NEAREST,
@@ -1844,14 +2064,16 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorSetLayout");
 
-		VkDescriptorSetLayoutBinding binding = {
+		VkDescriptorSetLayoutBinding binding = 
+		{
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			.descriptorCount = 1,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		};
 
-		VkDescriptorSetLayoutCreateInfo info = { 
+		VkDescriptorSetLayoutCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.bindingCount = 1,
 			.pBindings = &binding,
@@ -1866,7 +2088,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineLayout");
 
-		VkPipelineLayoutCreateInfo pipeline_layout_info = { 
+		VkPipelineLayoutCreateInfo pipeline_layout_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.setLayoutCount = 1,
 			.pSetLayouts = &ctx->vk.descriptor_set_layout,
@@ -1881,7 +2104,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateRenderPass");
 
-		VkAttachmentDescription color_attachment = {
+		VkAttachmentDescription color_attachment = 
+		{
 			.format = ctx->vk.swapchain_info.imageFormat,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -1892,18 +2116,21 @@ int32_t main(int32_t argc, char* argv[]) {
 			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 		};
 
-		VkAttachmentReference color_attachment_ref = {
+		VkAttachmentReference color_attachment_ref = 
+		{
 			.attachment = 0, // index in attachments array
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
 
-		VkSubpassDescription subpass = {
+		VkSubpassDescription subpass = 
+		{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &color_attachment_ref,
 		};
 
-		VkSubpassDependency subpass_dependency = {
+		VkSubpassDependency subpass_dependency = 
+		{
 			.srcSubpass = VK_SUBPASS_EXTERNAL, // implicit subpass before and after
 			.dstSubpass = 0, // subpass index
 			.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -1914,7 +2141,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 		VkAttachmentDescription attachments[] = { color_attachment };
 
-		VkRenderPassCreateInfo info = { 
+		VkRenderPassCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.attachmentCount = SDL_arraysize(attachments),
 			.pAttachments = attachments,
@@ -1934,12 +2162,15 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateFramebuffers");
 
 		ctx->vk.framebuffers = ArenaAlloc(&ctx->arena, ctx->vk.num_swapchain_images, VkFramebuffer);
-		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) {
-			VkImageView attachments[] = {
+		for (size_t i = 0; i < ctx->vk.num_swapchain_images; i += 1) 
+		{
+			VkImageView attachments[] = 
+			{
 				ctx->vk.swapchain_image_views[i],
 			};
 
-			VkFramebufferCreateInfo info = {
+			VkFramebufferCreateInfo info = 
+			{
 				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 				.renderPass = ctx->vk.render_pass,
 				.attachmentCount = SDL_arraysize(attachments),
@@ -1958,7 +2189,8 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreatePipelineCache");
 
-		VkPipelineCacheCreateInfo info = {
+		VkPipelineCacheCreateInfo info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
 		};
 		VK_CHECK(vkCreatePipelineCache(ctx->vk.device, &info, NULL, &ctx->vk.pipeline_cache));
@@ -1970,41 +2202,49 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateGraphicsPipelines");
 
-		VkDynamicState dynamic_states[] = {
+		VkDynamicState dynamic_states[] = 
+		{
 			VK_DYNAMIC_STATE_VIEWPORT,
 			VK_DYNAMIC_STATE_SCISSOR,
 		};
-		VkPipelineDynamicStateCreateInfo dynamic_state_info = { 
+		VkPipelineDynamicStateCreateInfo dynamic_state_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 			.dynamicStateCount = SDL_arraysize(dynamic_states),
 			.pDynamicStates = dynamic_states,
 		};
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 			.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		};
-		ctx->vk.viewport = (VkViewport){
+		ctx->vk.viewport = (VkViewport)
+		{
 			.width = (float)ctx->vk.swapchain_info.imageExtent.width,
 			.height = (float)ctx->vk.swapchain_info.imageExtent.height,
 			.maxDepth = 1.0f,
 		};
 		ctx->vk.scissor.extent = ctx->vk.swapchain_info.imageExtent;
-		VkPipelineViewportStateCreateInfo viewport_info = { 
+		VkPipelineViewportStateCreateInfo viewport_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 			.viewportCount = 1,
 			.scissorCount = 1,
 		};
-		VkPipelineRasterizationStateCreateInfo rasterization_info = { 
+		VkPipelineRasterizationStateCreateInfo rasterization_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 			.cullMode = VK_CULL_MODE_BACK_BIT,
 			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 			.lineWidth = 1.0f
 		};
-		VkPipelineMultisampleStateCreateInfo multisample_info = { 
+		VkPipelineMultisampleStateCreateInfo multisample_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
 		};
-		VkPipelineColorBlendAttachmentState blend_attachment_info = {
+		VkPipelineColorBlendAttachmentState blend_attachment_info = 
+		{
 			.blendEnable = VK_TRUE,
 			.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
 			.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
@@ -2014,13 +2254,15 @@ int32_t main(int32_t argc, char* argv[]) {
 			.alphaBlendOp = VK_BLEND_OP_ADD,
 			.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
 		};
-		VkPipelineColorBlendStateCreateInfo blend_info = {
+		VkPipelineColorBlendStateCreateInfo blend_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 			.attachmentCount = 1,
 			.pAttachments = &blend_attachment_info,
 		};
 
-		VkGraphicsPipelineCreateInfo graphics_pipline_info = { 
+		VkGraphicsPipelineCreateInfo graphics_pipline_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 #ifdef _DEBUG
 			.flags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT,
@@ -2039,18 +2281,21 @@ int32_t main(int32_t argc, char* argv[]) {
 		// VulkanCreateGraphicsPipelineTile
 		VkPipelineShaderStageCreateInfo tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VkPipelineShaderStageCreateInfo tile_shader_stages[] = {
+		VkPipelineShaderStageCreateInfo tile_shader_stages[] = 
+		{
 			tile_vert,
 			tile_frag,
 		};
-		VkVertexInputBindingDescription tile_vertex_input_bindings[] = {
+		VkVertexInputBindingDescription tile_vertex_input_bindings[] = 
+		{
 			{
 				.binding = 0,
 				.stride = sizeof(Tile),
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
-		VkVertexInputAttributeDescription tile_vertex_attributes[] = {
+		VkVertexInputAttributeDescription tile_vertex_attributes[] = 
+		{
 			{
 				.location = 0,
 				.binding = 0,
@@ -2064,7 +2309,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				.offset = offsetof(Tile, dst),
 			},
 		};
-		VkPipelineVertexInputStateCreateInfo tile_vertex_input_info = { 
+		VkPipelineVertexInputStateCreateInfo tile_vertex_input_info =
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			.vertexBindingDescriptionCount = SDL_arraysize(tile_vertex_input_bindings),
 			.pVertexBindingDescriptions = tile_vertex_input_bindings,
@@ -2081,7 +2327,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		// VulkanCreateGraphicsPipelineEntity
 		VkPipelineShaderStageCreateInfo entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VkPipelineShaderStageCreateInfo entity_shader_stages[] = {
+		VkPipelineShaderStageCreateInfo entity_shader_stages[] = 
+		{
 			entity_vert,
 			entity_frag,
 		};
@@ -2093,7 +2340,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
 			},
 		};
-		VkVertexInputAttributeDescription entity_vertex_attributes[] = {
+		VkVertexInputAttributeDescription entity_vertex_attributes[] = 
+		{
 			{
 				.location = 0,
 				.binding = 0,
@@ -2107,7 +2355,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				.offset = offsetof(Instance, anim_frame_idx),
 			},
 		};
-		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = {
+		VkPipelineVertexInputStateCreateInfo entity_vertex_input_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			.vertexBindingDescriptionCount = SDL_arraysize(entity_vertex_input_bindings),
 			.pVertexBindingDescriptions = entity_vertex_input_bindings,
@@ -2120,7 +2369,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
 #endif // TOGGLE_ENTITIES
 
-		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = {
+		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = 
+		{
 #if TOGGLE_TILES
 			tile_graphics_pipeline_info,
 #endif
@@ -2146,13 +2396,18 @@ int32_t main(int32_t argc, char* argv[]) {
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
 	size_t error_count = 0;
-	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+	{
 		SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-		if (sd) {
-			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-				for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
+		if (sd) 
+		{
+			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+			{
+				for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
+				{
 					SpriteCell* cell = &ctx->sprites[sprite_idx].frames[frame_idx].cells[cell_idx];
-					if (cell->size.x == 0 || cell->size.y == 0) {
+					if (cell->size.x == 0 || cell->size.y == 0) 
+					{
 						SDL_Log("ERROR: (%s).frames[%llu].cells[%llu].size == 0", sd->name, frame_idx, cell_idx);
 						error_count += 1;
 					}
@@ -2167,9 +2422,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateStaticStagingBuffer");
 
 #if TOGGLE_TILES
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
+		{
 			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) 
+			{
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 			}
@@ -2178,13 +2435,18 @@ int32_t main(int32_t argc, char* argv[]) {
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) {
+			if (sd) 
+			{
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+				{
+					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
+					{
 						SpriteCell* cell = &sd->frames[frame_idx].cells[cell_idx];
-						if (cell->size.x == 0 || cell->size.y == 0) {
+						if (cell->size.x == 0 || cell->size.y == 0) 
+						{
 							SDL_Log("Fuck");
 							continue;
 						}
@@ -2199,9 +2461,11 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 
 #if TOGGLE_TILES
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
+		{
 			Level* level = &ctx->levels[level_idx];
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) 
+			{
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				VulkanCopyBuffer(tile_layer->num_tiles*sizeof(Tile), tile_layer->tiles, &ctx->vk.static_staging_buffer);
 			}
@@ -2218,15 +2482,21 @@ int32_t main(int32_t argc, char* argv[]) {
 	// TestSpriteFrames
 	{
 		size_t frame_idx = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
-			if (sd) {
+			if (sd) 
+			{
 				for (size_t sprite_frame_idx = 0; 
 					sprite_frame_idx < sd->num_frames && frame_idx < ctx->num_sprite_frames; 
-					++sprite_frame_idx, ++frame_idx) {
-					if (SDL_memcmp(&sd->frames[sprite_frame_idx], &ctx->sprite_frames[frame_idx], sizeof(SpriteFrame)) != 0) {
+					++sprite_frame_idx, ++frame_idx) 
+				{
+					if (SDL_memcmp(&sd->frames[sprite_frame_idx], &ctx->sprite_frames[frame_idx], sizeof(SpriteFrame)) != 0) 
+					{
 						SDL_Log("FAIL");
-					} else {
+					} 
+					else 
+					{
 						SDL_Log("SUCCESS");
 					}
 				}
@@ -2237,14 +2507,21 @@ int32_t main(int32_t argc, char* argv[]) {
 	// TestSpriteCells
 	{
 		size_t cell_idx = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
-			if (sd) {
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
-					for (size_t sprite_cell_idx = 0; sprite_cell_idx < sd->frames[frame_idx].num_cells && cell_idx < ctx->num_sprite_cells; ++sprite_cell_idx, ++cell_idx) {
-						if (SDL_memcmp(&sd->frames[frame_idx].cells[sprite_cell_idx], &ctx->sprite_cells[cell_idx], sizeof(SpriteCell)) != 0) {
+			if (sd) 
+			{
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+				{
+					for (size_t sprite_cell_idx = 0; sprite_cell_idx < sd->frames[frame_idx].num_cells && cell_idx < ctx->num_sprite_cells; ++sprite_cell_idx, ++cell_idx) 
+					{
+						if (SDL_memcmp(&sd->frames[frame_idx].cells[sprite_cell_idx], &ctx->sprite_cells[cell_idx], sizeof(SpriteCell)) != 0) 
+						{
 							SDL_Log("FAIL");
-						} else {
+						} 
+						else 
+						{
 							SDL_Log("SUCCESS");
 						}
 					}
@@ -2262,10 +2539,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkBindImageMemoryInfo bind_infos[MAX_SPRITES];
 		VkDeviceSize memory_offset = 0;
 		size_t i = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
-				VkImageCreateInfo info = {
+			if (sd) 
+			{
+				VkImageCreateInfo info = 
+				{
 					.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 					.imageType = VK_IMAGE_TYPE_2D,
 					.format = VK_FORMAT_R8G8B8A8_SRGB,
@@ -2276,7 +2556,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				};
 
 				// Different frames might have different amounts of cells.
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+				{
 					info.arrayLayers += (uint32_t)sd->frames[frame_idx].num_cells;
 				}
 				sd->vk_image_array_layers = (size_t)info.arrayLayers;
@@ -2286,7 +2567,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[i]);
 				memory_offset = AlignForward(memory_offset, mem_reqs[i].alignment);
-				bind_infos[i] = (VkBindImageMemoryInfo){
+				bind_infos[i] = (VkBindImageMemoryInfo)
+				{
 					.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
 					.image = sd->vk_image,
 					//.memory = scroll down a little more!,
@@ -2298,28 +2580,34 @@ int32_t main(int32_t argc, char* argv[]) {
 		}
 		SDL_assert(i == ctx->num_sprites);
 
-		VkMemoryAllocateInfo allocate_info = {
+		VkMemoryAllocateInfo allocate_info = 
+		{
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = memory_offset,
 			.memoryTypeIndex = VulkanGetMemoryTypeIdx(&ctx->vk, &mem_reqs[0], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 		};
 		VK_CHECK(vkAllocateMemory(ctx->vk.device, &allocate_info, NULL, &ctx->vk.image_memory));
 
-		for (size_t i = 0; i < ctx->num_sprites; i += 1) {
+		for (size_t i = 0; i < ctx->num_sprites; i += 1) 
+		{
 			bind_infos[i].memory = ctx->vk.image_memory;
 		}
 		VK_CHECK(vkBindImageMemory2(ctx->vk.device, (uint32_t)ctx->num_sprites, bind_infos));
 
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
+			if (sd) 
+			{
 				bool is_tileset = false;
 #if TOGGLE_TILES
 				is_tileset = sprite_idx == spr_tiles.idx;
 #endif
-				if (is_tileset) {
+				if (is_tileset) 
+				{
 					SDL_assert(sd->vk_image_array_layers == 1);
-					VkImageViewCreateInfo info = {
+					VkImageViewCreateInfo info = 
+					{
 						.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 						.image = sd->vk_image,
 						.viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -2333,8 +2621,11 @@ int32_t main(int32_t argc, char* argv[]) {
 						},
 					};
 					VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
-				} else {
-					VkImageViewCreateInfo info = {
+				} 
+				else 
+				{
+					VkImageViewCreateInfo info = 
+					{
 						.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 						.image = sd->vk_image,
 						.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
@@ -2360,12 +2651,14 @@ int32_t main(int32_t argc, char* argv[]) {
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorPool");
 
-		VkDescriptorPoolSize size = {
+		VkDescriptorPoolSize size = 
+		{
 			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 			(uint32_t)ctx->num_sprites,
 		};
 
-		VkDescriptorPoolCreateInfo info = { 
+		VkDescriptorPoolCreateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			.maxSets = (uint32_t)ctx->num_sprites,
 			.poolSizeCount = 1,
@@ -2382,11 +2675,13 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorSets");
 
 		VkDescriptorSetLayout* descriptor_set_layouts = StackAlloc(&ctx->stack, ctx->num_sprites, VkDescriptorSetLayout);
-		for (size_t i = 0; i < ctx->num_sprites; i += 1) {
+		for (size_t i = 0; i < ctx->num_sprites; i += 1) 
+		{
 			descriptor_set_layouts[i] = ctx->vk.descriptor_set_layout;
 		}
 
-		VkDescriptorSetAllocateInfo info = { 
+		VkDescriptorSetAllocateInfo info =
+		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = ctx->vk.descriptor_pool,
 			.descriptorSetCount = (uint32_t)ctx->num_sprites,
@@ -2400,18 +2695,22 @@ int32_t main(int32_t argc, char* argv[]) {
 		VkWriteDescriptorSet* writes = StackAlloc(&ctx->stack, ctx->num_sprites, VkWriteDescriptorSet);
 
 		size_t i = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
-			if (sd) {
+			if (sd) 
+			{
 				sd->vk_descriptor_set = descriptor_sets[i];
 
-				image_infos[i] = (VkDescriptorImageInfo){
+				image_infos[i] = (VkDescriptorImageInfo)
+				{
 					.sampler = ctx->vk.sampler,
 					.imageView = sd->vk_image_view,
 					.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				};
 
-				writes[i] = (VkWriteDescriptorSet){
+				writes[i] = (VkWriteDescriptorSet)
+				{
 				    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				    .dstSet = sd->vk_descriptor_set,
 				    .dstBinding = 0,
@@ -2441,7 +2740,8 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDynamicStagingBuffer");
 
 		VkDeviceSize size = 0;
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
+		{
 			Level* level = &ctx->levels[level_idx];
 			size += level->num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
 		}
@@ -2458,13 +2758,15 @@ int32_t main(int32_t argc, char* argv[]) {
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateVertexBuffer");
 
 		size_t size = 0;
-		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) {
+		for (size_t level_idx = 0; level_idx < ctx->num_levels; level_idx += 1) 
+		{
 			Level* level = &ctx->levels[level_idx];
 #if TOGGLE_ENTITIES
 			size += level->num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
 #endif
 #if TOGGLE_TILES
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) 
+			{
 				TileLayer* tile_layer = &level->tile_layers[tile_layer_idx];
 				size += tile_layer->num_tiles*sizeof(Tile);
 			}
@@ -2487,15 +2789,18 @@ int32_t main(int32_t argc, char* argv[]) {
 	ResetGame(ctx);
 
 	ctx->running = true;
-	while (ctx->running) {	
+	while (ctx->running) 
+	{	
 		// GetInput
 		{
 			SPALL_BUFFER_BEGIN_NAME("GetInput");
 
-			if (!ctx->gamepad) {
+			if (!ctx->gamepad) 
+			{
 				int32_t joystick_count = 0;
 				SDL_JoystickID* joysticks = SDL_GetGamepads(&joystick_count);
-				if (joystick_count != 0) {
+				if (joystick_count != 0) 
+				{
 					ctx->gamepad = SDL_OpenGamepad(joysticks[0]);
 				}
 			}
@@ -2506,14 +2811,19 @@ int32_t main(int32_t argc, char* argv[]) {
 			ctx->left_mouse_pressed = false;
 
 			SDL_Event event;
-			while (SDL_PollEvent(&event)) {
-				switch (event.type) {
+			while (SDL_PollEvent(&event)) 
+			{
+				switch (event.type) 
+				{
 				case SDL_EVENT_KEY_DOWN:
-					if (event.key.key == SDLK_ESCAPE) {
+					if (event.key.key == SDLK_ESCAPE) 
+					{
 						ctx->running = false;
 					}
-					if (!ctx->gamepad) {
-						switch (event.key.key) {
+					if (!ctx->gamepad) 
+					{
+						switch (event.key.key) 
+						{
 						case SDLK_SPACE:
 #if TOGGLE_REPLAY_FRAMES
 							ctx->paused = !ctx->paused;
@@ -2525,27 +2835,32 @@ int32_t main(int32_t argc, char* argv[]) {
 							ctx->button_attack = true;
 							break;
 						case SDLK_LEFT:
-							if (!event.key.repeat) {
+							if (!event.key.repeat) 
+							{
 								ctx->button_left = 1;
 							}
 #if TOGGLE_REPLAY_FRAMES
-							if (ctx->paused) {
+							if (ctx->paused) 
+							{
 								SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
 							}
 #endif
 							break;
 						case SDLK_RIGHT:
-							if (!event.key.repeat) {
+							if (!event.key.repeat) 
+							{
 								ctx->button_right = 1;
 							}
 #if TOGGLE_REPLAY_FRAMES
-							if (ctx->paused) {
+							if (ctx->paused) 
+							{
 								SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
 							}
 #endif
 							break;
 						case SDLK_UP:
-							if (!event.key.repeat) {
+							if (!event.key.repeat) 
+							{
 								ctx->button_jump = true;
 							}
 							break;
@@ -2562,13 +2877,16 @@ int32_t main(int32_t argc, char* argv[]) {
 					ctx->mouse_pos.y = event.motion.y;
 					break;
 				case SDL_EVENT_MOUSE_BUTTON_DOWN:
-					if (event.button.button == SDL_BUTTON_LEFT) {
+					if (event.button.button == SDL_BUTTON_LEFT) 
+					{
 						ctx->left_mouse_pressed = true;
 					}
 					break;
 				case SDL_EVENT_KEY_UP:
-					if (!ctx->gamepad) {
-						switch (event.key.key) {
+					if (!ctx->gamepad) 
+					{
+						switch (event.key.key) 
+						{
 						case SDLK_LEFT:
 							ctx->button_left = 0;
 							break;
@@ -2582,7 +2900,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 					break;
 				case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-					switch (event.gaxis.axis) {
+					switch (event.gaxis.axis) 
+					{
 					case SDL_GAMEPAD_AXIS_LEFTX:
 						ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
 						break;
@@ -2592,7 +2911,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 					break;
 				case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-					switch (event.gbutton.button) {
+					switch (event.gbutton.button) 
+					{
 					case SDL_GAMEPAD_BUTTON_SOUTH:
 						ctx->button_jump = true;
 						break;
@@ -2602,7 +2922,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					}
 					break;
 				case SDL_EVENT_GAMEPAD_BUTTON_UP:
-					switch (event.gbutton.button) {
+					switch (event.gbutton.button) 
+					{
 					case SDL_GAMEPAD_BUTTON_SOUTH:
 						ctx->button_jump_released = true;
 						break;
@@ -2614,7 +2935,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				}		
 			}
 
-			if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) {
+			if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) 
+			{
 				ctx->gamepad_left_stick.x = 0.0f;
 			}
 
@@ -2626,7 +2948,8 @@ int32_t main(int32_t argc, char* argv[]) {
 #else
 		paused = false;
 #endif
-		if (!paused) {
+		if (!paused) 
+		{
 			// UpdateGame
 #if TOGGLE_ENTITIES
 			{
@@ -2634,9 +2957,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				UpdatePlayer(ctx);
 				size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-				for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+				for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
+				{
 					Entity* enemy = &enemies[enemy_idx];
-					if (enemy->type == EntityType_Boar) {
+					if (enemy->type == EntityType_Boar) 
+					{
 						UpdateBoar(ctx, enemy);
 					}
 				}
@@ -2659,7 +2984,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				replay_frame.num_enemies = level->num_enemies;
 					
 				ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
-				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) {
+				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) 
+				{
 					ctx->c_replay_frames *= 8;
 					ctx->replay_frames = SDL_realloc(ctx->replay_frames, ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 				}
@@ -2739,7 +3065,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			VK_CHECK(vkResetFences(ctx->vk.device, 1, &ctx->vk.frames[ctx->vk.current_frame].fence_in_flight));
 
 			VK_CHECK(vkAcquireNextImageKHR(ctx->vk.device, ctx->vk.swapchain, UINT64_MAX, ctx->vk.frames[ctx->vk.current_frame].sem_image_available, VK_NULL_HANDLE, &image_idx));
-			if (image_idx == 0 && ctx->vk.staged && ctx->vk.static_staging_buffer.handle) {
+			if (image_idx == 0 && ctx->vk.staged && ctx->vk.static_staging_buffer.handle) 
+			{
 				VulkanDestroyBuffer(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 				SDL_ShowWindow(ctx->window);
@@ -2749,7 +3076,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			// VulkanBeginCommandBuffer
 			{
-				VkCommandBufferBeginInfo info = {
+				VkCommandBufferBeginInfo info = 
+				{
 					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 					.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 				};
@@ -2757,17 +3085,20 @@ int32_t main(int32_t argc, char* argv[]) {
 			}
 
 			// VulkanCopyStagingBuffers
-			if (!ctx->vk.staged) {
+			if (!ctx->vk.staged) 
+			{
 				ctx->vk.staged = true;
 
 				VkImageMemoryBarrier* image_memory_barriers_before = StackAlloc(&ctx->stack, ctx->num_sprites, VkImageMemoryBarrier);
 				VkImageMemoryBarrier* image_memory_barriers_after = StackAlloc(&ctx->stack, ctx->num_sprites, VkImageMemoryBarrier);
 				size_t i = 0;
-				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+				{
 					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 					if (!sd) continue;
 
-					VkImageSubresourceRange subresource_range = {
+					VkImageSubresourceRange subresource_range = 
+					{
 						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 						.baseMipLevel = 0,
 						.levelCount = 1,
@@ -2775,7 +3106,8 @@ int32_t main(int32_t argc, char* argv[]) {
 						.layerCount = (uint32_t)sd->vk_image_array_layers,
 					};
 
-					image_memory_barriers_before[i] = (VkImageMemoryBarrier){
+					image_memory_barriers_before[i] = (VkImageMemoryBarrier)
+					{
 						.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 						.srcAccessMask = 0,
 						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -2785,7 +3117,8 @@ int32_t main(int32_t argc, char* argv[]) {
 						.subresourceRange = subresource_range,
 					};
 
-					image_memory_barriers_after[i] = (VkImageMemoryBarrier){
+					image_memory_barriers_after[i] = (VkImageMemoryBarrier)
+					{
 						.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
@@ -2799,7 +3132,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				}
 				SDL_assert(i == ctx->num_sprites);
 
-				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
+				VkBufferMemoryBarrier buffer_memory_barriers_before[] = 
+				{
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
@@ -2830,31 +3164,38 @@ int32_t main(int32_t argc, char* argv[]) {
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 #endif
 				
-				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) {
+				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
+				{
 					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
 					if (!sd) continue;
 					VkBufferImageCopy* regions = StackAlloc(&ctx->stack, sd->vk_image_array_layers, VkBufferImageCopy);
 					size_t region_idx = 0;
-					for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) {
+					for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
+					{
 						SpriteFrame* sf = &sd->frames[frame_idx];
-						for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) {
+						for (size_t cell_idx = 0; cell_idx < sf->num_cells; cell_idx += 1) 
+						{
 							SpriteCell* cell = &sf->cells[cell_idx];
 							SDL_assert(region_idx < sd->vk_image_array_layers);
-							regions[region_idx] = (VkBufferImageCopy){
+							regions[region_idx] = (VkBufferImageCopy)
+							{
 								.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
-								.imageSubresource = (VkImageSubresourceLayers){
+								.imageSubresource = (VkImageSubresourceLayers)
+								{
 									.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 									.mipLevel = 0,
 									.baseArrayLayer = (uint32_t)region_idx,
 									.layerCount = 1,
 								},
-								.imageOffset = (VkOffset3D){
+								.imageOffset = (VkOffset3D)
+								{
 									// TODO: Is this correct?
 									.x = cell->offset.x,
 									.y = cell->offset.y,
 									.z = 0,
 								},
-								.imageExtent = (VkExtent3D){
+								.imageExtent = (VkExtent3D)
+								{
 									.width = (uint32_t)cell->size.x,
 									.height = (uint32_t)cell->size.y,
 									.depth = 1,
@@ -2872,7 +3213,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 #endif
 
-				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
+				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
+				{
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -2887,8 +3229,11 @@ int32_t main(int32_t argc, char* argv[]) {
 
 				StackFree(&ctx->stack, image_memory_barriers_after);				
 				StackFree(&ctx->stack, image_memory_barriers_before);
-			} else {
-				VkBufferMemoryBarrier buffer_memory_barriers_before[] = {
+			} 
+			else 
+			{
+				VkBufferMemoryBarrier buffer_memory_barriers_before[] = 
+				{
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
@@ -2903,7 +3248,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 #endif
 
-				VkBufferMemoryBarrier buffer_memory_barriers_after[] = {
+				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
+				{
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -2919,7 +3265,7 @@ int32_t main(int32_t argc, char* argv[]) {
 			{
 				VkClearValue clear_value = {0};
 
-				VkRenderPassBeginInfo info = { 
+				VkRenderPassBeginInfo info = {
 					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 					.renderPass = ctx->vk.render_pass,
 					.framebuffer = ctx->vk.framebuffers[image_idx],
@@ -2963,7 +3309,8 @@ int32_t main(int32_t argc, char* argv[]) {
 				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 
 				size_t num_tiles = 0;
-				for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) {
+				for (size_t layer_idx = 0; layer_idx < ctx->levels[ctx->level_idx].num_tile_layers; layer_idx += 1) 
+				{
 					num_tiles += ctx->levels[ctx->level_idx].tile_layers[layer_idx].num_tiles;
 				}
 				vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
@@ -3033,7 +3380,8 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-			VkSubmitInfo submit_info = { 
+			VkSubmitInfo submit_info = 
+			{
 				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 				.waitSemaphoreCount = 1,
 				.pWaitSemaphores = &ctx->vk.frames[ctx->vk.current_frame].sem_image_available,
@@ -3045,7 +3393,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			};
 			VK_CHECK(vkQueueSubmit(ctx->vk.graphics_queue, 1, &submit_info, ctx->vk.frames[ctx->vk.current_frame].fence_in_flight));
 
-			VkPresentInfoKHR present_info = { 
+			VkPresentInfoKHR present_info = 
+			{
 				.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 				.waitSemaphoreCount = 1,
 				.pWaitSemaphores = &ctx->vk.frames[ctx->vk.current_frame].sem_render_finished,
@@ -3067,9 +3416,12 @@ int32_t main(int32_t argc, char* argv[]) {
 	#if 0
 
 		static bool blah = false;
-		if (!blah) {
+		if (!blah) 
+		{
 			blah = true;
-		} else {
+		} 
+		else 
+		{
 			raddbg_break();
 		}
 
@@ -3078,7 +3430,8 @@ int32_t main(int32_t argc, char* argv[]) {
 			SPALL_BUFFER_BEGIN_NAME("DrawEntities");
 
 			size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-			for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) {
+			for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
+			{
 				Entity* enemy = &enemies[enemy_idx];
 				DrawEntity(ctx, enemy);
 			}
@@ -3105,14 +3458,17 @@ int32_t main(int32_t argc, char* argv[]) {
 			SDL_FRect* tiles_to_draw = ArenaAlloc(&ctx->temp, level->size.x*level->size.y/TILE_SIZE, SDL_FRect);
 			size_t num_tiles_to_draw = 0;
 
-			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) {
+			for (size_t tile_layer_idx = 0; tile_layer_idx < level->num_tile_layers; tile_layer_idx += 1) 
+			{
 				size_t num_tiles;
 				Tile* tiles = GetLayerTiles(level, tile_layer_idx, &num_tiles);
 				
-				for (size_t i = 0; i < num_tiles; i += 1) {
+				for (size_t i = 0; i < num_tiles; i += 1) 
+				{
 					if (!TileIsValid(tiles[i])) continue;
 
-					tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect){
+					tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect)
+					{
 						(float)tiles[i].dst.x,
 						(float)tile[i].dst.y,
 						(float)TILE_SIZE,
@@ -3120,10 +3476,12 @@ int32_t main(int32_t argc, char* argv[]) {
 					};
 
 					size_t j;
-					for (j = i + 1; j < num_tiles; j += 1) {
+					for (j = i + 1; j < num_tiles; j += 1) 
+					{
 						SDL_assert(TileIsValid(tiles[j]));				
 						if (tiles[j].src.x != tiles[i].src.x || tiles[j].src.y != tiles[i].src.y) break;
-						tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect){
+						tiles_to_draw[num_tiles_to_draw++] = (SDL_FRect)
+						{
 							(float)tiles[j].dst.x,
 							(float)tile[j].dst.y,
 							(float)TILE_SIZE,
@@ -3131,7 +3489,8 @@ int32_t main(int32_t argc, char* argv[]) {
 						};
 					}
 
-					SDL_FRect srcrect = {
+					SDL_FRect srcrect = 
+					{
 						(float)tiles[i].src.x,
 						(float)tiles[i].src.y,
 						(float)TILE_SIZE,
@@ -3171,9 +3530,12 @@ int32_t main(int32_t argc, char* argv[]) {
 
 			Level* level = &ctx->levels[0]; // TODO
 			ivec2s dst = {0, 0};
-			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; i += 1) {
-				if (level->tiles[i]) {
-					SDL_FRect rect = {
+			for (size_t i = 0; i < level->size.x*level->size.y/TILE_SIZE; i += 1) 
+			{
+				if (level->tiles[i]) 
+				{
+					SDL_FRect rect = 
+					{
 						(float)dst.x,
 						(float)dst.y, 
 						(float)TILE_SIZE, 
@@ -3182,7 +3544,8 @@ int32_t main(int32_t argc, char* argv[]) {
 					SDL_CHECK(SDL_RenderFillRect(ctx->renderer, &rect));
 				}
 				dst.x += TILE_SIZE;
-				if (dst.x >= level->size.x) {
+				if (dst.x >= level->size.x) 
+				{
 					dst.x = 0;
 					dst.y += TILE_SIZE;
 				}
