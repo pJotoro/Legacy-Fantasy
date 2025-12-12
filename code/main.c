@@ -14,7 +14,7 @@
 #endif
 
 #define TOGGLE_FULLSCREEN 1
-#define TOGGLE_UNIT_TESTS 0
+#define TOGGLE_TESTS 0
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -25,7 +25,6 @@
 #define PLAYER_FRIC 0.006f
 #define PLAYER_MAX_VEL 0.3f
 #define PLAYER_JUMP 1.3f
-#define PLAYER_JUMP_REMAINDER 0.2f
 
 #define BOAR_ACC 0.01f
 #define BOAR_FRIC 0.005f
@@ -268,8 +267,8 @@ typedef struct Vulkan
 
 	/*
 	Memory layout:
-		EntityInstance entities[];
 		Tile tiles[];
+		EntityInstance entities[];
 	*/
 	VulkanBuffer vertex_buffer;
 
@@ -2568,7 +2567,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
-#if TOGGLE_UNIT_TESTS
+#if TOGGLE_TESTS
 	// TestSpriteFrames
 	{
 		size_t frame_idx = 0;
@@ -3139,6 +3138,8 @@ int32_t main(int32_t argc, char* argv[])
 		uint32_t image_idx;
 		VkCommandBuffer cb;
 
+		VkDeviceSize vertex_buffer_write_offset = 0;
+
 		// DrawBegin
 		{
 			SPALL_BUFFER_BEGIN_NAME("DrawBegin");
@@ -3241,10 +3242,6 @@ int32_t main(int32_t argc, char* argv[])
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->num_sprites, image_memory_barriers_before);
-
-#if TOGGLE_ENTITIES
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
-#endif
 				
 				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 				{
@@ -3289,9 +3286,14 @@ int32_t main(int32_t argc, char* argv[])
 					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (uint32_t)sd->vk_image_array_layers, regions);
 					StackFree(&ctx->stack, regions);
 				}
-				
+
 #if TOGGLE_TILES
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
+				vertex_buffer_write_offset = ctx->vk.vertex_buffer.write_offset;
+#endif
+
+#if TOGGLE_ENTITIES
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 #endif
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
@@ -3326,6 +3328,7 @@ int32_t main(int32_t argc, char* argv[])
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
 #if TOGGLE_ENTITIES
+				ctx->vk.vertex_buffer.write_offset = vertex_buffer_write_offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 #endif
 
@@ -3374,16 +3377,13 @@ int32_t main(int32_t argc, char* argv[])
 				uint32_t num_scissors = 1;
 				vkCmdSetScissor(cb, first_scissor, num_scissors, &ctx->vk.scissor);
 			}
-			{
-				uint32_t first_binding = 0;
-				uint32_t binding_count = 1;
-				VkDeviceSize offset = 0;
-				vkCmdBindVertexBuffers(cb, first_binding, binding_count, &ctx->vk.vertex_buffer.handle, &offset);
-			}
 
 #if TOGGLE_TILES
 			// DrawTiles
 			{
+				VkDeviceSize offset = 0;
+				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &offset);
+
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
 
 				SpriteDesc* sd =  GetSpriteDesc(ctx, spr_tiles);
@@ -3400,6 +3400,8 @@ int32_t main(int32_t argc, char* argv[])
 #if TOGGLE_ENTITIES
 			// DrawEntities
 			{
+				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &vertex_buffer_write_offset);
+
 				// HACK: Really this should be 1, not TOGGLE_TILES.
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
 
