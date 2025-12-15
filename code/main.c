@@ -1325,18 +1325,14 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			size_t file_len;
 
-			SPALL_BUFFER_BEGIN_NAME("SDL_LoadFile");
 			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
-			SPALL_BUFFER_END();
 			SDL_CHECK(file_data);
 
 			SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
 			head = cJSON_ParseWithLength((const char*)file_data, file_len);
 			SPALL_BUFFER_END();
 
-			SPALL_BUFFER_BEGIN_NAME("SDL_free");
 			SDL_free(file_data);
-			SPALL_BUFFER_END();
 		}
 		SDL_assert(HAS_FLAG(head->type, cJSON_Object));
 
