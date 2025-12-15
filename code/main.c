@@ -1417,13 +1417,7 @@ int32_t main(int32_t argc, char* argv[])
 				{
 					TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
 					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) 
-					{
-						tile_layer->tiles[i].src.x = -1;
-						tile_layer->tiles[i].src.x = -1;
-						tile_layer->tiles[i].dst.x = -1;
-						tile_layer->tiles[i].dst.y = -1;
-					}
+					SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
 				}
 #endif
 
