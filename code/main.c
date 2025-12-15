@@ -2480,6 +2480,8 @@ int32_t main(int32_t argc, char* argv[])
 					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
 					{
 						SpriteCell* cell = &sd->frames[frame_idx].cells[cell_idx];
+
+						// TODO: Remove this. It's no longer an issue.
 						if (cell->size.x == 0 || cell->size.y == 0) 
 						{
 							SDL_Log("Fuck");
@@ -3035,11 +3037,7 @@ int32_t main(int32_t argc, char* argv[])
 #if TOGGLE_ENTITIES
 		size_t num_instances;
 		{
-			SPALL_BUFFER_BEGIN_NAME("VulkanCopyEntitiesToDynamicStagingBuffer");
-
-			Entity* player = GetPlayer(ctx);
-			SpriteDesc* sd = GetSpriteDesc(ctx, player->anim.sprite);
-			num_instances = sd->frames[player->anim.frame_idx].num_cells;
+			SPALL_BUFFER_BEGIN_NAME("VulkanCopyInstancesToDynamicStagingBuffer");
 
 			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
 			num_instances = 0;
