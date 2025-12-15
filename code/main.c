@@ -16,6 +16,8 @@
 #define TOGGLE_FULLSCREEN 1
 #define TOGGLE_TESTS 0
 
+#define TOGGLE_VULKAN_VALIDATION 0
+
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
 
@@ -43,7 +45,7 @@ typedef struct Rect
 
 typedef struct SpriteCell 
 {
-	void* dst_buf; // only valid in LoadSprite
+	void* dst_buf; // invalid after VulkanCreateStaticStagingBuffer.
 
 	ivec2s offset;
 	ivec2s size;
@@ -417,7 +419,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop)
 
     SPALL_BUFFER_END();
 }
-#endif
+#endif // TOGGLE_ENTITIES
 
 function void ResetGame(Context* ctx) 
 {
@@ -527,26 +529,16 @@ function void LoadSprite(Context* ctx, char* path)
 
 	// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
 	{
-		SPALL_BUFFER_BEGIN_NAME("SDL_strlen");
 		size_t buf_size = SDL_strlen(path) + 1;
-		SPALL_BUFFER_END();
-		SPALL_BUFFER_BEGIN_NAME("ArenaAllocRaw");
 		sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
-		SPALL_BUFFER_END();
-		SPALL_BUFFER_BEGIN_NAME("SDL_strlcpy");
 		SDL_strlcpy(sd->name, path, buf_size);
-		SPALL_BUFFER_END();
 	}
 
-	SPALL_BUFFER_BEGIN_NAME("SDL_IOFromFile");
 	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); 
-	SPALL_BUFFER_END();
 	SDL_CHECK(fs);
 
 	ASE_Header header; 
-	SPALL_BUFFER_BEGIN_NAME("SDL_ReadStructChecked");
 	SDL_ReadStructChecked(fs, &header);
-	SPALL_BUFFER_END();
 	SDL_assert(header.magic_number == 0xA5E0);
 
 	SDL_assert(header.color_depth == 32);
@@ -560,9 +552,7 @@ function void LoadSprite(Context* ctx, char* path)
 	sd->size.y = (int32_t)header.h;
 
 	sd->num_frames = header.num_frames;
-	SPALL_BUFFER_BEGIN_NAME("ArenaAlloc");
 	sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
-	SPALL_BUFFER_END();
 
 	uint16_t layer_idx = 0;
 	uint16_t hitbox_layer_idx = UINT16_MAX;
@@ -574,9 +564,7 @@ function void LoadSprite(Context* ctx, char* path)
 		sd->frames[frame_idx] = (SpriteFrame){0};
 
 		ASE_Frame frame;
-		SPALL_BUFFER_BEGIN_NAME("SDL_ReadStructChecked");
 		SDL_ReadStructChecked(fs, &frame);
-		SPALL_BUFFER_END();
 		SDL_assert(frame.magic_number == 0xF1FA);
 
 		// Would mean this aseprite file is very old.
@@ -584,9 +572,7 @@ function void LoadSprite(Context* ctx, char* path)
 
 		sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
 
-		SPALL_BUFFER_BEGIN_NAME("SDL_TellIO");
 		int64_t fs_pos = SDL_TellIO(fs);
-		SPALL_BUFFER_END();
 
 		// NOTE: According to the Aseprite spec, all layer chunks are found in the first frame, but not necessarily before everything else in that frame.
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
@@ -596,23 +582,16 @@ function void LoadSprite(Context* ctx, char* path)
 			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
-				SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
-				SPALL_BUFFER_END();
 				if (chunk_type == ASE_ChunkType_Layer) 
 				{
 					ASE_LayerChunk* chunk = raw_chunk;
 					SDL_assert(chunk->layer_name.len > 0);
 
-					SPALL_BUFFER_BEGIN_NAME("StackAlloc");
 					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
-					SPALL_BUFFER_END();
 
-					SPALL_BUFFER_BEGIN_NAME("SDL_strlcpy");
 					SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
-					SPALL_BUFFER_END();
 
-					SPALL_BUFFER_BEGIN_NAME("SDL_strcmp");
 					if (SDL_strcmp(layer_name, "Hitbox") == 0) 
 					{
 						SDL_assert(hitbox_layer_idx == UINT16_MAX);
@@ -623,31 +602,22 @@ function void LoadSprite(Context* ctx, char* path)
 						SDL_assert(origin_layer_idx == UINT16_MAX);
 						origin_layer_idx = layer_idx;					
 					}
-					SPALL_BUFFER_END();
 					layer_idx += 1;
 
-					SPALL_BUFFER_BEGIN_NAME("StackFree");
 					StackFree(&ctx->stack, layer_name);
-					SPALL_BUFFER_END();
 				}
 
-				SPALL_BUFFER_BEGIN_NAME("StackFree");
 				StackFree(&ctx->stack, raw_chunk);
-				SPALL_BUFFER_END();
 			}
 
-			SPALL_BUFFER_BEGIN_NAME("SDL_SeekIO");
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
-			SPALL_BUFFER_END();
 		}
 		
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 		{
 			void* raw_chunk = NULL; 
 			size_t raw_chunk_size = 0;
-			SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
-			SPALL_BUFFER_END();
 
 			if (chunk_type == ASE_ChunkType_Cell) 
 			{
@@ -673,30 +643,22 @@ function void LoadSprite(Context* ctx, char* path)
 				}
 			}
 
-			SPALL_BUFFER_BEGIN_NAME("StackFree");
 			StackFree(&ctx->stack, raw_chunk);
-			SPALL_BUFFER_END();
 		}
 		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 
 		if (sd->frames[frame_idx].num_cells > 0) 
 		{
-			SPALL_BUFFER_BEGIN_NAME("ArenaAlloc");
 			sd->frames[frame_idx].cells = ArenaAlloc(&ctx->arena, sd->frames[frame_idx].num_cells, SpriteCell);
-			SPALL_BUFFER_END();
 			size_t cell_idx = 0;
 
-			SPALL_BUFFER_BEGIN_NAME("SDL_SeekIO");
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
-			SPALL_BUFFER_END();
 
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
-				SPALL_BUFFER_BEGIN_NAME("ASE_ReadChunk");
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
-				SPALL_BUFFER_END();
 
 				ASE_CellChunk* chunk = raw_chunk;
 				if (chunk_type == ASE_ChunkType_Cell && 
@@ -716,10 +678,7 @@ function void LoadSprite(Context* ctx, char* path)
 
 					SDL_assert(cell.size.x != 0 && cell.size.y != 0);
 					size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
-					SPALL_BUFFER_BEGIN_NAME("SDL_malloc");
-					cell.dst_buf = SDL_malloc(dst_buf_size); 
-					SPALL_BUFFER_END();
-					SDL_CHECK(cell.dst_buf);
+					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
 
 					// It's the zero-sized array at the end of ASE_CellChunk.
 					size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
@@ -747,9 +706,7 @@ function void LoadSprite(Context* ctx, char* path)
 		}
 	}
 
-	SPALL_BUFFER_BEGIN_NAME("SDL_CloseIO");
 	SDL_CloseIO(fs);
-	SPALL_BUFFER_END();
 	SPALL_BUFFER_END();
 }
 
@@ -1624,15 +1581,15 @@ int32_t main(int32_t argc, char* argv[])
 		#error Unsupported platform.
 #endif
 
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
-		#define DEBUG_LAYERS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
+		#define VULKAN_DEBUG_EXTENSIONS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
 #else
-		#define DEBUG_LAYERS
+		#define VULKAN_DEBUG_EXTENSIONS
 #endif
 		static char const * const instance_extensions[] =
 		{ 
-			DEBUG_LAYERS
+			VULKAN_DEBUG_EXTENSIONS
 			"VK_KHR_surface", 
 			VK_KHR_platform_surface, 
 		};
@@ -1652,7 +1609,7 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 			.enabledLayerCount = SDL_arraysize(layers),
 			.ppEnabledLayerNames = layers,
 #endif
@@ -1660,7 +1617,7 @@ int32_t main(int32_t argc, char* argv[])
 			.ppEnabledExtensionNames = instance_extensions,
 		};
 
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 		VkDebugUtilsMessengerCreateInfoEXT debug_info = 
 		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
