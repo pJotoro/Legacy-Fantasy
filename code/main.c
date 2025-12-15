@@ -16,7 +16,7 @@
 #define TOGGLE_FULLSCREEN 1
 #define TOGGLE_TESTS 0
 
-#define TOGGLE_VULKAN_VALIDATION 0
+#define TOGGLE_VULKAN_VALIDATION 1
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -2782,6 +2782,8 @@ int32_t main(int32_t argc, char* argv[])
 
 	ResetGame(ctx);
 
+	VkDeviceSize vertex_buffer_write_offset = 0;
+
 	ctx->running = true;
 	while (ctx->running) 
 	{	
@@ -3038,8 +3040,6 @@ int32_t main(int32_t argc, char* argv[])
 
 		uint32_t image_idx;
 		VkCommandBuffer cb;
-
-		VkDeviceSize vertex_buffer_write_offset = 0;
 
 		// DrawBegin
 		{
