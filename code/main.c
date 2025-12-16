@@ -626,8 +626,8 @@ function void LoadSprite(Context* ctx, char* path)
 					{
 						.min.x = (int32_t)chunk->x,
 						.min.y = (int32_t)chunk->y,
-						.max.x = (int32_t)(chunk->x + chunk->w - 1), // HACK: Shouldn't have to subtract 1.
-						.max.y = (int32_t)(chunk->y + chunk->h - 1), // HACK: Shouldn't have to subtract 1.
+						.max.x = (int32_t)(chunk->x + chunk->w),
+						.max.y = (int32_t)(chunk->y + chunk->h),
 					};
 				} 
 				else if (chunk->layer_idx == origin_layer_idx) 
@@ -786,19 +786,16 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     {
     	Rect ha = GetEntityHitbox(ctx, a);
     	Rect hb = GetEntityHitbox(ctx, b);
-    	res = RectsIntersect(ha, hb);
+    	ivec2s overlap;
+    	res = RectsIntersect(ha, hb, &overlap);
     } 
 
     SPALL_BUFFER_END();
     return res;
 }
 
-// This returns a new EntityState instead of setting the 
-// entity state directly because depending on the entity,
-// certain states might not make sense.
-function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
+function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
-	SPALL_BUFFER_BEGIN();
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
 	if (entity->state == EntityState_Free) 
@@ -808,154 +805,75 @@ function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-	bool touching_floor = false;
-	vec2s vel = entity->vel;
 #if TOGGLE_TILES
 	Level* level = GetCurrentLevel(ctx);
-	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+	Rect hitbox = GetEntityHitbox(ctx, entity);
 
-	bool horizontal_collision_happened = false;
-	bool vertical_collision_happened = false;
-	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) 
-	{
+	int32_t horizontal_side = 1; // Could be 1, or any other number not divisible by TILE_SIZE.
+	if (entity->vel.x < 0.0f) horizontal_side = hitbox.min.x;
+	else if (entity->vel.x > 0.0f) horizontal_side = hitbox.max.x;
+	if (horizontal_side % TILE_SIZE == 0) {
 		ivec2s grid_pos;
-		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
+		grid_pos.x = horizontal_side/TILE_SIZE;
+		for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
 		{
 			if (TileIsSolid(level, grid_pos)) 
 			{
-				vel.x = 0.0f;
-				horizontal_collision_happened = true;
+				entity->vel.x = 0.0f;
 				break;
 			}
 		}
-	} 
-	else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) 
-	{
-		ivec2s grid_pos;
-		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
-		{
-			if (TileIsSolid(level, grid_pos)) 
-			{
-				vel.x = 0.0f;
-				horizontal_collision_happened = true;
-				break;
-			}
-		}
+
 	}
-	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) 
+	
+	int32_t vertical_side = 1;
+	if (entity->vel.y < 0.0f) vertical_side = hitbox.min.y;
+	else if (entity->vel.y > 0.0f) vertical_side = hitbox.max.y;
+	if (vertical_side % TILE_SIZE == 0) 
 	{
 		ivec2s grid_pos;
-		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
+		grid_pos.y = vertical_side/TILE_SIZE;
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; grid_pos.x <= hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
 		{
 			if (TileIsSolid(level, grid_pos)) 
 			{
-				vel.y = 0.0f;
-				vertical_collision_happened = true;
-				break;
-			}
-		}
-	} 
-	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) 
-	{
-		ivec2s grid_pos;
-		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
-		{
-			if (TileIsSolid(level, grid_pos)) 
-			{
-				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
-				entity->state = EntityState_Free;
-				touching_floor = true;
-				vertical_collision_happened = true;
 				break;
 			}
 		}
 	}
 #endif
 
-	MoveEntity(entity, vel);
+	if (entity->vel.x == 0.0f && entity->vel.y == 0.0f) return;
+
+	MoveEntity(entity, entity->vel);
 
 #if TOGGLE_TILES
-    Rect hitbox = GetEntityHitbox(ctx, entity);
+	//Rect prev_hitbox = hitbox;
+	hitbox = GetEntityHitbox(ctx, entity);
+
 	ivec2s grid_pos;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; 
-		(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; 
-		grid_pos.y += 1) 
+	for (grid_pos.y = hitbox.min.y/TILE_SIZE; grid_pos.y <= hitbox.max.y/TILE_SIZE; grid_pos.y += 1) 
 	{
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; 
-			(!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE;
-			 grid_pos.x += 1) 
+		for (grid_pos.x = hitbox.min.x/TILE_SIZE; grid_pos.x <= hitbox.max.x/TILE_SIZE; grid_pos.x += 1) 
 		{
-			if (TileIsSolid(level, grid_pos)) 
+			Rect tile_rect;
+			tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
+			tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+			ivec2s overlap;
+			if (TileIsSolid(level, grid_pos) && RectsIntersect(hitbox, tile_rect, &overlap))
 			{
-				Rect tile_rect;
-				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
-				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-				if (RectsIntersect(hitbox, tile_rect)) 
-				{
-					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
-
-					if (!horizontal_collision_happened) 
-					{
-						Rect h = prev_hitbox;
-						h.min.x = hitbox.min.x;
-						h.max.x = hitbox.max.x;
-						if (RectsIntersect(h, tile_rect)) 
-						{
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.x);
-							while (RectsIntersect(h, tile_rect)) 
-							{
-								h.min.x -= incr;
-								h.max.x -= incr;
-								amount += incr;
-							}
-							ShiftEntity(entity, (ivec2s){-amount, 0});
-							horizontal_collision_happened = true;
-						}
-
-					}
-					if (!vertical_collision_happened) 
-					{
-						Rect h = prev_hitbox;
-						h.min.y = hitbox.min.y;
-						h.max.y = hitbox.max.y;
-						if (RectsIntersect(h, tile_rect)) 
-						{
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.y);
-							while (RectsIntersect(h, tile_rect)) 
-							{
-								h.min.y -= incr;
-								h.max.y -= incr;
-								amount += incr;
-							}
-							ShiftEntity(entity, (ivec2s){0, -amount});				
-							vertical_collision_happened = true;
-						}
-					}
+				if (overlap.x != 0) entity->vel.x = 0.0f;
+				if (overlap.y != 0) {
+					if (entity->vel.y > 0.0f) entity->state = EntityState_Free;
+					else entity->state = EntityState_Fall;
 				}
+				entity->pos = glms_ivec2_add(entity->pos, overlap);
+				return;
 			}
 		}
 	}
 #endif
-
-	EntityState res;
-	if (!touching_floor && entity->vel.y > 0.0f) 
-	{
-		res = EntityState_Fall;
-	} 
-	else 
-	{
-		res = entity->state;
-	}
-
-	SPALL_BUFFER_END();
-	return res;
 }
 
 function void UpdatePlayer(Context* ctx) 
@@ -1056,7 +974,7 @@ function void UpdatePlayer(Context* ctx)
     	SetAnimSprite(&player->anim, player_jump_end);
 
     	vec2s acc = {0.0f, GRAVITY};
-    	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
     	bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
@@ -1071,7 +989,7 @@ function void UpdatePlayer(Context* ctx)
 		}
 
     	acc.y += GRAVITY;
-    	player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
 		bool loop = false;
     	UpdateAnim(ctx, &player->anim, loop);
@@ -1109,7 +1027,7 @@ function void UpdatePlayer(Context* ctx)
 			}
 		}
 
-		player->state = UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+		UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
 
 		bool loop = true;
 		UpdateAnim(ctx, &player->anim, loop);
@@ -1148,7 +1066,7 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 		SetAnimSprite(&boar->anim, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
-		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
 		UpdateAnim(ctx, &boar->anim, loop);
@@ -1159,7 +1077,7 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 		SetAnimSprite(&boar->anim, boar_idle);
 
 		vec2s acc = {0.0f, GRAVITY};
-		boar->state = UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
 		bool loop = true;
 		UpdateAnim(ctx, &boar->anim, loop);
@@ -2372,8 +2290,8 @@ int32_t main(int32_t argc, char* argv[])
 					size_t src_idx = (size_t)cJSON_GetNumberValue(tile_id);
 					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
 					ivec2s src;
-					src.x = (int32_t)src_idx*TILE_SIZE / tileset_dimensions.x;
-					src.y = (int32_t)src_idx*TILE_SIZE % tileset_dimensions.y;
+					src.x = (int32_t)src_idx*TILE_SIZE % tileset_dimensions.x;
+					src.y = (int32_t)src_idx*TILE_SIZE / tileset_dimensions.x;
 
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0];
 					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) {
