@@ -16,7 +16,7 @@
 #define TOGGLE_FULLSCREEN 1
 #define TOGGLE_TESTS 0
 
-#define TOGGLE_VULKAN_VALIDATION 1
+#define TOGGLE_VULKAN_VALIDATION 0
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -33,7 +33,7 @@
 #define BOAR_MAX_VEL 0.15f
 
 #define TILE_SIZE 16
-#define GRAVITY 0.009f
+#define GRAVITY 1000.0f
 
 #define MAX_SPRITES 256
 
@@ -476,7 +476,6 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
 {
-	SPALL_BUFFER_BEGIN();
 	bool res = false;
 
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
@@ -498,7 +497,6 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 		res = true;
 	}
 
-	SPALL_BUFFER_END();
 	return res;
 }
 
@@ -1507,7 +1505,7 @@ int32_t main(int32_t argc, char* argv[])
 				{
 					size_t src_idx = (int32_t)cJSON_GetNumberValue(tile_id);
 					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
-					SDL_assert(src_idx < tile_layer->num_tiles);
+					if (src_idx >= tile_layer->num_tiles) continue;
 					ivec2s dst = tile_layer->tiles[src_idx].dst;
 					if (dst.x == -1 || dst.y == -1) continue;
 					Level* level = GetCurrentLevel(ctx); // TODO
@@ -2959,7 +2957,7 @@ int32_t main(int32_t argc, char* argv[])
 					if (enemy->type == EntityType_Boar) 
 					{
 						UpdateBoar(ctx, enemy);
-					}
+					} // else if (enemy->type == EntityType_) { }
 				}
 
 				SPALL_BUFFER_END();

@@ -133,7 +133,7 @@ function void VulkanResetBuffer(VulkanBuffer* buffer)
 
 function void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
 {
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 	{
 		VkDebugUtilsObjectNameInfoEXT info = 
 		{
@@ -153,7 +153,7 @@ function void VulkanSetImageName(VkDevice device, VkImage image, char* name)
 
 function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
 {
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 	{
 		VkDebugUtilsObjectNameInfoEXT info = 
 		{
@@ -173,7 +173,7 @@ function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, ch
 
 function void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
 {
-#ifdef _DEBUG
+#if TOGGLE_VULKAN_VALIDATION
 	{
 		VkDebugUtilsObjectNameInfoEXT info = 
 		{
