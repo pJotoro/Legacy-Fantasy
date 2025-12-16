@@ -105,8 +105,6 @@ enum
 	EntityState_Fall,
 	EntityState_Jump,
 	EntityState_Free,
-	
-	// TODO
 	EntityState_Hurt,	
 };
 
