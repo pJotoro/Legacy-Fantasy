@@ -2317,6 +2317,21 @@ int32_t main(int32_t argc, char* argv[])
 
 		SPALL_BUFFER_END();
 	}
+
+	// PrintLevel
+	{
+		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->levels[0].size.x + 1, 1);
+		for (size_t y = 0; y < (size_t)(ctx->levels[0].size.y/TILE_SIZE); y += 1) {
+			for (size_t x = 0; x < (size_t)(ctx->levels[0].size.x/TILE_SIZE); x += 1) {
+				buf[x] = ctx->levels[0].tiles[x + y*(size_t)ctx->levels[0].size.x];
+				if (buf[x] == 0) buf[x] = '0';
+				else buf[x] = '1';
+			}
+			buf[ctx->levels[0].size.x] = 0;
+			SDL_Log((const char*)buf);
+		}
+		StackFree(&ctx->stack, buf);
+	}
 	
 	// VulkanCreateStaticStagingBuffer
 	{
