@@ -5,7 +5,7 @@
 
 #define TOGGLE_TILES 1
 #define TOGGLE_ENTITIES 1
-#define TOGGLE_REPLAY_FRAMES 0
+#define TOGGLE_REPLAY_FRAMES 1
 #if !TOGGLE_TILES && !TOGGLE_ENTITIES
 #error Either tiles or entities may be toggled off, but not both.
 #endif
@@ -1178,15 +1178,13 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 #if TOGGLE_REPLAY_FRAMES
 function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
 {
-	SPALL_BUFFER_BEGIN();
-
-	ctx->replay_frame_idx = replay_frame_idx;
-	Level* level = GetCurrentLevel(ctx);
-	ReplayFrame* replay_frame = &ctx->replay_frames[ctx->replay_frame_idx];
-	SDL_memcpy(level->entities, replay_frame->entities, replay_frame->num_entities * sizeof(Entity));
-	level->num_entities = replay_frame->num_entities;
-
-	SPALL_BUFFER_END();
+	if (replay_frame_idx < ctx->replay_frame_idx_max) {
+		ctx->replay_frame_idx = replay_frame_idx;
+		Level* level = GetCurrentLevel(ctx);
+		ReplayFrame* replay_frame = &ctx->replay_frames[ctx->replay_frame_idx];
+		SDL_memcpy(level->entities, replay_frame->entities, replay_frame->num_entities * sizeof(Entity));
+		level->num_entities = replay_frame->num_entities;
+	}
 }
 #endif
 
@@ -2972,10 +2970,9 @@ int32_t main(int32_t argc, char* argv[])
 				ReplayFrame replay_frame = {0};
 				
 				Level* level = GetCurrentLevel(ctx);
-				replay_frame.player = level->player;
-				replay_frame.enemies = SDL_malloc(level->num_enemies * sizeof(Entity)); SDL_CHECK(replay_frame.enemies);
-				SDL_memcpy(replay_frame.enemies, level->enemies, level->num_enemies * sizeof(Entity));
-				replay_frame.num_enemies = level->num_enemies;
+				replay_frame.entities = SDL_malloc(level->num_entities * sizeof(Entity)); SDL_CHECK(replay_frame.entities);
+				SDL_memcpy(replay_frame.entities, level->entities, level->num_entities * sizeof(Entity));
+				replay_frame.num_entities = level->num_entities;
 					
 				ctx->replay_frames[ctx->replay_frame_idx++] = replay_frame;
 				if (ctx->replay_frame_idx >= ctx->c_replay_frames - 1) 
