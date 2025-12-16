@@ -88,34 +88,34 @@ function FORCEINLINE bool TilesEqual(Tile a, Tile b)
 #if TOGGLE_ENTITIES
 function FORCEINLINE Entity* GetPlayer(Context* ctx) 
 {
-    return &ctx->levels[ctx->level_idx].entities[0];
+    return &ctx->level.entities[0];
 }
 
 function FORCEINLINE Entity* GetEntities(Context* ctx, size_t* num_entities) 
 {
     SDL_assert(num_entities);
-    if (ctx->levels[ctx->level_idx].num_entities == 0) 
+    if (ctx->level.num_entities == 0) 
     {
         *num_entities = 0;
         return NULL;
     } else 
     {
-        *num_entities = ctx->levels[ctx->level_idx].num_entities;
-        return ctx->levels[ctx->level_idx].entities;
+        *num_entities = ctx->level.num_entities;
+        return ctx->level.entities;
     }
 }
 
 function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) 
 {
     SDL_assert(num_enemies);
-    if (ctx->levels[ctx->level_idx].num_entities <= 1) 
+    if (ctx->level.num_entities <= 1) 
     {
         *num_enemies = 0;
         return NULL;
     } else 
     {
-        *num_enemies = ctx->levels[ctx->level_idx].num_entities - 1;
-        return &ctx->levels[ctx->level_idx].entities[1];
+        *num_enemies = ctx->level.num_entities - 1;
+        return &ctx->level.entities[1];
     }
 }
 
@@ -126,11 +126,6 @@ function FORCEINLINE void ResetAnim(Anim* anim)
     anim->ended = false;
 }
 #endif // TOGGLE_ENTITIES
-
-function FORCEINLINE Level* GetCurrentLevel(Context* ctx) 
-{
-    return &ctx->levels[ctx->level_idx];
-}
 
 function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) 
 {
