@@ -611,16 +611,16 @@ function void LoadSprite(Context* ctx, char* path)
 			SDL_SeekIO(fs, fs_pos, SDL_IO_SEEK_SET);
 		}
 		
-		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1)
 		{
-			void* raw_chunk = NULL; 
+			void* raw_chunk = NULL;
 			size_t raw_chunk_size = 0;
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
-			if (chunk_type == ASE_ChunkType_Cell) 
+			if (chunk_type == ASE_ChunkType_Cell)
 			{
 				ASE_CellChunk* chunk = raw_chunk;
-				if (chunk->layer_idx == hitbox_layer_idx) 
+				if (chunk->layer_idx == hitbox_layer_idx)
 				{
 					sd->frames[frame_idx].hitbox = (Rect)
 					{
@@ -964,7 +964,7 @@ function void UpdatePlayer(Context* ctx)
 	Entity* player = GetPlayer(ctx);
 	Level* level = GetCurrentLevel(ctx);
 
-	int16_t input_dir = 0;
+	int32_t input_dir = 0;
 	if (ctx->gamepad) 
 	{
 		if (ctx->gamepad_left_stick.x == 0.0f) input_dir = 0;
@@ -1101,7 +1101,7 @@ function void UpdatePlayer(Context* ctx)
 			SetAnimSprite(&player->anim, player_run);
 			if (player->vel.x != 0.0f) 
 			{
-				player->dir = (int16_t)glm_signf(player->vel.x);
+				player->dir = (int32_t)glm_signf(player->vel.x);
 			} 
 			else if (input_dir != 0) 
 			{
@@ -1269,260 +1269,6 @@ int32_t main(int32_t argc, char* argv[])
 		ok = spall_buffer_init(&ctx->spall_ctx, &ctx->spall_buffer); SDL_assert(ok);
 	}
 #endif
-
-	// LoadLevels
-	{
-		SPALL_BUFFER_BEGIN_NAME("LoadLevels");
-
-		cJSON* head;
-		{
-			size_t file_len;
-
-			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
-			SDL_CHECK(file_data);
-
-			SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
-			head = cJSON_ParseWithLength((const char*)file_data, file_len);
-			SPALL_BUFFER_END();
-
-			SDL_free(file_data);
-		}
-		SDL_assert(HAS_FLAG(head->type, cJSON_Object));
-
-		cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
-		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) 
-		{
-			ctx->num_levels += 1;
-		}
-		ctx->levels = ArenaAlloc(&ctx->arena, ctx->num_levels, Level);
-		size_t level_idx = 0;
-
-		// LoadLevel
-		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
-		cJSON_ArrayForEach(level_node, level_nodes) 
-		{
-			Level level = {0};
-
-			cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
-			level.size.x = (int32_t)cJSON_GetNumberValue(w);
-
-			cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
-			level.size.y = (int32_t)cJSON_GetNumberValue(h);
-
-#if TOGGLE_TILES
-			size_t num_tiles = (size_t)(level.size.x*level.size.y/TILE_SIZE);
-			level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
-
-			// HACK: This shouldn't be a constant.
-			level.num_tile_layers = 3;
-			level.tile_layers = ArenaAlloc(&ctx->arena, level.num_tile_layers, TileLayer);
-
-			const char* layer_tiles = "Tiles";
-			const char* layer_props = "Props";
-			const char* layer_grass = "Grass";
-#endif
-
-#if TOGGLE_ENTITIES
-			level.num_entities = 1; // the player
-
-			const char* layer_player = "Player";
-			const char* layer_enemies = "Enemies";
-#endif
-
-			cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
-			cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) 
-			{
-				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-
-#if TOGGLE_TILES
-				if (SDL_strcmp(type, "Tiles") == 0) 
-				{
-					TileLayer* tile_layer = NULL;
-					// TODO
-	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
-	 				{
-						tile_layer = &level.tile_layers[0];
-					} 
-					else if (SDL_strcmp(ident, layer_props) == 0) 
-					{
-						tile_layer = &level.tile_layers[1];
-					} 
-					else if (SDL_strcmp(ident, layer_grass) == 0) 
-					{
-						tile_layer = &level.tile_layers[2];
-					} 
-					else 
-					{
-						SDL_assert(!"Invalid layer!");
-					}
-
-					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
-					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
-					{
-						tile_layer->num_tiles += 1;
-					}
-				}
-
-				for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; tile_layer_idx += 1) 
-				{
-					TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
-					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-					SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
-				}
-#endif
-
-#if TOGGLE_ENTITIES
-				if (SDL_strcmp(ident, layer_enemies) == 0) 
-				{
-					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
-					{
-						level.num_entities += 1;
-					}
-				}
-#endif
-			}
-
-#if TOGGLE_TILES
-			cJSON_ArrayForEach(layer_instance, layer_instances) 
-			{
-				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-				if (SDL_strcmp(type, "Tiles") == 0) 
-				{
-					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
-
-					// TODO
-					TileLayer* tile_layer = NULL;
-	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
-	 				{
-						tile_layer = &level.tile_layers[0];
-					} 
-					else if (SDL_strcmp(ident, layer_props) == 0) 
-					{
-						tile_layer = &level.tile_layers[1];
-					} 
-					else if (SDL_strcmp(ident, layer_grass) == 0) 
-					{
-						tile_layer = &level.tile_layers[2];
-					} 
-					else 
-					{
-						SDL_assert(!"Invalid layer!");
-					}
-
-					size_t i = 0;
-					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
-					{
-						cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
-						ivec2s src = 
-						{
-							(int32_t)cJSON_GetNumberValue(src_node->child),
-							(int32_t)cJSON_GetNumberValue(src_node->child->next),
-						};
-
-						cJSON* dst_node = cJSON_GetObjectItem(grid_tile, "px");
-						ivec2s dst = 
-						{
-							(int32_t)cJSON_GetNumberValue(dst_node->child),
-							(int32_t)cJSON_GetNumberValue(dst_node->child->next),
-						};
-
-						SDL_assert(i < tile_layer->num_tiles);
-						tile_layer->tiles[i++] = (Tile){src, dst};
-					}
-				}	
-			}
-#endif // TOGGLE_TILES
-
-#if TOGGLE_ENTITIES
-			level.entities = ArenaAlloc(&ctx->arena, level.num_entities, Entity);
-			Entity* enemy = &level.entities[1];
-			cJSON_ArrayForEach(layer_instance, layer_instances) 
-			{
-				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-				if (SDL_strcmp(type, "Entities") == 0) 
-				{
-					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-
-					if (SDL_strcmp(ident, layer_player) == 0) 
-					{
-						cJSON* entity_instance = entity_instances->child;
-						cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
-						cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
-						level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-					} 
-					else if (SDL_strcmp(ident, layer_enemies) == 0) 
-					{
-						cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
-						{
-							cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
-							char* identifier = cJSON_GetStringValue(identifier_node);
-							cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
-							cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
-							enemy->start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
-							if (SDL_strcmp(identifier, "Boar") == 0) 
-							{
-								enemy->type = EntityType_Boar;
-							} // else if (SDL_strcmp(identifier, "") == 0) {}
-							enemy += 1;
-						}
-					}
-				}
-			}
-#endif // TOGGLE_ENTITIES
-
-			SDL_assert(level_idx < ctx->num_levels);
-			ctx->levels[level_idx++] = level;
-		}
-		SPALL_BUFFER_END();
-
-#if TOGGLE_TILES
-		cJSON* defs = cJSON_GetObjectItem(head, "defs");
-		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
-		bool break_all = false;
-		cJSON* tileset; cJSON_ArrayForEach(tileset, tilesets) 
-		{
-			cJSON* enum_tags = cJSON_GetObjectItem(tileset, "enumTags");
-			cJSON* enum_tag; cJSON_ArrayForEach(enum_tag, enum_tags) 
-			{
-				cJSON* id_node = cJSON_GetObjectItem(enum_tag, "enumValueId");
-				char* id = cJSON_GetStringValue(id_node);
-				if (SDL_strcmp(id, "Collide") != 0) continue;
-				
-				cJSON* tile_ids = cJSON_GetObjectItem(enum_tag, "tileIds");
-				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) 
-				{
-					size_t src_idx = (int32_t)cJSON_GetNumberValue(tile_id);
-					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0]; // TODO
-					if (src_idx >= tile_layer->num_tiles) continue;
-					ivec2s dst = tile_layer->tiles[src_idx].dst;
-					if (dst.x == -1 || dst.y == -1) continue;
-					Level* level = GetCurrentLevel(ctx); // TODO
-					size_t tile_idx = (size_t)((dst.x + dst.y*level->size.x)/TILE_SIZE);
-					SDL_assert(tile_idx < (size_t)(level->size.x*level->size.y));
-					level->tiles[tile_idx] = true;
-				}
-				break_all = true;
-				break;
-			}
-			if (break_all) break;
-		}
-		break_all = false;
-#endif // TOGGLE_TILES
-
-		cJSON_Delete(head);
-
-		SPALL_BUFFER_END();
-	}
 
 	// CreateWindow
 	{
@@ -2389,6 +2135,269 @@ int32_t main(int32_t argc, char* argv[])
 		}
 	}
 	SDL_Log("Error count: %llu", error_count);
+
+	// LoadLevels
+	{
+		SPALL_BUFFER_BEGIN_NAME("LoadLevels");
+
+		cJSON* head;
+		{
+			size_t file_len;
+
+			void* file_data = SDL_LoadFile("assets\\levels\\test.ldtk", &file_len); 
+			SDL_CHECK(file_data);
+
+			SPALL_BUFFER_BEGIN_NAME("cJSON_ParseWithLength");
+			head = cJSON_ParseWithLength((const char*)file_data, file_len);
+			SPALL_BUFFER_END();
+
+			SDL_free(file_data);
+		}
+		SDL_assert(HAS_FLAG(head->type, cJSON_Object));
+
+		cJSON* level_nodes = cJSON_GetObjectItem(head, "levels");
+		cJSON* level_node; cJSON_ArrayForEach(level_node, level_nodes) 
+		{
+			ctx->num_levels += 1;
+		}
+		ctx->levels = ArenaAlloc(&ctx->arena, ctx->num_levels, Level);
+		size_t level_idx = 0;
+
+		// LoadLevel
+		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
+		cJSON_ArrayForEach(level_node, level_nodes) 
+		{
+			Level level = {0};
+
+			cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
+			level.size.x = (int32_t)cJSON_GetNumberValue(w);
+
+			cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
+			level.size.y = (int32_t)cJSON_GetNumberValue(h);
+
+#if TOGGLE_TILES
+			size_t num_tiles = (size_t)(level.size.x*level.size.y/TILE_SIZE);
+			level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
+
+			// HACK: This shouldn't be a constant.
+			level.num_tile_layers = 3;
+			level.tile_layers = ArenaAlloc(&ctx->arena, level.num_tile_layers, TileLayer);
+
+			const char* layer_tiles = "Tiles";
+			const char* layer_props = "Props";
+			const char* layer_grass = "Grass";
+#endif
+
+#if TOGGLE_ENTITIES
+			level.num_entities = 1; // the player
+
+			const char* layer_player = "Player";
+			const char* layer_enemies = "Enemies";
+#endif
+
+			cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
+			cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
+				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
+				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
+				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
+				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
+
+#if TOGGLE_TILES
+				if (SDL_strcmp(type, "Tiles") == 0) 
+				{
+					TileLayer* tile_layer = NULL;
+					// TODO
+	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
+	 				{
+						tile_layer = &level.tile_layers[0];
+					} 
+					else if (SDL_strcmp(ident, layer_props) == 0) 
+					{
+						tile_layer = &level.tile_layers[1];
+					} 
+					else if (SDL_strcmp(ident, layer_grass) == 0) 
+					{
+						tile_layer = &level.tile_layers[2];
+					} 
+					else 
+					{
+						SDL_assert(!"Invalid layer!");
+					}
+
+					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
+					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+					{
+						tile_layer->num_tiles += 1;
+					}
+				}
+
+				for (size_t tile_layer_idx = 0; tile_layer_idx < level.num_tile_layers; tile_layer_idx += 1) 
+				{
+					TileLayer* tile_layer = &level.tile_layers[tile_layer_idx];
+					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
+					SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
+				}
+#endif
+
+#if TOGGLE_ENTITIES
+				if (SDL_strcmp(ident, layer_enemies) == 0) 
+				{
+					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
+					cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+					{
+						level.num_entities += 1;
+					}
+				}
+#endif
+			}
+
+#if TOGGLE_TILES
+			cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
+				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
+				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
+				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
+				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
+				if (SDL_strcmp(type, "Tiles") == 0) 
+				{
+					cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
+
+					// TODO
+					TileLayer* tile_layer = NULL;
+	 				if (SDL_strcmp(ident, layer_tiles) == 0) 
+	 				{
+						tile_layer = &level.tile_layers[0];
+					} 
+					else if (SDL_strcmp(ident, layer_props) == 0) 
+					{
+						tile_layer = &level.tile_layers[1];
+					} 
+					else if (SDL_strcmp(ident, layer_grass) == 0) 
+					{
+						tile_layer = &level.tile_layers[2];
+					} 
+					else 
+					{
+						SDL_assert(!"Invalid layer!");
+					}
+
+					size_t i = 0;
+					cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+					{
+						cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
+						ivec2s src = 
+						{
+							(int32_t)cJSON_GetNumberValue(src_node->child),
+							(int32_t)cJSON_GetNumberValue(src_node->child->next),
+						};
+
+						cJSON* dst_node = cJSON_GetObjectItem(grid_tile, "px");
+						ivec2s dst = 
+						{
+							(int32_t)cJSON_GetNumberValue(dst_node->child),
+							(int32_t)cJSON_GetNumberValue(dst_node->child->next),
+						};
+
+						SDL_assert(i < tile_layer->num_tiles);
+						tile_layer->tiles[i++] = (Tile){src, dst};
+					}
+				}	
+			}
+#endif // TOGGLE_TILES
+
+#if TOGGLE_ENTITIES
+			level.entities = ArenaAlloc(&ctx->arena, level.num_entities, Entity);
+			Entity* enemy = &level.entities[1];
+			cJSON_ArrayForEach(layer_instance, layer_instances) 
+			{
+				cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
+				char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
+				cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
+				char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
+				if (SDL_strcmp(type, "Entities") == 0) 
+				{
+					cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
+
+					if (SDL_strcmp(ident, layer_player) == 0) 
+					{
+						cJSON* entity_instance = entity_instances->child;
+						cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
+						cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
+						level.entities[0].start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
+					} 
+					else if (SDL_strcmp(ident, layer_enemies) == 0) 
+					{
+						cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+						{
+							cJSON* identifier_node = cJSON_GetObjectItem(entity_instance, "__identifier");
+							char* identifier = cJSON_GetStringValue(identifier_node);
+							cJSON* world_x = cJSON_GetObjectItem(entity_instance, "__worldX");
+							cJSON* world_y = cJSON_GetObjectItem(entity_instance, "__worldY");
+							enemy->start_pos = (ivec2s){(int32_t)cJSON_GetNumberValue(world_x), (int32_t)cJSON_GetNumberValue(world_y)};
+							if (SDL_strcmp(identifier, "Boar") == 0) 
+							{
+								enemy->type = EntityType_Boar;
+							} // else if (SDL_strcmp(identifier, "") == 0) {}
+							enemy += 1;
+						}
+					}
+				}
+			}
+#endif // TOGGLE_ENTITIES
+
+			SDL_assert(level_idx < ctx->num_levels);
+			ctx->levels[level_idx++] = level;
+		}
+		SPALL_BUFFER_END();
+
+#if TOGGLE_TILES
+		cJSON* defs = cJSON_GetObjectItem(head, "defs");
+		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
+		bool break_all = false;
+		cJSON* tileset; cJSON_ArrayForEach(tileset, tilesets) 
+		{
+			cJSON* enum_tags = cJSON_GetObjectItem(tileset, "enumTags");
+			cJSON* enum_tag; cJSON_ArrayForEach(enum_tag, enum_tags) 
+			{
+				cJSON* id_node = cJSON_GetObjectItem(enum_tag, "enumValueId");
+				char* id = cJSON_GetStringValue(id_node);
+				if (SDL_strcmp(id, "Collide") != 0) continue;
+				
+				cJSON* tile_ids = cJSON_GetObjectItem(enum_tag, "tileIds");
+				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) 
+				{
+					Level* level = GetCurrentLevel(ctx); // TODO
+
+					size_t src_idx = (size_t)cJSON_GetNumberValue(tile_id);
+					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
+					ivec2s src;
+					src.x = (int32_t)src_idx*TILE_SIZE / tileset_dimensions.x;
+					src.y = (int32_t)src_idx*TILE_SIZE % tileset_dimensions.y;
+
+					TileLayer* tile_layer = &ctx->levels[0].tile_layers[0];
+					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) {
+						Tile tile = tile_layer->tiles[i];
+						if (tile.src.x == src.x && tile.src.y == src.y) {
+							if (!TileIsValid(tile)) continue;
+							size_t tile_idx = (size_t)((tile.dst.x + tile.dst.y*level->size.x)/TILE_SIZE);
+							SDL_assert(tile_idx < (size_t)(level->size.x*level->size.y/TILE_SIZE));
+							level->tiles[tile_idx] = true;
+						}
+					}
+				}
+				break_all = true;
+				break;
+			}
+			if (break_all) break;
+		}
+		break_all = false;
+#endif // TOGGLE_TILES
+
+		cJSON_Delete(head);
+
+		SPALL_BUFFER_END();
+	}
 	
 	// VulkanCreateStaticStagingBuffer
 	{
