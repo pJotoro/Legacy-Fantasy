@@ -53,6 +53,8 @@
 )
 #else
 #define SPALL_BUFFER_BEGIN()
+#define SPALL_BUFFER_END()
+#define SPALL_BUFFER_BEGIN_NAME(NAME)
 #endif
 #pragma warning(pop)
 

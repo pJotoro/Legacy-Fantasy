@@ -1,4 +1,4 @@
-#define TOGGLE_PROFILING 1
+#define TOGGLE_PROFILING 0
 
 #include "main.h"
 #include "aseprite.h"
