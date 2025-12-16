@@ -849,7 +849,6 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	MoveEntity(entity, entity->vel);
 
 #if TOGGLE_TILES
-	//Rect prev_hitbox = hitbox;
 	hitbox = GetEntityHitbox(ctx, entity);
 
 	ivec2s grid_pos;
@@ -867,8 +866,10 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 				if (overlap.y != 0) {
 					if (entity->vel.y > 0.0f) entity->state = EntityState_Free;
 					else entity->state = EntityState_Fall;
+					entity->vel.y = 0.0f;
 				}
 				entity->pos = glms_ivec2_add(entity->pos, overlap);
+				entity->pos.y -= 100;
 				return;
 			}
 		}
