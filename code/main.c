@@ -47,7 +47,6 @@ typedef struct SpriteFrame
 {
 	SpriteCell* cells; size_t num_cells;
 	Rect hitbox;
-	Rect hurtbox; // TODO
 	ivec2s origin;
 	float dur;
 } SpriteFrame;
@@ -777,7 +776,7 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 
 	}
 	
-	int32_t vertical_side = 1;
+	int32_t vertical_side = 1; // Could be 1, or any other number not divisible by TILE_SIZE.
 	if (entity->vel.y < 0.0f) vertical_side = hitbox.min.y;
 	else if (entity->vel.y > 0.0f) vertical_side = hitbox.max.y;
 	if (vertical_side % TILE_SIZE == 0) 
@@ -844,147 +843,147 @@ function void UpdatePlayer(Context* ctx)
 
 	switch (player->state) 
 	{
-	case EntityState_Free: 
-	{
-		if (ctx->button_attack) 
+		case EntityState_Free: 
 		{
-			player->state = EntityState_Attack;
-		} 
-		else if (ctx->button_jump) 
+			if (ctx->button_attack) 
+			{
+				player->state = EntityState_Attack;
+			} 
+			else if (ctx->button_jump) 
+			{
+				player->state = EntityState_Jump;
+			}
+		} break;
+		case EntityState_Jump: 
 		{
-			player->state = EntityState_Jump;
-		}
-	} break;
-	case EntityState_Jump: 
-	{
-		if (ctx->button_jump_released) 
+			if (ctx->button_jump_released) 
+			{
+				player->vel.y /= 2.0f;
+				player->state = EntityState_Fall;
+			}
+		} break;
+		default: 
 		{
-			player->vel.y /= 2.0f;
-			player->state = EntityState_Fall;
-		}
-	} break;
-	default: 
-	{
-		// TODO?
-	} break;
+			// TODO?
+		} break;
 	}
 
 	if (player->pos.y > (float)ctx->level.size.y) 
 	{
 		ResetGame(ctx);
 	} 
-	else switch (player->state) 
+	else switch (player->state)
 	{
-	case EntityState_Inactive:
-		break;
-    case EntityState_Die: 
-    {
-		SetAnimSprite(&player->anim, player_die);
-		bool loop = false;
-		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) 
-		{
-			ResetGame(ctx);
-		}
-	} break;
-
-    case EntityState_Attack: 
-    {
-		SetAnimSprite(&player->anim, player_attack);
-
-		size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
-		for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
-		{
-			Entity* enemy = &enemies[enemy_idx];
-			if (EntitiesIntersect(ctx, player, enemy)) 
+		case EntityState_Inactive:
+			break;
+	    case EntityState_Die: 
+	    {
+			SetAnimSprite(&player->anim, player_die);
+			bool loop = false;
+			UpdateAnim(ctx, &player->anim, loop);
+			if (player->anim.ended) 
 			{
-				switch (enemy->type) 
+				ResetGame(ctx);
+			}
+		} break;
+
+	    case EntityState_Attack: 
+	    {
+			SetAnimSprite(&player->anim, player_attack);
+
+			size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
+			for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
+			{
+				Entity* enemy = &enemies[enemy_idx];
+				if (EntitiesIntersect(ctx, player, enemy)) 
 				{
-				case EntityType_Boar:
-					enemy->state = EntityState_Hurt;
-					break;
-				default:
-					break;
+					switch (enemy->type) 
+					{
+					case EntityType_Boar:
+						enemy->state = EntityState_Hurt;
+						break;
+					default:
+						break;
+					}
 				}
 			}
-		}
-		
-		bool loop = false;
-		UpdateAnim(ctx, &player->anim, loop);
-		if (player->anim.ended) 
-		{
-			player->state = EntityState_Free;
-		}
-	} break;
-    	
-    case EntityState_Fall: 
-    {
-    	SetAnimSprite(&player->anim, player_jump_end);
-
-    	vec2s acc = {0.0f, GRAVITY};
-    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-
-    	bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
-	} break;
-    	
-	case EntityState_Jump: 
-	{
-		vec2s acc = {0.0f};
-		if (SetAnimSprite(&player->anim, player_jump_start)) 
-		{
-			acc.y -= PLAYER_JUMP;
-		}
-
-    	acc.y += GRAVITY;
-    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-
-		bool loop = false;
-    	UpdateAnim(ctx, &player->anim, loop);
-	} break;
-
-	case EntityState_Free: 
-	{
-		vec2s acc = {0.0f, 0.0f};
-
-		acc.y += GRAVITY;
-
-		if (!ctx->gamepad) 
-		{
-			acc.x = (float)input_dir * PLAYER_ACC;
-		} 
-		else 
-		{
-			acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
-		}
-
-		if (input_dir == 0 && player->vel.x == 0.0f) 
-		{
-			SetAnimSprite(&player->anim, player_idle);
-		} 
-		else 
-		{
-			SetAnimSprite(&player->anim, player_run);
-			if (player->vel.x != 0.0f) 
+			
+			bool loop = false;
+			UpdateAnim(ctx, &player->anim, loop);
+			if (player->anim.ended) 
 			{
-				player->dir = (int32_t)glm_signf(player->vel.x);
-			} 
-			else if (input_dir != 0) 
-			{
-				player->dir = input_dir;
+				player->state = EntityState_Free;
 			}
-		}
+		} break;
+	    	
+	    case EntityState_Fall: 
+	    {
+	    	SetAnimSprite(&player->anim, player_jump_end);
 
-		UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+	    	vec2s acc = {0.0f, GRAVITY};
+	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 
-		bool loop = true;
-		UpdateAnim(ctx, &player->anim, loop);
-	} break;
+	    	bool loop = false;
+	    	UpdateAnim(ctx, &player->anim, loop);
+		} break;
+	    	
+		case EntityState_Jump: 
+		{
+			vec2s acc = {0.0f};
+			if (SetAnimSprite(&player->anim, player_jump_start)) 
+			{
+				acc.y -= PLAYER_JUMP;
+			}
 
-	default: 
-	{
-		// TODO?
-	} break;
+	    	acc.y += GRAVITY;
+	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+
+			bool loop = false;
+	    	UpdateAnim(ctx, &player->anim, loop);
+		} break;
+
+		case EntityState_Free: 
+		{
+			vec2s acc = {0.0f, 0.0f};
+
+			acc.y += GRAVITY;
+
+			if (!ctx->gamepad) 
+			{
+				acc.x = (float)input_dir * PLAYER_ACC;
+			} 
+			else 
+			{
+				acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
+			}
+
+			if (input_dir == 0 && player->vel.x == 0.0f) 
+			{
+				SetAnimSprite(&player->anim, player_idle);
+			} 
+			else 
+			{
+				SetAnimSprite(&player->anim, player_run);
+				if (player->vel.x != 0.0f) 
+				{
+					player->dir = (int32_t)glm_signf(player->vel.x);
+				} 
+				else if (input_dir != 0) 
+				{
+					player->dir = input_dir;
+				}
+			}
+
+			UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+
+			bool loop = true;
+			UpdateAnim(ctx, &player->anim, loop);
+		} break;
+
+		default: 
+		{
+			// TODO?
+		} break;
 	}
 
 	SPALL_BUFFER_END();
@@ -996,45 +995,45 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 
 	switch (boar->state) 
 	{
-	case EntityState_Hurt: 
-	{
-		SetAnimSprite(&boar->anim, boar_hit);
-
-		bool loop = false;
-		UpdateAnim(ctx, &boar->anim, loop);
-
-		if (boar->anim.ended) 
+		case EntityState_Hurt: 
 		{
-			boar->state = EntityState_Inactive;
-		}
-	} break;
+			SetAnimSprite(&boar->anim, boar_hit);
 
-	case EntityState_Fall: 
-	{
-		SetAnimSprite(&boar->anim, boar_idle);
+			bool loop = false;
+			UpdateAnim(ctx, &boar->anim, loop);
 
-		vec2s acc = {0.0f, GRAVITY};
-		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+			if (boar->anim.ended) 
+			{
+				boar->state = EntityState_Inactive;
+			}
+		} break;
 
-		bool loop = true;
-		UpdateAnim(ctx, &boar->anim, loop);
-	} break;
+		case EntityState_Fall: 
+		{
+			SetAnimSprite(&boar->anim, boar_idle);
 
-	case EntityState_Free: 
-	{
-		SetAnimSprite(&boar->anim, boar_idle);
+			vec2s acc = {0.0f, GRAVITY};
+			UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
-		vec2s acc = {0.0f, GRAVITY};
-		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
 
-		bool loop = true;
-		UpdateAnim(ctx, &boar->anim, loop);
-	} break;
+		case EntityState_Free: 
+		{
+			SetAnimSprite(&boar->anim, boar_idle);
 
-	default: 
-	{
-		// TODO?
-	} break;
+			vec2s acc = {0.0f, GRAVITY};
+			UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
+
+		default: 
+		{
+			// TODO?
+		} break;
 	}
 
 	SPALL_BUFFER_END();
@@ -1043,7 +1042,8 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 #if TOGGLE_REPLAY_FRAMES
 function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
 {
-	if (replay_frame_idx < ctx->replay_frame_idx_max) {
+	if (replay_frame_idx < ctx->replay_frame_idx_max) 
+	{
 		ctx->replay_frame_idx = replay_frame_idx;
 		ReplayFrame* replay_frame = &ctx->replay_frames[ctx->replay_frame_idx];
 		SDL_memcpy(ctx->level.entities, replay_frame->entities, replay_frame->num_entities * sizeof(Entity));
@@ -2060,15 +2060,7 @@ int32_t main(int32_t argc, char* argv[])
 					tile_layer->num_tiles += 1;
 				}
 			}
-
-			for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
-			{
-				TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
-				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-				SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
-			}
-
-			if (SDL_strcmp(ident, layer_enemies) == 0) 
+			else if (SDL_strcmp(ident, layer_enemies) == 0) 
 			{
 				cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 				cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
@@ -2076,6 +2068,13 @@ int32_t main(int32_t argc, char* argv[])
 					ctx->level.num_entities += 1;
 				}
 			}
+
+			for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
+			{
+				TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
+				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
+				SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
+			}			
 		}
 
 		cJSON_ArrayForEach(layer_instance, layer_instances) 
@@ -2429,7 +2428,8 @@ int32_t main(int32_t argc, char* argv[])
 						.image = sd->vk_image,
 						.viewType = VK_IMAGE_VIEW_TYPE_2D,
 						.format = VK_FORMAT_R8G8B8A8_SRGB,
-						.subresourceRange = {
+						.subresourceRange = 
+						{
 							.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 							.baseMipLevel = 0,
 							.levelCount = 1,
@@ -2447,7 +2447,8 @@ int32_t main(int32_t argc, char* argv[])
 						.image = sd->vk_image,
 						.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
 						.format = VK_FORMAT_R8G8B8A8_SRGB,
-						.subresourceRange = {
+						.subresourceRange = 
+						{
 							.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 							.baseMipLevel = 0,
 							.levelCount = 1,
