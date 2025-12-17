@@ -2026,7 +2026,8 @@ int32_t main(int32_t argc, char* argv[])
 		const char* layer_enemies = "Enemies";
 
 		cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
-		cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) 
+		cJSON* layer_instance; 
+		cJSON_ArrayForEach(layer_instance, layer_instances) 
 		{
 			cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
 			char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
@@ -2055,24 +2056,32 @@ int32_t main(int32_t argc, char* argv[])
 				}
 
 				cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
-				cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+				cJSON* grid_tile; 
+				cJSON_ArrayForEach(grid_tile, grid_tiles) 
 				{
 					tile_layer->num_tiles += 1;
 				}
-
-				for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
-				{
-					TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
-					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-					SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
-				}	
+				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
+				SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
 			}
 			else if (SDL_strcmp(ident, layer_enemies) == 0) 
 			{
 				cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
-				cJSON* entity_instance; cJSON_ArrayForEach(entity_instance, entity_instances) 
+				cJSON* entity_instance; 
+				cJSON_ArrayForEach(entity_instance, entity_instances) 
 				{
 					ctx->level.num_entities += 1;
+				}
+			}
+			else if (SDL_strcmp(ident, "IntGrid") == 0)
+			{
+				cJSON* tile_collisions = cJSON_GetObjectItem(layer_instance, "intGridCsv"); SDL_assert(tile_collisions);
+				cJSON* tile_collision;
+				size_t tile_collision_idx = 0;
+				cJSON_ArrayForEach(tile_collision, tile_collisions) 
+				{
+					bool val = (bool)cJSON_GetNumberValue(tile_collision);
+					ctx->level.tiles[tile_collision_idx++] = val;
 				}
 			}
 		}
@@ -2110,7 +2119,8 @@ int32_t main(int32_t argc, char* argv[])
 				}
 
 				size_t i = 0;
-				cJSON* grid_tile; cJSON_ArrayForEach(grid_tile, grid_tiles) 
+				cJSON* grid_tile; 
+				cJSON_ArrayForEach(grid_tile, grid_tiles) 
 				{
 					cJSON* src_node = cJSON_GetObjectItem(grid_tile, "src");
 					ivec2s src = 
@@ -2160,49 +2170,6 @@ int32_t main(int32_t argc, char* argv[])
 			}	
 		}
 
-		cJSON* defs = cJSON_GetObjectItem(head, "defs");
-		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
-		bool break_all = false;
-		cJSON* tileset; cJSON_ArrayForEach(tileset, tilesets) 
-		{
-			cJSON* enum_tags = cJSON_GetObjectItem(tileset, "enumTags");
-			cJSON* enum_tag; cJSON_ArrayForEach(enum_tag, enum_tags) 
-			{
-				cJSON* id_node = cJSON_GetObjectItem(enum_tag, "enumValueId");
-				char* id = cJSON_GetStringValue(id_node);
-				if (SDL_strcmp(id, "Collide") != 0) continue;
-				
-				cJSON* tile_ids = cJSON_GetObjectItem(enum_tag, "tileIds");
-				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) 
-				{
-					size_t src_idx = (size_t)cJSON_GetNumberValue(tile_id);
-
-					ivec2s dimensions = GetTilesetDimensions(ctx, spr_tiles);
-
-					TileLayer* tile_layer = &ctx->level.tile_layers[0];
-					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) 
-					{
-						Tile tile = tile_layer->tiles[i];
-						size_t tile_src_idx = (tile.src.x + tile.src.y*dimensions.x)/TILE_SIZE;
-						if (src_idx == tile_src_idx)
-						{
-							size_t tile_dst_idx = (size_t)((tile.dst.x + tile.dst.y*ctx->level.size.x)/TILE_SIZE);
-							SDL_assert(tile_dst_idx < (size_t)(ctx->level.size.x*ctx->level.size.y/TILE_SIZE));
-							if (ctx->level.tiles[tile_dst_idx]) 
-							{
-								SDL_Log("FUCK! {%d, %d}", tile.src.x, tile.src.y);
-							}
-							ctx->level.tiles[tile_dst_idx] = true;
-						}
-					}
-				}
-				break_all = true;
-				break;
-			}
-			if (break_all) break;
-		}
-		break_all = false;
-
 		cJSON_Delete(head);
 
 		SPALL_BUFFER_END();
@@ -2210,10 +2177,10 @@ int32_t main(int32_t argc, char* argv[])
 
 	// PrintLevel
 	{
-		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.x + 1, 1);
+		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.x/TILE_SIZE + 1, 1);
 		for (size_t y = 0; y < (size_t)(ctx->level.size.y/TILE_SIZE); y += 1) {
 			for (size_t x = 0; x < (size_t)(ctx->level.size.x/TILE_SIZE); x += 1) {
-				buf[x] = ctx->level.tiles[x + y*(size_t)ctx->level.size.x];
+				buf[x] = ctx->level.tiles[x + y*(size_t)ctx->level.size.x/TILE_SIZE];
 				if (buf[x] == 0) buf[x] = '0';
 				else buf[x] = '1';
 			}
