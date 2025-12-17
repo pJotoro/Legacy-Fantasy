@@ -1,4 +1,4 @@
-#define TOGGLE_PROFILING 0
+#define TOGGLE_PROFILING 1
 
 #include "main.h"
 #include "aseprite.h"
@@ -23,7 +23,7 @@
 #define BOAR_MAX_VEL 0.15f
 
 #define TILE_SIZE 16
-#define GRAVITY 1000.0f
+#define GRAVITY 0.2f
 
 #define MAX_SPRITES 256
 
@@ -32,6 +32,33 @@ typedef struct Rect
 	ivec2s min;
 	ivec2s max;
 } Rect;
+
+typedef struct TilePos
+{
+	ivec2s val;
+} TilePos;
+
+function FORCEINLINE TilePos ToTilePos(ivec2s level_pos)
+{
+	TilePos res;
+	res.val = glms_ivec2_scale(level_pos, TILE_SIZE);
+	return res;
+}
+
+function FORCEINLINE TilePos ToTilePosStrict(ivec2s level_pos)
+{
+	SDL_assert(level_pos.x % TILE_SIZE == 0 && level_pos.y % TILE_SIZE == 0);
+
+	TilePos res;
+	res.val = glms_ivec2_scale(level_pos, TILE_SIZE);
+	return res;
+}
+
+function FORCEINLINE ivec2s ToLevelPos(TilePos tile_pos)
+{
+	ivec2s res = glms_ivec2_divs(tile_pos.val, TILE_SIZE);
+	return res;
+}
 
 typedef struct SpriteCell 
 {
@@ -118,8 +145,8 @@ typedef struct Entity
 
 typedef struct Tile 
 {
-	ivec2s src;
-	ivec2s dst;
+	TilePos src;
+	TilePos dst;
 } Tile;
 
 typedef struct TileLayer 
@@ -130,13 +157,13 @@ typedef struct TileLayer
 
 typedef struct Level 
 {
-	ivec2s size;
+	TilePos size;
 
 	// NOTE: entities[0] is always the player.
 	Entity* entities; size_t num_entities;
 
 	TileLayer* tile_layers; size_t num_tile_layers;
-	bool* tiles; // num_tiles = size.x*size.y/TILE_SIZE
+	bool* tiles; // num_tiles = size.x*size.y
 } Level;
 
 #if TOGGLE_REPLAY_FRAMES
@@ -745,132 +772,16 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     return res;
 }
 
-// This returns a new EntityState instead of setting the 
-// entity state directly because depending on the entity,
-// certain states might not make sense.
-function EntityState UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
+function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) {
 	SPALL_BUFFER_BEGIN();
-	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+
+	UNUSED(fric);
+	UNUSED(max_vel);
 
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
-
-	if (entity->state == EntityState_Free) {
-		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
-		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
-		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
-	}
-
-	bool horizontal_collision_happened = false;
-	vec2s vel = entity->vel;
-	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) {
-		ivec2s grid_pos;
-		grid_pos.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-			if (TileIsSolid(&ctx->level, grid_pos)) {
-				vel.x = 0.0f;
-				horizontal_collision_happened = true;
-				break;
-			}
-		}
-	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) {
-		ivec2s grid_pos;
-		grid_pos.x = (prev_hitbox.max.x+1)/TILE_SIZE;
-		for (grid_pos.y = prev_hitbox.min.y/TILE_SIZE; grid_pos.y <= prev_hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-			if (TileIsSolid(&ctx->level, grid_pos)) {
-				vel.x = 0.0f;
-				horizontal_collision_happened = true;
-				break;
-			}
-		}
-	}
-	bool touching_floor = false;
-	bool vertical_collision_happened = false;
-	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) {
-		ivec2s grid_pos;
-		grid_pos.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-			if (TileIsSolid(&ctx->level, grid_pos)) {
-				vel.y = 0.0f;
-				vertical_collision_happened = true;
-				break;
-			}
-		}
-	} else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) {
-		ivec2s grid_pos;
-		grid_pos.y = (prev_hitbox.max.y+1)/TILE_SIZE;
-		for (grid_pos.x = prev_hitbox.min.x/TILE_SIZE; grid_pos.x <= prev_hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-			if (TileIsSolid(&ctx->level, grid_pos)) {
-				vel.y = 0.0f;
-				entity->vel.y = 0.0f;
-				entity->state = EntityState_Free;
-				touching_floor = true;
-				vertical_collision_happened = true;
-				break;
-			}
-		}
-	}
-
-    MoveEntity(entity, vel);
-
-    Rect hitbox = GetEntityHitbox(ctx, entity);
-
-	ivec2s grid_pos;
-	for (grid_pos.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.y <= hitbox.max.y/TILE_SIZE; ++grid_pos.y) {
-		for (grid_pos.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && grid_pos.x <= hitbox.max.x/TILE_SIZE; ++grid_pos.x) {
-			if (TileIsSolid(&ctx->level, grid_pos)) {
-				Rect tile_rect;
-				tile_rect.min = glms_ivec2_scale(grid_pos, TILE_SIZE);
-				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-				if (RectsIntersect(hitbox, tile_rect)) {
-					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
-
-					if (!horizontal_collision_happened) {
-						Rect h = prev_hitbox;
-						h.min.x = hitbox.min.x;
-						h.max.x = hitbox.max.x;
-						if (RectsIntersect(h, tile_rect)) {
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.x);
-							while (RectsIntersect(h, tile_rect)) {
-								h.min.x -= incr;
-								h.max.x -= incr;
-								amount += incr;
-							}
-							entity->pos.x -= amount;
-							horizontal_collision_happened = true;
-						}
-
-					}
-					if (!vertical_collision_happened) {
-						Rect h = prev_hitbox;
-						h.min.y = hitbox.min.y;
-						h.max.y = hitbox.max.y;
-						if (RectsIntersect(h, tile_rect)) {
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.y);
-							while (RectsIntersect(h, tile_rect)) {
-								h.min.y -= incr;
-								h.max.y -= incr;
-								amount += incr;
-							}
-							entity->pos.y -= amount;					
-							vertical_collision_happened = true;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	EntityState res;
-	if (!touching_floor && entity->vel.y > 0.0f) {
-		res = EntityState_Fall;
-	} else {
-		res = entity->state;
-	}
+    MoveEntity(entity, glms_vec2_scale(entity->vel, dt));
 
 	SPALL_BUFFER_END();
-	return res;
 }
 
 function void UpdatePlayer(Context* ctx) 
@@ -917,7 +828,7 @@ function void UpdatePlayer(Context* ctx)
 		} break;
 	}
 
-	if (player->pos.y > (float)ctx->level.size.y) 
+	if (player->pos.y > (float)(ctx->level.size.val.y*TILE_SIZE)) 
 	{
 		ResetGame(ctx);
 	} 
@@ -1192,7 +1103,8 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 		SDL_CHECK(display_mode);
 		
-		dt = 1.0f/display_mode->refresh_rate; // NOTE: After this, dt is effectively a constant.
+		// NOTE: After this, dt is effectively a constant.
+		dt = 60.0f/display_mode->refresh_rate;
 
 		{
 			SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
@@ -2035,6 +1947,8 @@ int32_t main(int32_t argc, char* argv[])
 
 	// LoadLevel
 	{
+		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
+
 		cJSON* head;
 		{
 			size_t file_len;
@@ -2054,12 +1968,12 @@ int32_t main(int32_t argc, char* argv[])
 		cJSON* level_node = level_nodes->child;
 
 		cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
-		ctx->level.size.x = (int32_t)cJSON_GetNumberValue(w);
+		ctx->level.size.val.x = ((int32_t)cJSON_GetNumberValue(w))/TILE_SIZE;
 
 		cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
-		ctx->level.size.y = (int32_t)cJSON_GetNumberValue(h);
+		ctx->level.size.val.y = ((int32_t)cJSON_GetNumberValue(h))/TILE_SIZE;
 
-		size_t num_tiles = (size_t)(ctx->level.size.x*ctx->level.size.y/TILE_SIZE);
+		size_t num_tiles = (size_t)(ctx->level.size.val.x*ctx->level.size.val.y);
 		ctx->level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
 
 		ctx->level.num_tile_layers = 3;
@@ -2226,14 +2140,16 @@ int32_t main(int32_t argc, char* argv[])
 
 	// PrintLevel
 	{
-		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.x/TILE_SIZE + 1, 1);
-		for (size_t y = 0; y < (size_t)(ctx->level.size.y/TILE_SIZE); y += 1) {
-			for (size_t x = 0; x < (size_t)(ctx->level.size.x/TILE_SIZE); x += 1) {
-				buf[x] = ctx->level.tiles[x + y*(size_t)ctx->level.size.x/TILE_SIZE];
+		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.val.x + 1, 1);
+		for (size_t y = 0; y < (size_t)(ctx->level.size.val.y); y += 1) 
+		{
+			for (size_t x = 0; x < (size_t)(ctx->level.size.val.x); x += 1) 
+			{
+				buf[x] = ctx->level.tiles[x + y*(size_t)ctx->level.size.val.x];
 				if (buf[x] == 0) buf[x] = '0';
 				else buf[x] = '1';
 			}
-			buf[ctx->level.size.x/TILE_SIZE] = 0;
+			buf[ctx->level.size.val.x] = 0;
 			SDL_Log((const char*)buf);
 		}
 		StackFree(&ctx->stack, buf);

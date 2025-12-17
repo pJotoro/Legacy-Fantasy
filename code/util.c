@@ -46,8 +46,8 @@ function FORCEINLINE float NormInt16(int16_t i16)
 function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
-    ivec2s size = level->size;
-    *num_tiles = (size_t)(size.x*size.y/TILE_SIZE);
+    TilePos size = level->size;
+    *num_tiles = (size_t)(size.val.x*size.val.y);
     return level->tiles;
 }
 
@@ -59,25 +59,25 @@ function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx
 function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
-    *num_tiles = (size_t)level->size.x*level->size.y/TILE_SIZE;
+    *num_tiles = (size_t)level->size.val.x*level->size.val.y;
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
-function FORCEINLINE bool TileIsSolid(Level* level, ivec2s pos) 
+function FORCEINLINE bool TileIsSolid(Level* level, TilePos pos) 
 {
-    if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
-    size_t idx = (size_t)(pos.x + pos.y*level->size.x/TILE_SIZE);
+    if ((!(pos.val.x >= 0 && pos.val.x < level->size.val.x && pos.val.y >= 0 && pos.val.y < level->size.val.y))) return false;
+    size_t idx = (size_t)(pos.val.x + pos.val.y*level->size.val.x);
     return level->tiles[idx];
 }
 
 function FORCEINLINE bool TileIsValid(Tile tile) 
 {
-    return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
+    return tile.src.val.x != -1 && tile.src.val.y != -1 && tile.dst.val.x != -1 && tile.dst.val.y != -1;
 }
 
 function FORCEINLINE bool TilesEqual(Tile a, Tile b) 
 {
-    return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
+    return a.src.val.x == b.src.val.x && a.src.val.y == b.src.val.y && a.dst.val.x == b.dst.val.x && a.dst.val.y == b.dst.val.y;
 }
 
 function FORCEINLINE Entity* GetPlayer(Context* ctx) 
