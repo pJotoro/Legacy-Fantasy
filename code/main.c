@@ -2184,7 +2184,7 @@ int32_t main(int32_t argc, char* argv[])
 				if (buf[x] == 0) buf[x] = '0';
 				else buf[x] = '1';
 			}
-			buf[ctx->level.size.x] = 0;
+			buf[ctx->level.size.x/TILE_SIZE] = 0;
 			SDL_Log((const char*)buf);
 		}
 		StackFree(&ctx->stack, buf);
