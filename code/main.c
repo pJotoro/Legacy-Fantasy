@@ -555,7 +555,7 @@ function void LoadSprite(Context* ctx, char* path)
 		// Would mean this aseprite file is very old.
 		SDL_assert(frame.num_chunks != 0);
 
-		sd->frames[frame_idx].dur = ((float)frame.frame_dur)/1000.0f;
+		sd->frames[frame_idx].dur = ((float)frame.frame_dur)/(1000.0f/60.0f);
 
 		int64_t fs_pos = SDL_TellIO(fs);
 
@@ -772,8 +772,7 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     {
     	Rect ha = GetEntityHitbox(ctx, a);
     	Rect hb = GetEntityHitbox(ctx, b);
-    	ivec2s overlap;
-    	res = RectsIntersect(ha, hb, &overlap);
+    	res = RectsIntersect(ha, hb);
     } 
 
     SPALL_BUFFER_END();
@@ -782,89 +781,145 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
 
 function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
+	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
 	if (entity->state == EntityState_Free) 
 	{
-		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric);
-		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric);
+		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
+		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-	Rect hitbox = GetEntityHitbox(ctx, entity);
-
-	int32_t horizontal_side = 1; // Could be 1, or any other number not divisible by TILE_SIZE.
-	if (entity->vel.x < 0.0f) horizontal_side = hitbox.min.x;
-	else if (entity->vel.x > 0.0f) horizontal_side = hitbox.max.x;
-	if (horizontal_side % TILE_SIZE == 0) {
-		for (TilePos 
-			tile = ToTilePos((ivec2s){horizontal_side, hitbox.min.y}),
-			tile_end = ToTilePos((ivec2s){horizontal_side, hitbox.max.y});
-			tile.val.y <= tile_end.val.y; 
-			tile.val.y += 1) 
+	bool horizontal_collision_happened = false;
+	vec2s vel = entity->vel;
+	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) 
+	{
+		TilePos tile_pos;
+		tile_pos.val.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.val.y = prev_hitbox.min.y/TILE_SIZE; tile_pos.val.y <= prev_hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
 		{
-			if (TileIsSolid(&ctx->level, tile)) 
+			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
-				entity->vel.x = 0.0f;
+				vel.x = 0.0f;
+				horizontal_collision_happened = true;
 				break;
 			}
 		}
-
-	}
-	
-	int32_t vertical_side = 1; // Could be 1, or any other number not divisible by TILE_SIZE.
-	if (entity->vel.y < 0.0f) vertical_side = hitbox.min.y;
-	else if (entity->vel.y > 0.0f) vertical_side = hitbox.max.y;
-	if (vertical_side % TILE_SIZE == 0) 
+	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) 
 	{
-		for (TilePos 
-			tile = ToTilePos((ivec2s){hitbox.min.x, vertical_side}),
-			tile_end = ToTilePos((ivec2s){hitbox.max.x, vertical_side});
-			tile.val.x <= tile_end.val.x; 
-			tile.val.x += 1) 
+		TilePos tile_pos;
+		tile_pos.val.x = (prev_hitbox.max.x+1)/TILE_SIZE;
+		for (tile_pos.val.y = prev_hitbox.min.y/TILE_SIZE; tile_pos.val.y <= prev_hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
 		{
-			if (TileIsSolid(&ctx->level, tile)) 
+			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
+				vel.x = 0.0f;
+				horizontal_collision_happened = true;
+				break;
+			}
+		}
+	}
+	bool touching_floor = false;
+	bool vertical_collision_happened = false;
+	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) 
+	{
+		TilePos tile_pos;
+		tile_pos.val.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.val.x = prev_hitbox.min.x/TILE_SIZE; tile_pos.val.x <= prev_hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				vel.y = 0.0f;
+				vertical_collision_happened = true;
+				break;
+			}
+		}
+	} 
+	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) 
+	{
+		TilePos tile_pos;
+		tile_pos.val.y = (prev_hitbox.max.y+1)/TILE_SIZE;
+		for (tile_pos.val.x = prev_hitbox.min.x/TILE_SIZE; tile_pos.val.x <= prev_hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
+				entity->state = EntityState_Free;
+				touching_floor = true;
+				vertical_collision_happened = true;
 				break;
 			}
 		}
 	}
 
-	if (entity->vel.x == 0.0f && entity->vel.y == 0.0f) return;
+    MoveEntity(entity, vel);
 
-	MoveEntity(entity, entity->vel);
+    Rect hitbox = GetEntityHitbox(ctx, entity);
 
-	hitbox = GetEntityHitbox(ctx, entity);
-
-	for (TilePos
-		tile = ToTilePos(hitbox.min),
-		tile_end = ToTilePos(hitbox.max);
-		tile.val.y <= tile_end.val.y;
-		tile.val.y += 1)
+	TilePos tile_pos;
+	for (tile_pos.val.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && tile_pos.val.y <= hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
 	{
-		for (
-			tile.val.x = hitbox.min.x/TILE_SIZE; 
-			tile.val.x <= tile_end.val.x; 
-			tile.val.x += 1) 
+		for (tile_pos.val.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && tile_pos.val.x <= hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
 		{
-			Rect tile_rect;
-			tile_rect.min = glms_ivec2_scale(tile.val, TILE_SIZE);
-			tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-			ivec2s overlap;
-			if (TileIsSolid(&ctx->level, tile) && RectsIntersect(hitbox, tile_rect, &overlap))
+			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
-				if (overlap.x != 0) entity->vel.x = 0.0f;
-				if (overlap.y != 0) {
-					if (entity->vel.y > 0.0f) entity->state = EntityState_Free;
-					else entity->state = EntityState_Fall;
-					entity->vel.y = 0.0f;
+				Rect tile_rect;
+				tile_rect.min = ToLevelPos(tile_pos);
+				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+				if (RectsIntersect(hitbox, tile_rect)) 
+				{
+					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
+
+					if (!horizontal_collision_happened) 
+					{
+						Rect h = prev_hitbox;
+						h.min.x = hitbox.min.x;
+						h.max.x = hitbox.max.x;
+						if (RectsIntersect(h, tile_rect)) 
+						{
+							int32_t amount = 0;
+							int32_t incr = (int32_t)glm_signf(entity->vel.x);
+							while (RectsIntersect(h, tile_rect)) 
+							{
+								h.min.x -= incr;
+								h.max.x -= incr;
+								amount += incr;
+							}
+							entity->pos.x -= amount;
+							horizontal_collision_happened = true;
+						}
+
+					}
+					if (!vertical_collision_happened) 
+					{
+						Rect h = prev_hitbox;
+						h.min.y = hitbox.min.y;
+						h.max.y = hitbox.max.y;
+						if (RectsIntersect(h, tile_rect)) 
+						{
+							int32_t amount = 0;
+							int32_t incr = (int32_t)glm_signf(entity->vel.y);
+							while (RectsIntersect(h, tile_rect)) 
+							{
+								h.min.y -= incr;
+								h.max.y -= incr;
+								amount += incr;
+							}
+							entity->pos.y -= amount;					
+							vertical_collision_happened = true;
+						}
+					}
 				}
-				entity->pos = glms_ivec2_add(entity->pos, overlap);
-				entity->pos.y -= 100;
-				return;
 			}
 		}
+	}
+
+	if (!touching_floor && entity->vel.y > 0.0f) 
+	{
+		entity->state = EntityState_Fall;
 	}
 }
 
