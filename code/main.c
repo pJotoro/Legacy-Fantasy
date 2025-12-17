@@ -807,7 +807,7 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 				break;
 			}
 		}
-	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x+1) % TILE_SIZE == 0) 
+	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x) % TILE_SIZE == 0) 
 	{
 		TilePos tile_pos;
 		tile_pos.val.x = (prev_hitbox.max.x+1)/TILE_SIZE;
@@ -837,7 +837,7 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 			}
 		}
 	} 
-	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y+1) % TILE_SIZE == 0) 
+	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y) % TILE_SIZE == 0) 
 	{
 		TilePos tile_pos;
 		tile_pos.val.y = (prev_hitbox.max.y+1)/TILE_SIZE;
@@ -920,6 +920,10 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	if (!touching_floor && entity->vel.y > 0.0f) 
 	{
 		entity->state = EntityState_Fall;
+	}
+	else if (touching_floor)
+	{
+		entity->state = EntityState_Free;
 	}
 }
 
