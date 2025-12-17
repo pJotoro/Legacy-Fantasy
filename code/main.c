@@ -2214,9 +2214,12 @@ int32_t main(int32_t argc, char* argv[])
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
 			ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 		}
+		
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
+
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
+
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
 			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
@@ -2227,23 +2230,14 @@ int32_t main(int32_t argc, char* argv[])
 					for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
 					{
 						SpriteCell* cell = &sd->frames[frame_idx].cells[cell_idx];
-
-						// TODO: Remove this. It's no longer an issue.
-						if (cell->size.x == 0 || cell->size.y == 0) 
-						{
-							SDL_Log("Fuck");
-							continue;
-						}
-						
 						VulkanCopyBuffer(cell->size.x*cell->size.y * sizeof(uint32_t), cell->dst_buf, &ctx->vk.static_staging_buffer);
-						
+
 						SDL_free(cell->dst_buf); 
 						cell->dst_buf = NULL;
 					}
 				}
 			}
 		}
-
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
