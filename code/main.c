@@ -2038,7 +2038,7 @@ int32_t main(int32_t argc, char* argv[])
 	}
 	SDL_Log("Error count: %llu", error_count);
 
-	// LoadLevels
+	// LoadLevel
 	{
 		cJSON* head;
 		{
@@ -2251,21 +2251,23 @@ int32_t main(int32_t argc, char* argv[])
 				cJSON* tile_id; cJSON_ArrayForEach(tile_id, tile_ids) 
 				{
 					size_t src_idx = (size_t)cJSON_GetNumberValue(tile_id);
-					ivec2s tileset_dimensions = GetTilesetDimensions(ctx, spr_tiles);
-					ivec2s src;
-					src.x = (int32_t)src_idx*TILE_SIZE % tileset_dimensions.x;
-					src.y = (int32_t)src_idx*TILE_SIZE / tileset_dimensions.x;
+
+					ivec2s dimensions = GetTilesetDimensions(ctx, spr_tiles);
 
 					TileLayer* tile_layer = &ctx->level.tile_layers[0];
 					for (size_t i = 0; i < tile_layer->num_tiles; i += 1) 
 					{
 						Tile tile = tile_layer->tiles[i];
-						if (tile.src.x == src.x && tile.src.y == src.y) 
+						size_t tile_src_idx = (tile.src.x + tile.src.y*dimensions.x)/TILE_SIZE;
+						if (src_idx == tile_src_idx)
 						{
-							if (!TileIsValid(tile)) continue;
-							size_t tile_idx = (size_t)((tile.dst.x + tile.dst.y*ctx->level.size.x)/TILE_SIZE);
-							SDL_assert(tile_idx < (size_t)(ctx->level.size.x*ctx->level.size.y/TILE_SIZE));
-							ctx->level.tiles[tile_idx] = true;
+							size_t tile_dst_idx = (size_t)((tile.dst.x + tile.dst.y*ctx->level.size.x)/TILE_SIZE);
+							SDL_assert(tile_dst_idx < (size_t)(ctx->level.size.x*ctx->level.size.y/TILE_SIZE));
+							if (ctx->level.tiles[tile_dst_idx]) 
+							{
+								SDL_Log("FUCK! {%d, %d}", tile.src.x, tile.src.y);
+							}
+							ctx->level.tiles[tile_dst_idx] = true;
 						}
 					}
 				}
