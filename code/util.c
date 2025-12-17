@@ -67,6 +67,7 @@ function FORCEINLINE bool TileIsSolid(Level* level, TilePos pos)
 {
     if ((!(pos.val.x >= 0 && pos.val.x < level->size.val.x && pos.val.y >= 0 && pos.val.y < level->size.val.y))) return false;
     size_t idx = (size_t)(pos.val.x + pos.val.y*level->size.val.x);
+    SDL_assert(idx < level->size.val.x*level->size.val.y);
     return level->tiles[idx];
 }
 

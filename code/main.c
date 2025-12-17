@@ -41,7 +41,7 @@ typedef struct TilePos
 function FORCEINLINE TilePos ToTilePos(ivec2s level_pos)
 {
 	TilePos res;
-	res.val = glms_ivec2_scale(level_pos, TILE_SIZE);
+	res.val = glms_ivec2_divs(level_pos, TILE_SIZE);
 	return res;
 }
 
@@ -50,13 +50,20 @@ function FORCEINLINE TilePos ToTilePosStrict(ivec2s level_pos)
 	SDL_assert(level_pos.x % TILE_SIZE == 0 && level_pos.y % TILE_SIZE == 0);
 
 	TilePos res;
-	res.val = glms_ivec2_scale(level_pos, TILE_SIZE);
+	res.val = glms_ivec2_divs(level_pos, TILE_SIZE);
 	return res;
 }
 
 function FORCEINLINE ivec2s ToLevelPos(TilePos tile_pos)
 {
-	ivec2s res = glms_ivec2_divs(tile_pos.val, TILE_SIZE);
+	ivec2s res = glms_ivec2_scale(tile_pos.val, TILE_SIZE);
+	return res;
+}
+
+function FORCEINLINE TilePos ShiftTilePos(TilePos tp, int32_t shift_x, int32_t shift_y) {
+	TilePos res;
+	res.val.x = tp.val.x + shift_x;
+	res.val.y = tp.val.y + shift_y;
 	return res;
 }
 
@@ -623,7 +630,7 @@ function void LoadSprite(Context* ctx, char* path)
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
-		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
+		//SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 
 		if (sd->frames[frame_idx].num_cells > 0) 
 		{
@@ -1943,7 +1950,7 @@ int32_t main(int32_t argc, char* argv[])
 			}
 		}
 	}
-	SDL_Log("Error count: %llu", error_count);
+	//SDL_Log("Error count: %llu", error_count);
 
 	// LoadLevel
 	{
@@ -2141,6 +2148,7 @@ int32_t main(int32_t argc, char* argv[])
 	// PrintLevel
 	{
 		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.val.x + 1, 1);
+		SDL_Log("level start");
 		for (size_t y = 0; y < (size_t)(ctx->level.size.val.y); y += 1) 
 		{
 			for (size_t x = 0; x < (size_t)(ctx->level.size.val.x); x += 1) 
@@ -2152,6 +2160,7 @@ int32_t main(int32_t argc, char* argv[])
 			buf[ctx->level.size.val.x] = 0;
 			SDL_Log((const char*)buf);
 		}
+		SDL_Log("level end");
 		StackFree(&ctx->stack, buf);
 	}
 	
