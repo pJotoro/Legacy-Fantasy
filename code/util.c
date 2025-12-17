@@ -15,12 +15,15 @@ function FORCEINLINE vec2s glms_vec2_round(vec2s v)
     return v;
 }
 
-function FORCEINLINE bool RectsIntersect(Rect a, Rect b) 
+function FORCEINLINE bool RectsIntersect(Rect a, Rect b, ivec2s* overlap) 
 {
+    overlap->x = a.max.x - b.min.x;
+    overlap->y = a.max.y - b.min.y;
+
 	bool d0 = b.max.x < a.min.x;
-    bool d1 = a.max.x < b.min.x;
+    bool d1 = overlap->x > 0;
     bool d2 = b.max.y < a.min.y;
-    bool d3 = a.max.y < b.min.y;
+    bool d3 = overlap->y > 0;
     return !(d0 | d1 | d2 | d3);
 }
 
