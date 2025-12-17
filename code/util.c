@@ -66,7 +66,7 @@ function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, si
 function FORCEINLINE bool TileIsSolid(Level* level, ivec2s pos) 
 {
     if ((!(pos.x >= 0 && pos.x*TILE_SIZE < level->size.x && pos.y >= 0 && pos.y*TILE_SIZE < level->size.y))) return false;
-    size_t idx = (size_t)(pos.x + pos.y*level->size.x);
+    size_t idx = (size_t)(pos.x + pos.y*level->size.x/TILE_SIZE);
     return level->tiles[idx];
 }
 
