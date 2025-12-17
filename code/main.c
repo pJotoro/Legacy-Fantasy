@@ -2059,6 +2059,13 @@ int32_t main(int32_t argc, char* argv[])
 				{
 					tile_layer->num_tiles += 1;
 				}
+
+				for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
+				{
+					TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
+					tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
+					SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
+				}	
 			}
 			else if (SDL_strcmp(ident, layer_enemies) == 0) 
 			{
@@ -2068,14 +2075,10 @@ int32_t main(int32_t argc, char* argv[])
 					ctx->level.num_entities += 1;
 				}
 			}
-
-			for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
-			{
-				TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
-				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
-				SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
-			}			
 		}
+
+		ctx->level.entities = ArenaAlloc(&ctx->arena, ctx->level.num_entities, Entity);
+		Entity* enemy = &ctx->level.entities[1];
 
 		cJSON_ArrayForEach(layer_instance, layer_instances) 
 		{
@@ -2126,18 +2129,8 @@ int32_t main(int32_t argc, char* argv[])
 					SDL_assert(i < tile_layer->num_tiles);
 					tile_layer->tiles[i++] = (Tile){src, dst};
 				}
-			}	
-		}
-
-		ctx->level.entities = ArenaAlloc(&ctx->arena, ctx->level.num_entities, Entity);
-		Entity* enemy = &ctx->level.entities[1];
-		cJSON_ArrayForEach(layer_instance, layer_instances) 
-		{
-			cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
-			char* type = cJSON_GetStringValue(node_type); SDL_assert(type);
-			cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
-			char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
-			if (SDL_strcmp(type, "Entities") == 0) 
+			}
+			else if (SDL_strcmp(type, "Entities") == 0) 
 			{
 				cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
 
@@ -2164,7 +2157,7 @@ int32_t main(int32_t argc, char* argv[])
 						enemy += 1;
 					}
 				}
-			}
+			}	
 		}
 
 		cJSON* defs = cJSON_GetObjectItem(head, "defs");
