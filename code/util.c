@@ -46,7 +46,6 @@ function FORCEINLINE float NormInt16(int16_t i16)
     return res;
 }
 
-#if TOGGLE_TILES
 function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
@@ -83,9 +82,7 @@ function FORCEINLINE bool TilesEqual(Tile a, Tile b)
 {
     return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
 }
-#endif // TOGGLE_TILES
 
-#if TOGGLE_ENTITIES
 function FORCEINLINE Entity* GetPlayer(Context* ctx) 
 {
     return &ctx->level.entities[0];
@@ -125,7 +122,6 @@ function FORCEINLINE void ResetAnim(Anim* anim)
     anim->dt_accumulator = 0.0;
     anim->ended = false;
 }
-#endif // TOGGLE_ENTITIES
 
 function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) 
 {
@@ -168,7 +164,6 @@ function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align)
 
 function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) 
 {
-#if 1
     if (size == 0) return NULL;
 
     // Align 'curr_offset' forward to the specified alignment
@@ -185,12 +180,6 @@ function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align
     // Zero new memory by default
     SDL_memset(ptr, 0, size);
     return ptr;
-#else
-    UNUSED(arena);
-    UNUSED(align);
-    void* ptr = SDL_calloc(1, size); SDL_CHECK(ptr);
-    return ptr;
-#endif
 }
 
 #define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw((ARENA), (COUNT)*sizeof(TYPE), alignof(TYPE))

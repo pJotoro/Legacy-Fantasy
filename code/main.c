@@ -3,19 +3,9 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_TILES 1
-#define TOGGLE_ENTITIES 1
-#define TOGGLE_REPLAY_FRAMES 1
-#if !TOGGLE_TILES && !TOGGLE_ENTITIES
-#error Either tiles or entities may be toggled off, but not both.
-#endif
-#if TOGGLE_REPLAY_FRAMES && !TOGGLE_ENTITIES
-#error If replay frames are toggled, entities must also be toggled.
-#endif
-
 #define TOGGLE_FULLSCREEN 1
+#define TOGGLE_REPLAY_FRAMES 1
 #define TOGGLE_TESTS 0
-
 #define TOGGLE_VULKAN_VALIDATION 0
 
 #define GAME_WIDTH 960
@@ -80,7 +70,6 @@ typedef struct Sprite
 	size_t idx;
 } Sprite;
 
-#if TOGGLE_ENTITIES
 typedef struct Anim 
 {
 	Sprite sprite;
@@ -127,9 +116,7 @@ typedef struct Entity
 	EntityType type;
 	EntityState state;
 } Entity;
-#endif // TOGGLE_ENTITIES
 
-#if TOGGLE_TILES
 typedef struct Tile 
 {
 	ivec2s src;
@@ -141,21 +128,16 @@ typedef struct TileLayer
 	Tile* tiles;
 	size_t num_tiles;
 } TileLayer;
-#endif // TOGGLE_TILES
 
 typedef struct Level 
 {
 	ivec2s size;
 
 	// NOTE: entities[0] is always the player.
-#if TOGGLE_ENTITIES
 	Entity* entities; size_t num_entities;
-#endif
 
-#if TOGGLE_TILES
 	TileLayer* tile_layers; size_t num_tile_layers;
 	bool* tiles; // num_tiles = size.x*size.y/TILE_SIZE
-#endif
 } Level;
 
 #if TOGGLE_REPLAY_FRAMES
@@ -163,7 +145,7 @@ typedef struct ReplayFrame
 {
 	Entity* entities; size_t num_entities;
 } ReplayFrame;
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 
 // https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
 typedef struct Arena 
@@ -191,7 +173,7 @@ typedef struct VulkanFrame
 	VkFence fence_in_flight;
 } VulkanFrame;
 
-#define PIPELINE_COUNT (TOGGLE_TILES + TOGGLE_ENTITIES)
+#define PIPELINE_COUNT 2
 
 typedef struct VulkanBuffer 
 {
@@ -261,9 +243,7 @@ typedef struct Vulkan
 	Memory layout:
 		EntityInstance entities[];
 	*/
-#if TOGGLE_ENTITIES
 	VulkanBuffer dynamic_staging_buffer;
-#endif
 
 	/*
 	Memory layout:
@@ -282,7 +262,7 @@ typedef struct Context
 #if TOGGLE_PROFILING
 	SpallProfile spall_ctx;
 	SpallBuffer spall_buffer;
-#endif
+#endif // TOGGLE_PROFILING
 
 	Arena arena;
 	Stack stack;
@@ -317,7 +297,7 @@ typedef struct Context
 	size_t replay_frame_idx_max;
 	size_t c_replay_frames;
 	bool paused;
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 } Context;
 
 typedef struct VkImageMemoryRequirements 
@@ -329,7 +309,6 @@ typedef struct VkImageMemoryRequirements
 #include "util.c"
 #include "vk_util.c"
 
-#if TOGGLE_ENTITIES
 static Sprite player_idle;
 static Sprite player_run;
 static Sprite player_jump_start;
@@ -341,11 +320,8 @@ static Sprite boar_idle;
 static Sprite boar_walk;
 static Sprite boar_run;
 static Sprite boar_hit;
-#endif
 
-#if TOGGLE_TILES
 static Sprite spr_tiles;
-#endif
 
 static float dt;
 
@@ -361,7 +337,6 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, i
 	return origin;
 }
 
-#if TOGGLE_ENTITIES
 function bool SetAnimSprite(Anim* anim, Sprite sprite) 
 {
     bool sprite_changed = false;
@@ -416,11 +391,9 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop)
 
     SPALL_BUFFER_END();
 }
-#endif // TOGGLE_ENTITIES
 
 function void ResetGame(Context* ctx) 
 {
-#if TOGGLE_ENTITIES
 	Entity* player = &ctx->level.entities[0];
 	
 	ResetAnim(&player->anim);
@@ -445,12 +418,8 @@ function void ResetGame(Context* ctx)
 		enemy->vel = (vec2s){0.0f};
 		enemy->dir = 1;
 	}	
-#else
-	UNUSED(ctx);
-#endif
 }
 
-#if TOGGLE_TILES
 function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
 {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
@@ -458,7 +427,6 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 	SDL_assert(sd->frames[0].num_cells == 1);
 	return sd->size;
 }
-#endif
 
 function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
 {
@@ -694,7 +662,7 @@ function void LoadSprite(Context* ctx, char* path)
 	SPALL_BUFFER_END();
 }
 
-function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, const char *dirname, const char *fname) 
+function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, const char* dirname, const char* fname) 
 {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
@@ -727,7 +695,6 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void *userdata, 
 	return SDL_ENUM_CONTINUE;
 }
 
-#if TOGGLE_ENTITIES
 function Rect GetEntityHitbox(Context* ctx, Entity* entity) 
 {
 	SPALL_BUFFER_BEGIN();
@@ -791,7 +758,6 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-#if TOGGLE_TILES
 	Rect hitbox = GetEntityHitbox(ctx, entity);
 
 	int32_t horizontal_side = 1; // Could be 1, or any other number not divisible by TILE_SIZE.
@@ -827,13 +793,11 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 			}
 		}
 	}
-#endif
 
 	if (entity->vel.x == 0.0f && entity->vel.y == 0.0f) return;
 
 	MoveEntity(entity, entity->vel);
 
-#if TOGGLE_TILES
 	hitbox = GetEntityHitbox(ctx, entity);
 
 	ivec2s grid_pos;
@@ -859,7 +823,6 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 			}
 		}
 	}
-#endif
 }
 
 function void UpdatePlayer(Context* ctx) 
@@ -1076,7 +1039,6 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 
 	SPALL_BUFFER_END();
 }
-#endif // TOGGLE_ENTITIES
 
 #if TOGGLE_REPLAY_FRAMES
 function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
@@ -1088,7 +1050,7 @@ function void SetReplayFrame(Context* ctx, size_t replay_frame_idx)
 		ctx->level.num_entities = replay_frame->num_entities;
 	}
 }
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 
 #ifdef _DEBUG
 VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) 
@@ -1099,7 +1061,7 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 	SDL_Log(data->pMessage);
 	return VK_FALSE;
 }
-#endif
+#endif // _DEBUG
 
 int32_t main(int32_t argc, char* argv[]) 
 {
@@ -1111,7 +1073,6 @@ int32_t main(int32_t argc, char* argv[])
 		// This is the only time that we set the sprite variables.
 		// After that, they are effectively constants.
 
-#if TOGGLE_ENTITIES
 		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
 		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
 		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
@@ -1123,11 +1084,8 @@ int32_t main(int32_t argc, char* argv[])
 		boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
 		boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
 		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
-#endif
 
-#if TOGGLE_TILES
 		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-#endif
 	}
 
 	// InitContext
@@ -1170,7 +1128,7 @@ int32_t main(int32_t argc, char* argv[])
 		};
 		ok = spall_buffer_init(&ctx->spall_ctx, &ctx->spall_buffer); SDL_assert(ok);
 	}
-#endif
+#endif // TOGGLE_PROFILING
 
 	// CreateWindow
 	{
@@ -1197,7 +1155,7 @@ int32_t main(int32_t argc, char* argv[])
 			window_width *= 2;
 			window_height *= 2;
 			window_flags |= SDL_WINDOW_FULLSCREEN;
-#endif
+#endif // TOGGLE_PROFILING
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
 			
@@ -1223,14 +1181,14 @@ int32_t main(int32_t argc, char* argv[])
 		#define VK_KHR_platform_surface "VK_KHR_win32_surface"
 #else
 		#error Unsupported platform.
-#endif
+#endif // SDL_PLATFORM_WINDOWS
 
 #if TOGGLE_VULKAN_VALIDATION
 		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 		#define VULKAN_DEBUG_EXTENSIONS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
 #else
 		#define VULKAN_DEBUG_EXTENSIONS
-#endif
+#endif // TOGGLE_VULKAN_VALIDATION
 		static char const * const instance_extensions[] =
 		{ 
 			VULKAN_DEBUG_EXTENSIONS
@@ -1256,7 +1214,7 @@ int32_t main(int32_t argc, char* argv[])
 #if TOGGLE_VULKAN_VALIDATION
 			.enabledLayerCount = SDL_arraysize(layers),
 			.ppEnabledLayerNames = layers,
-#endif
+#endif // TOGGLE_VULKAN_VALIDATION
 			.enabledExtensionCount = SDL_arraysize(instance_extensions),
 			.ppEnabledExtensionNames = instance_extensions,
 		};
@@ -1288,7 +1246,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		create_info.pNext = &debug_info;
 		debug_info.pNext = &validation_info;
-#endif
+#endif // TOGGLE_VULKAN_VALIDATION
 
 		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
 		volkLoadInstanceOnly(ctx->vk.instance);
@@ -1469,7 +1427,7 @@ int32_t main(int32_t argc, char* argv[])
 		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
 #else
 		static char const * const vk_device_extensions[] = { "VK_KHR_swapchain" };
-#endif
+#endif // _DEBUG
 
 		VkDeviceCreateInfo device_info = 
 		{
@@ -1887,7 +1845,7 @@ int32_t main(int32_t argc, char* argv[])
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 #ifdef _DEBUG
 			.flags = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT,
-#endif
+#endif // _DEBUG
 			.pInputAssemblyState = &input_assembly_info,
 			.pViewportState = &viewport_info,
 			.pRasterizationState = &rasterization_info,
@@ -1898,7 +1856,6 @@ int32_t main(int32_t argc, char* argv[])
 			.renderPass = ctx->vk.render_pass,
 		};
 
-#if TOGGLE_TILES
 		// VulkanCreateGraphicsPipelineTile
 		VkPipelineShaderStageCreateInfo tile_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo tile_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/tile_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -1942,9 +1899,7 @@ int32_t main(int32_t argc, char* argv[])
 		tile_graphics_pipeline_info.stageCount = SDL_arraysize(tile_shader_stages);
 		tile_graphics_pipeline_info.pStages = tile_shader_stages;
 		tile_graphics_pipeline_info.pVertexInputState = &tile_vertex_input_info;
-#endif // TOGGLE_TILES
 
-#if TOGGLE_ENTITIES
 		// VulkanCreateGraphicsPipelineEntity
 		VkPipelineShaderStageCreateInfo entity_vert = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		VkPipelineShaderStageCreateInfo entity_frag = VulkanCreateShaderStage(ctx->vk.device, "build/shaders/entity_frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -1988,28 +1943,19 @@ int32_t main(int32_t argc, char* argv[])
 		entity_graphics_pipeline_info.stageCount = SDL_arraysize(entity_shader_stages);
 		entity_graphics_pipeline_info.pStages = entity_shader_stages;
 		entity_graphics_pipeline_info.pVertexInputState = &entity_vertex_input_info;
-#endif // TOGGLE_ENTITIES
 
 		VkGraphicsPipelineCreateInfo infos[PIPELINE_COUNT] = 
 		{
-#if TOGGLE_TILES
 			tile_graphics_pipeline_info,
-#endif
-#if TOGGLE_ENTITIES
 			entity_graphics_pipeline_info,
-#endif
 		};
 
 		VK_CHECK(vkCreateGraphicsPipelines(ctx->vk.device, ctx->vk.pipeline_cache, SDL_arraysize(infos), infos, NULL, ctx->vk.pipelines));
 
-#if TOGGLE_ENTITIES
 		vkDestroyShaderModule(ctx->vk.device, entity_frag.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, entity_vert.module, NULL);
-#endif
-#if TOGGLE_TILES
 		vkDestroyShaderModule(ctx->vk.device, tile_frag.module, NULL);
 		vkDestroyShaderModule(ctx->vk.device, tile_vert.module, NULL);
-#endif
 		SPALL_BUFFER_END();
 	}
 
@@ -2064,7 +2010,6 @@ int32_t main(int32_t argc, char* argv[])
 		cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
 		ctx->level.size.y = (int32_t)cJSON_GetNumberValue(h);
 
-#if TOGGLE_TILES
 		size_t num_tiles = (size_t)(ctx->level.size.x*ctx->level.size.y/TILE_SIZE);
 		ctx->level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
 
@@ -2074,14 +2019,11 @@ int32_t main(int32_t argc, char* argv[])
 		const char* layer_tiles = "Tiles";
 		const char* layer_props = "Props";
 		const char* layer_grass = "Grass";
-#endif
 
-#if TOGGLE_ENTITIES
 		ctx->level.num_entities = 1; // the player
 
 		const char* layer_player = "Player";
 		const char* layer_enemies = "Enemies";
-#endif
 
 		cJSON* layer_instances = cJSON_GetObjectItem(level_node, "layerInstances");
 		cJSON* layer_instance; cJSON_ArrayForEach(layer_instance, layer_instances) 
@@ -2091,7 +2033,6 @@ int32_t main(int32_t argc, char* argv[])
 			cJSON* node_ident = cJSON_GetObjectItem(layer_instance, "__identifier");
 			char* ident = cJSON_GetStringValue(node_ident); SDL_assert(ident);
 
-#if TOGGLE_TILES
 			if (SDL_strcmp(type, "Tiles") == 0) 
 			{
 				TileLayer* tile_layer = NULL;
@@ -2126,9 +2067,7 @@ int32_t main(int32_t argc, char* argv[])
 				tile_layer->tiles = ArenaAlloc(&ctx->arena, tile_layer->num_tiles, Tile);
 				SDL_memset(tile_layer->tiles, -1, tile_layer->num_tiles * sizeof(Tile));
 			}
-#endif
 
-#if TOGGLE_ENTITIES
 			if (SDL_strcmp(ident, layer_enemies) == 0) 
 			{
 				cJSON* entity_instances = cJSON_GetObjectItem(layer_instance, "entityInstances");
@@ -2137,10 +2076,8 @@ int32_t main(int32_t argc, char* argv[])
 					ctx->level.num_entities += 1;
 				}
 			}
-#endif
 		}
 
-#if TOGGLE_TILES
 		cJSON_ArrayForEach(layer_instance, layer_instances) 
 		{
 			cJSON* node_type = cJSON_GetObjectItem(layer_instance, "__type");
@@ -2192,9 +2129,7 @@ int32_t main(int32_t argc, char* argv[])
 				}
 			}	
 		}
-#endif // TOGGLE_TILES
 
-#if TOGGLE_ENTITIES
 		ctx->level.entities = ArenaAlloc(&ctx->arena, ctx->level.num_entities, Entity);
 		Entity* enemy = &ctx->level.entities[1];
 		cJSON_ArrayForEach(layer_instance, layer_instances) 
@@ -2232,9 +2167,7 @@ int32_t main(int32_t argc, char* argv[])
 				}
 			}
 		}
-#endif // TOGGLE_ENTITIES
 
-#if TOGGLE_TILES
 		cJSON* defs = cJSON_GetObjectItem(head, "defs");
 		cJSON* tilesets = cJSON_GetObjectItem(defs, "tilesets");
 		bool break_all = false;
@@ -2277,7 +2210,6 @@ int32_t main(int32_t argc, char* argv[])
 			if (break_all) break;
 		}
 		break_all = false;
-#endif // TOGGLE_TILES
 
 		cJSON_Delete(head);
 
@@ -2318,13 +2250,11 @@ int32_t main(int32_t argc, char* argv[])
 				}
 			}
 		}
-#if TOGGLE_TILES
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
 			ctx->vk.static_staging_buffer.size += tile_layer->num_tiles * sizeof(Tile);
 		}
-#endif
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
@@ -2355,13 +2285,11 @@ int32_t main(int32_t argc, char* argv[])
 			}
 		}
 
-#if TOGGLE_TILES
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
 			VulkanCopyBuffer(tile_layer->num_tiles*sizeof(Tile), tile_layer->tiles, &ctx->vk.static_staging_buffer);
 		}
-#endif
 
 		SDL_assert(ctx->vk.static_staging_buffer.write_offset == ctx->vk.static_staging_buffer.size);
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
@@ -2420,7 +2348,7 @@ int32_t main(int32_t argc, char* argv[])
 			}
 		}
 	}
-#endif
+#endif // TOGGLE_TESTS
 
 	// VulkanCreateImages
 	{
@@ -2491,9 +2419,7 @@ int32_t main(int32_t argc, char* argv[])
 			if (sd) 
 			{
 				bool is_tileset = false;
-#if TOGGLE_TILES
 				is_tileset = sprite_idx == spr_tiles.idx;
-#endif
 				if (is_tileset) 
 				{
 					SDL_assert(sd->vk_image_array_layers == 1);
@@ -2626,7 +2552,6 @@ int32_t main(int32_t argc, char* argv[])
 	}
 
 	// VulkanCreateDynamicStagingBuffer
-#if TOGGLE_ENTITIES
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDynamicStagingBuffer");
 
@@ -2638,23 +2563,18 @@ int32_t main(int32_t argc, char* argv[])
 
 		SPALL_BUFFER_END();
 	}
-#endif
 
 	// VulkanCreateVertexBuffer
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateVertexBuffer");
 
 		size_t size = 0;
-#if TOGGLE_ENTITIES
 		size += ctx->level.num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
-#endif
-#if TOGGLE_TILES
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
 			size += tile_layer->num_tiles*sizeof(Tile);
 		}
-#endif
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
 
@@ -2667,7 +2587,7 @@ int32_t main(int32_t argc, char* argv[])
 		ctx->c_replay_frames = 1024;
 		ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 	}
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 
 	ResetGame(ctx);
 
@@ -2712,7 +2632,7 @@ int32_t main(int32_t argc, char* argv[])
 						case SDLK_SPACE:
 #if TOGGLE_REPLAY_FRAMES
 							ctx->paused = !ctx->paused;
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 							break;
 						case SDLK_0:
 							break;
@@ -2729,7 +2649,7 @@ int32_t main(int32_t argc, char* argv[])
 							{
 								SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
 							}
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 							break;
 						case SDLK_RIGHT:
 							if (!event.key.repeat) 
@@ -2741,7 +2661,7 @@ int32_t main(int32_t argc, char* argv[])
 							{
 								SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
 							}
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 							break;
 						case SDLK_UP:
 							if (!event.key.repeat) 
@@ -2832,11 +2752,10 @@ int32_t main(int32_t argc, char* argv[])
 		paused = ctx->paused;
 #else
 		paused = false;
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 		if (!paused) 
 		{
 			// UpdateGame
-#if TOGGLE_ENTITIES
 			{
 				SPALL_BUFFER_BEGIN_NAME("UpdateGame");
 
@@ -2853,7 +2772,6 @@ int32_t main(int32_t argc, char* argv[])
 
 				SPALL_BUFFER_END();
 			}
-#endif
 
 #if TOGGLE_REPLAY_FRAMES
 			// RecordReplayFrame
@@ -2876,11 +2794,10 @@ int32_t main(int32_t argc, char* argv[])
 
 				SPALL_BUFFER_END();
 			}
-#endif
+#endif // TOGGLE_REPLAY_FRAMES
 		}
 		
 		// VulkanCopyInstancesToDynamicStagingBuffer
-#if TOGGLE_ENTITIES
 		size_t num_instances;
 		{
 			SPALL_BUFFER_BEGIN_NAME("VulkanCopyInstancesToDynamicStagingBuffer");
@@ -2923,7 +2840,6 @@ int32_t main(int32_t argc, char* argv[])
 			
 			SPALL_BUFFER_END();
 		}
-#endif
 
 		uint32_t image_idx;
 		VkCommandBuffer cb;
@@ -3012,7 +2928,6 @@ int32_t main(int32_t argc, char* argv[])
 						.buffer = ctx->vk.static_staging_buffer.handle,
 						.size = ctx->vk.static_staging_buffer.size,
 					},
-#if TOGGLE_ENTITIES
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
@@ -3020,7 +2935,6 @@ int32_t main(int32_t argc, char* argv[])
 						.buffer = ctx->vk.dynamic_staging_buffer.handle,
 						.size = ctx->vk.dynamic_staging_buffer.size,
 					},
-#endif
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
@@ -3075,14 +2989,10 @@ int32_t main(int32_t argc, char* argv[])
 					StackFree(&ctx->stack, regions);
 				}
 
-#if TOGGLE_TILES
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				vertex_buffer_write_offset = ctx->vk.vertex_buffer.write_offset;
-#endif
 
-#if TOGGLE_ENTITIES
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
-#endif
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
 				{
@@ -3115,10 +3025,8 @@ int32_t main(int32_t argc, char* argv[])
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
 
-#if TOGGLE_ENTITIES
 				ctx->vk.vertex_buffer.write_offset = vertex_buffer_write_offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
-#endif
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
 				{
@@ -3166,7 +3074,6 @@ int32_t main(int32_t argc, char* argv[])
 				vkCmdSetScissor(cb, first_scissor, num_scissors, &ctx->vk.scissor);
 			}
 
-#if TOGGLE_TILES
 			// DrawTiles
 			{
 				VkDeviceSize offset = 0;
@@ -3184,14 +3091,11 @@ int32_t main(int32_t argc, char* argv[])
 				}
 				vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
 			}
-#endif // TOGGLE_TILES
-#if TOGGLE_ENTITIES
 			// DrawEntities
 			{
 				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &vertex_buffer_write_offset);
 
-				// HACK: Really this should be 1, not TOGGLE_TILES.
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[TOGGLE_TILES]);
+				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
 
 				size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
 				
@@ -3236,7 +3140,6 @@ int32_t main(int32_t argc, char* argv[])
 					vkCmdDraw(cb, 6, (uint32_t)cur_num_instances, 0, (uint32_t)first_instance);
 				}
 			}
-#endif // TOGGLE_ENTITIES
 
 			SPALL_BUFFER_END();
 		}
@@ -3277,9 +3180,7 @@ int32_t main(int32_t argc, char* argv[])
 
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
 
-#if TOGGLE_ENTITIES
 			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
-#endif
 			VulkanResetBuffer(&ctx->vk.vertex_buffer);		
 
 			SPALL_BUFFER_END();
@@ -3290,7 +3191,7 @@ int32_t main(int32_t argc, char* argv[])
 #if TOGGLE_PROFILING
 	spall_buffer_quit(&ctx->spall_ctx, &ctx->spall_buffer);
 	spall_quit(&ctx->spall_ctx);
-#endif
+#endif // TOGGLE_PROFILING
 
 	// NOTE: If we don't do this, SDL might not reverse certain operations,
 	// like changing the resolution of the monitor.
