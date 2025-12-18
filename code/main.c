@@ -385,6 +385,11 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, i
 	return origin;
 }
 
+function ivec2s GetEntityOrigin(Context* ctx, Entity* entity)
+{
+	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, (size_t)entity->dir);
+}
+
 function bool SetAnimSprite(Anim* anim, Sprite sprite) 
 {
     bool sprite_changed = false;
@@ -476,26 +481,17 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 	return sd->size;
 }
 
-function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
+function Rect GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) 
 {
-	bool res = false;
-
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
 	SDL_assert(frame_idx < sd->num_frames); 
 	SpriteFrame* frame = &sd->frames[frame_idx];
-	
-	SDL_assert(hitbox);
-	*hitbox = frame->hitbox;
+	Rect res = frame->hitbox;
 	if (dir == -1) 
 	{
-		hitbox->min.x = -frame->hitbox.max.x + sd->size.x;
-		hitbox->max.x = -frame->hitbox.min.x + sd->size.x;
+		res->min.x = -frame->hitbox.max.x + sd->size.x;
+		res->max.x = -frame->hitbox.min.x + sd->size.x;
 	}
-	if (hitbox->max.x > hitbox->min.x && hitbox->max.y > hitbox->min.y) 
-	{
-		res = true;
-	}
-
 	return res;
 }
 
@@ -745,7 +741,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, 
 function Rect GetEntityHitbox(Context* ctx, Entity* entity) 
 {
 	SPALL_BUFFER_BEGIN();
-	Rect hitbox = {0};
+	Rect res = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
 	/* 	
@@ -755,23 +751,21 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	If no hitbox is found and the frame index is 0, loop forward instead.
 	*/
 	{
-		bool res; ssize_t frame_idx;
-		for (res = false, frame_idx = (ssize_t)entity->anim.frame_idx; !res && frame_idx >= 0; frame_idx -= 1) 
+		for (size_t frame_idx = entity->anim.frame_idx; frame_idx >= 0; frame_idx -= 1) 
 		{
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir); 
 		}
-		if (!res && entity->anim.frame_idx == 0) 
+		if (entity->anim.frame_idx == 0) 
 		{
-			for (frame_idx = 1; !res && frame_idx < (ssize_t)sd->num_frames; frame_idx += 1) 
+			for (frame_idx = 1; frame_idx < sd->num_frames; frame_idx += 1) 
 			{
-				res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
+				res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir);
 			}
 		}
-		SDL_assert(res);
 	}
 
 	SPALL_BUFFER_END();
-	return hitbox;
+	return res;
 }
 
 function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
@@ -799,9 +793,9 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
 function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
 	Rect hitbox = GetEntityHitbox(ctx, entity);
-	ivec2s origin = GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir);
-
-
+	ivec2s origin = GetEntityOrigin(ctx, entity);
+	
+	
 }
 
 function void UpdatePlayer(Context* ctx) 
