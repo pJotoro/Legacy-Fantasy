@@ -2570,19 +2570,29 @@ int32_t main(int32_t argc, char* argv[])
 			},
 			{
 				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				1,
+				(uint32_t)ctx->num_sprites,
 			},
 		};
 
 		VkDescriptorPoolCreateInfo info =
 		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = (uint32_t)ctx->num_sprites + 1,
+			.maxSets = (uint32_t)ctx->num_sprites*2,
 			.poolSizeCount = SDL_arraysize(sizes),
 			.pPoolSizes = sizes,
 		};
 
 		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
+
+		SPALL_BUFFER_END();
+	}
+
+	// VulkanCreateUniformBuffer
+	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateUniformBuffer");
+
+		ctx->vk.uniform_buffer = VulkanCreateBuffer(&ctx->vk, sizeof(Uniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VulkanSetBufferName(ctx->vk.device, ctx->vk.uniform_buffer.handle, "Uniform Buffer");
 
 		SPALL_BUFFER_END();
 	}
@@ -2693,16 +2703,6 @@ int32_t main(int32_t argc, char* argv[])
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
-
-		SPALL_BUFFER_END();
-	}
-
-	// VulkanCreateUniformBuffer
-	{
-		SPALL_BUFFER_BEGIN_NAME("VulkanCreateUniformBuffer");
-
-		ctx->vk.uniform_buffer = VulkanCreateBuffer(&ctx->vk, sizeof(Uniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		VulkanSetBufferName(ctx->vk.device, ctx->vk.uniform_buffer.handle, "Uniform Buffer");
 
 		SPALL_BUFFER_END();
 	}
@@ -3129,24 +3129,39 @@ int32_t main(int32_t argc, char* argv[])
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 
-				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
 				{
-					{
+					VkBufferMemoryBarrier barrier = {
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
-					},
-					{
+					};
+
+					vkCmdPipelineBarrier(
+						cb, 
+						VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 
+						0, NULL, 
+						1, &barrier, 
+						0, NULL);
+				}
+
+				{
+					VkBufferMemoryBarrier barrier = {
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
 						.buffer = ctx->vk.uniform_buffer.handle,
 						.size = ctx->vk.uniform_buffer.size,
-					},
-				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
+					};
+
+					vkCmdPipelineBarrier(
+						cb, 
+						VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
+						0, NULL,
+						1, &barrier, 
+						0, NULL);
+				}				
 
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprites, image_memory_barriers_after);
 
