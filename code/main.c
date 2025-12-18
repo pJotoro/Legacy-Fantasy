@@ -8,9 +8,6 @@
 #define TOGGLE_TESTS 0
 #define TOGGLE_VULKAN_VALIDATION 1
 
-#define GAME_WIDTH 960
-#define GAME_HEIGHT 540
-
 #define GAMEPAD_THRESHOLD 0.5f
 
 #define PLAYER_ACC 0.5f
