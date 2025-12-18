@@ -794,8 +794,8 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 {
 	Rect hitbox = GetEntityHitbox(ctx, entity);
 	ivec2s origin = GetEntityOrigin(ctx, entity);
-	
-	
+
+
 }
 
 function void UpdatePlayer(Context* ctx) 
@@ -2886,7 +2886,11 @@ int32_t main(int32_t argc, char* argv[])
 						.size = ctx->vk.uniform_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->num_sprites, image_memory_barriers_before);
+				vkCmdPipelineBarrier(cb, 
+					VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
+					0, NULL, 
+					SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 
+					(uint32_t)ctx->num_sprites, image_memory_barriers_before);
 				
 				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 				{
@@ -2948,8 +2952,7 @@ int32_t main(int32_t argc, char* argv[])
 						.size = ctx->vk.vertex_buffer.size,
 					};
 
-					vkCmdPipelineBarrier(
-						cb, 
+					vkCmdPipelineBarrier(cb, 
 						VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 
 						0, NULL, 
 						1, &barrier, 
@@ -2965,15 +2968,18 @@ int32_t main(int32_t argc, char* argv[])
 						.size = ctx->vk.uniform_buffer.size,
 					};
 
-					vkCmdPipelineBarrier(
-						cb, 
+					vkCmdPipelineBarrier(cb, 
 						VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 
 						0, NULL,
 						1, &barrier, 
 						0, NULL);
 				}				
 
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, (uint32_t)ctx->num_sprites, image_memory_barriers_after);
+				vkCmdPipelineBarrier(cb, 
+					VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 
+					0, NULL, 
+					0, NULL, 
+					(uint32_t)ctx->num_sprites, image_memory_barriers_after);
 
 				StackFree(&ctx->stack, image_memory_barriers_after);				
 				StackFree(&ctx->stack, image_memory_barriers_before);
@@ -2990,7 +2996,11 @@ int32_t main(int32_t argc, char* argv[])
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 0, NULL);
+				vkCmdPipelineBarrier(cb, 
+					VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 
+					0, NULL, 
+					SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 
+					0, NULL);
 
 				ctx->vk.vertex_buffer.write_offset = vertex_buffer_write_offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
@@ -3005,7 +3015,11 @@ int32_t main(int32_t argc, char* argv[])
 						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
-				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
+				vkCmdPipelineBarrier(cb, 
+					VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 
+					0, NULL, 
+					SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 
+					0, NULL);
 			}
 
 			// VulkanBeginRenderPass
