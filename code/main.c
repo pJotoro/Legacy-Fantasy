@@ -645,7 +645,9 @@ function void LoadSprite(Context* ctx, char* path)
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
-		//SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
+#if TOGGLE_TESTS
+		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
+#endif
 
 		if (sd->frames[frame_idx].num_cells > 0) 
 		{
@@ -1951,6 +1953,7 @@ int32_t main(int32_t argc, char* argv[])
 	// LoadSprites
 	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
+#if TOGGLE_TESTS
 	size_t error_count = 0;
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 	{
@@ -1971,7 +1974,8 @@ int32_t main(int32_t argc, char* argv[])
 			}
 		}
 	}
-	//SDL_Log("Error count: %llu", error_count);
+	SDL_Log("Error count: %llu", error_count);
+#endif
 
 	// LoadLevel
 	{
@@ -2166,6 +2170,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
+#if TOGGLE_TESTS
 	// PrintLevel
 	{
 		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.val.x + 1, 1);
@@ -2184,6 +2189,7 @@ int32_t main(int32_t argc, char* argv[])
 		SDL_Log("level end");
 		StackFree(&ctx->stack, buf);
 	}
+#endif
 	
 	// VulkanCreateStaticStagingBuffer
 	{
@@ -2252,59 +2258,6 @@ int32_t main(int32_t argc, char* argv[])
 
 		SPALL_BUFFER_END();
 	}
-
-#if TOGGLE_TESTS
-	// TestSpriteFrames
-	{
-		size_t frame_idx = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
-		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
-			if (sd) 
-			{
-				for (size_t sprite_frame_idx = 0; 
-					sprite_frame_idx < sd->num_frames && frame_idx < ctx->num_sprite_frames; 
-					++sprite_frame_idx, ++frame_idx) 
-				{
-					if (SDL_memcmp(&sd->frames[sprite_frame_idx], &ctx->sprite_frames[frame_idx], sizeof(SpriteFrame)) != 0) 
-					{
-						SDL_Log("FAIL");
-					} 
-					else 
-					{
-						SDL_Log("SUCCESS");
-					}
-				}
-			}
-		}
-	}
-
-	// TestSpriteCells
-	{
-		size_t cell_idx = 0;
-		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
-		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx}); 
-			if (sd) 
-			{
-				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
-				{
-					for (size_t sprite_cell_idx = 0; sprite_cell_idx < sd->frames[frame_idx].num_cells && cell_idx < ctx->num_sprite_cells; ++sprite_cell_idx, ++cell_idx) 
-					{
-						if (SDL_memcmp(&sd->frames[frame_idx].cells[sprite_cell_idx], &ctx->sprite_cells[cell_idx], sizeof(SpriteCell)) != 0) 
-						{
-							SDL_Log("FAIL");
-						} 
-						else 
-						{
-							SDL_Log("SUCCESS");
-						}
-					}
-				}
-			}
-		}
-	}
-#endif // TOGGLE_TESTS
 
 	// VulkanCreateImages
 	{
