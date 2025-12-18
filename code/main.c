@@ -399,18 +399,6 @@ function bool SetAnimSprite(Anim* anim, Sprite sprite)
     return sprite_changed;
 }
 
-function void MoveEntity(Entity* entity, vec2s vel) 
-{
-	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
-	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
-	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
-}
-
-function void ShiftEntity(Entity* entity, ivec2s shift) 
-{
-	entity->pos = glms_ivec2_add(entity->pos, shift);
-}
-
 function void UpdateAnim(Context* ctx, Anim* anim, bool loop) 
 {
 	SPALL_BUFFER_BEGIN();
@@ -486,8 +474,8 @@ function Rect GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	Rect res = frame->hitbox;
 	if (dir == -1) 
 	{
-		res->min.x = -frame->hitbox.max.x + sd->size.x;
-		res->max.x = -frame->hitbox.min.x + sd->size.x;
+		res.min.x = -frame->hitbox.max.x + sd->size.x;
+		res.max.x = -frame->hitbox.min.x + sd->size.x;
 	}
 	return res;
 }
@@ -754,7 +742,7 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 		}
 		if (entity->anim.frame_idx == 0) 
 		{
-			for (frame_idx = 1; frame_idx < sd->num_frames; frame_idx += 1) 
+			for (size_t frame_idx = 1; frame_idx < sd->num_frames; frame_idx += 1) 
 			{
 				res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir);
 			}
@@ -787,13 +775,92 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     return res;
 }
 
-function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
+function Rect GetEntityRect(Context* ctx, Entity* entity)
 {
-	Rect hitbox = GetEntityHitbox(ctx, entity);
-	ivec2s origin = GetEntityOrigin(ctx, entity);
-
-
+	Rect res = GetEntityHitbox(ctx, entity);
+	res.min = glms_ivec2_add(res.min, entity->pos); 
+	res.max = glms_ivec2_add(res.max, entity->pos);
+	ivec2s origin = GetEntityOrigin(ctx, entity); 
+	res.min = glms_ivec2_sub(res.min, origin); 
+	res.max = glms_ivec2_sub(res.max, origin); 
+	return res;
 }
+
+function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric) 
+{
+	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
+	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(entity->vel, dt));
+	ivec2s move = ivec2_from_vec2(glms_vec2_floor(entity->pos_remainder));
+	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_floor(entity->pos_remainder));
+
+	Rect _rect = GetEntityRect(ctx, entity);
+	ivec2s origin = GetEntityOrigin(ctx, entity);
+	ivec2s sign = glms_ivec2_sign(move);
+	{
+		Rect rect = _rect;
+		rect.min.x += move.x;
+		rect.max.x += move.x;
+		while (move.x != 0)
+		{
+			TilePos tile_start = ToTilePos(rect.min);
+			TilePos tile_end = ShiftTilePos(tile_start, 0, (rect.max.y - rect.min.y + 1) / TILE_SIZE);		
+			for (TilePos tile = tile_start; tile.val.y <= tile_end.val.y; tile.val.y += 1)
+			{
+				rect.min.x += sign.x;
+				rect.max.x += sign.x;
+				Rect tile_rect;
+				tile_rect.min = ToLevelPos(tile);
+				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+				if (!RectsIntersect(rect, tile_rect))
+				{
+					move -= sign.x;
+				}
+				else
+				{
+					entity->pos = glms_ivec2_add(rect.min, origin);
+					move.x = 0;
+					break;
+				}
+			}
+		}
+	}
+
+	{
+		float fmove = SDL_roundf(entity->pos_remainder.y);
+		int32_t move = (int32_t)fmove;
+
+
+		entity->pos.y += move;
+		entity->pos_remainder.y -= fmove;
+		int32_t sign = (int32_t)glm_signf(fmove);
+		Rect rect = GetEntityRect(ctx, entity);
+		ivec2s origin = GetEntityOrigin(ctx, entity);
+		while (move != 0)
+		{
+			TilePos tile_start = ToTilePos(rect.min);
+			TilePos tile_end = ShiftTilePos(tile_start, (rect.max.x - rect.min.x + 1) * TILE_SIZE, 0);
+			for (TilePos tile = tile_start; tile.val.x <= tile_end.val.x; tile.val.x += 1)
+			{
+				rect.min.x += sign;
+				rect.max.x += sign;
+				Rect tile_rect;
+				tile_rect.min = ToLevelPos(tile);
+				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+				if (!RectsIntersect(rect, tile_rect))
+				{
+					move -= sign;
+				}
+				else
+				{
+					entity->pos = glms_ivec2_add(rect.min, origin);
+					move = 0;
+					break;
+				}
+			}
+		}
+	}
+}
+
 
 function void UpdatePlayer(Context* ctx) 
 {
@@ -944,7 +1011,12 @@ function void UpdatePlayer(Context* ctx)
 			}
 
 	    	acc.y += GRAVITY;
-	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	//UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+
+	    	Rect hitbox = GetEntityHitbox(ctx, entity);
+	    	ivec2s origin = GetEntityOrigin(ctx, entity);
+
+
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
@@ -2762,7 +2834,8 @@ int32_t main(int32_t argc, char* argv[])
 				{
 					Instance* instance = &instances[instance_idx];
 
-					instance->rect.min = entity->pos;
+					ivec2s origin = GetEntityOrigin(ctx, entity);
+					instance->rect.min = glms_ivec2_sub(entity->pos, origin);
 					instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
 					instance->anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
 				}			
