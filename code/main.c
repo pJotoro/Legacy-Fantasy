@@ -13,10 +13,10 @@
 
 #define GAMEPAD_THRESHOLD 0.5f
 
-#define PLAYER_ACC 0.02f
-#define PLAYER_FRIC 0.006f
-#define PLAYER_MAX_VEL 0.3f
-#define PLAYER_JUMP 1.3f
+#define PLAYER_ACC 0.5f
+#define PLAYER_FRIC 0.1f
+#define PLAYER_MAX_VEL 2.5f
+#define PLAYER_JUMP 5.0f
 
 #define BOAR_ACC 0.01f
 #define BOAR_FRIC 0.005f
