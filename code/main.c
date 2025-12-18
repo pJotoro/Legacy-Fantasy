@@ -781,7 +781,7 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
 
 function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
-	Rect prev_hitbox = GetEntityHitbox(ctx, entity);
+	Rect hitbox = GetEntityHitbox(ctx, entity);
 
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
 
@@ -792,64 +792,57 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-	bool horizontal_collision_happened = false;
 	vec2s vel = entity->vel;
-	if (entity->vel.x < 0.0f && prev_hitbox.min.x % TILE_SIZE == 0) 
+	if (entity->vel.x < 0.0f && hitbox.min.x % TILE_SIZE == 0) 
 	{
 		TilePos tile_pos;
-		tile_pos.val.x = (prev_hitbox.min.x-TILE_SIZE)/TILE_SIZE;
-		for (tile_pos.val.y = prev_hitbox.min.y/TILE_SIZE; tile_pos.val.y <= prev_hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
+		tile_pos.val.x = (hitbox.min.x-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.val.y = hitbox.min.y/TILE_SIZE; tile_pos.val.y <= hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
 				vel.x = 0.0f;
-				horizontal_collision_happened = true;
-				break;
-			}
-		}
-	} else if (entity->vel.x > 0.0f && (prev_hitbox.max.x) % TILE_SIZE == 0) 
-	{
-		TilePos tile_pos;
-		tile_pos.val.x = (prev_hitbox.max.x+1)/TILE_SIZE;
-		for (tile_pos.val.y = prev_hitbox.min.y/TILE_SIZE; tile_pos.val.y <= prev_hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.x = 0.0f;
-				horizontal_collision_happened = true;
-				break;
-			}
-		}
-	}
-	bool touching_floor = false;
-	bool vertical_collision_happened = false;
-	if (entity->vel.y < 0.0f && prev_hitbox.min.y % TILE_SIZE == 0) 
-	{
-		TilePos tile_pos;
-		tile_pos.val.y = (prev_hitbox.min.y-TILE_SIZE)/TILE_SIZE;
-		for (tile_pos.val.x = prev_hitbox.min.x/TILE_SIZE; tile_pos.val.x <= prev_hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.y = 0.0f;
-				vertical_collision_happened = true;
 				break;
 			}
 		}
 	} 
-	else if (entity->vel.y > 0.0f && (prev_hitbox.max.y) % TILE_SIZE == 0) 
+	else if (entity->vel.x > 0.0f && (hitbox.max.x) % TILE_SIZE == 0) 
 	{
 		TilePos tile_pos;
-		tile_pos.val.y = (prev_hitbox.max.y+1)/TILE_SIZE;
-		for (tile_pos.val.x = prev_hitbox.min.x/TILE_SIZE; tile_pos.val.x <= prev_hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		tile_pos.val.x = (hitbox.max.x)/TILE_SIZE;
+		for (tile_pos.val.y = hitbox.min.y/TILE_SIZE; tile_pos.val.y <= hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				vel.x = 0.0f;
+				break;
+			}
+		}
+	}
+	if (entity->vel.y < 0.0f && hitbox.min.y % TILE_SIZE == 0) 
+	{
+		TilePos tile_pos;
+		tile_pos.val.y = (hitbox.min.y-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.val.x = hitbox.min.x/TILE_SIZE; tile_pos.val.x <= hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				vel.y = 0.0f;
+				break;
+			}
+		}
+	} 
+	else if (entity->vel.y > 0.0f && (hitbox.max.y) % TILE_SIZE == 0) 
+	{
+		TilePos tile_pos;
+		tile_pos.val.y = (hitbox.max.y)/TILE_SIZE;
+		for (tile_pos.val.x = hitbox.min.x/TILE_SIZE; tile_pos.val.x <= hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
 				vel.y = 0.0f;
 				entity->vel.y = 0.0f;
 				entity->state = EntityState_Free;
-				touching_floor = true;
-				vertical_collision_happened = true;
 				break;
 			}
 		}
@@ -857,73 +850,62 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 
     MoveEntity(entity, vel);
 
-    Rect hitbox = GetEntityHitbox(ctx, entity);
+    Rect prev_hitbox = hitbox;
+    hitbox = GetEntityHitbox(ctx, entity);
 
 	TilePos tile_pos;
-	for (tile_pos.val.y = hitbox.min.y/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && tile_pos.val.y <= hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
+	for (tile_pos.val.y = hitbox.min.y/TILE_SIZE; tile_pos.val.y <= hitbox.max.y/TILE_SIZE; ++tile_pos.val.y) 
 	{
-		for (tile_pos.val.x = hitbox.min.x/TILE_SIZE; (!horizontal_collision_happened || !vertical_collision_happened) && tile_pos.val.x <= hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		for (tile_pos.val.x = hitbox.min.x/TILE_SIZE; tile_pos.val.x <= hitbox.max.x/TILE_SIZE; ++tile_pos.val.x) 
 		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
+			Rect tile_rect;
+			tile_rect.min = ToLevelPos(tile_pos);
+			tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+			if (TileIsSolid(&ctx->level, tile_pos) && RectsIntersect(hitbox, tile_rect)) 
 			{
-				Rect tile_rect;
-				tile_rect.min = ToLevelPos(tile_pos);
-				tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
-				if (RectsIntersect(hitbox, tile_rect)) 
+				SDL_assert(!RectsIntersect(prev_hitbox, tile_rect));
 				{
-					if (RectsIntersect(prev_hitbox, tile_rect)) continue;
-
-					if (!horizontal_collision_happened) 
+					Rect h = prev_hitbox;
+					h.min.x = hitbox.min.x;
+					h.max.x = hitbox.max.x;
+					if (RectsIntersect(h, tile_rect)) 
 					{
-						Rect h = prev_hitbox;
-						h.min.x = hitbox.min.x;
-						h.max.x = hitbox.max.x;
-						if (RectsIntersect(h, tile_rect)) 
+						int32_t amount = 0;
+						int32_t incr = (int32_t)glm_signf(entity->vel.x);
+						while (RectsIntersect(h, tile_rect)) 
 						{
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.x);
-							while (RectsIntersect(h, tile_rect)) 
-							{
-								h.min.x -= incr;
-								h.max.x -= incr;
-								amount += incr;
-							}
-							entity->pos.x -= amount;
-							horizontal_collision_happened = true;
+							h.min.x -= incr;
+							h.max.x -= incr;
+							amount += incr;
 						}
-
+						entity->pos.x -= amount;
 					}
-					if (!vertical_collision_happened) 
+
+				}
+				{
+					Rect h = prev_hitbox;
+					h.min.y = hitbox.min.y;
+					h.max.y = hitbox.max.y;
+					if (RectsIntersect(h, tile_rect)) 
 					{
-						Rect h = prev_hitbox;
-						h.min.y = hitbox.min.y;
-						h.max.y = hitbox.max.y;
-						if (RectsIntersect(h, tile_rect)) 
+						int32_t amount = 0;
+						int32_t incr = (int32_t)glm_signf(entity->vel.y);
+						while (RectsIntersect(h, tile_rect)) 
 						{
-							int32_t amount = 0;
-							int32_t incr = (int32_t)glm_signf(entity->vel.y);
-							while (RectsIntersect(h, tile_rect)) 
-							{
-								h.min.y -= incr;
-								h.max.y -= incr;
-								amount += incr;
-							}
-							entity->pos.y -= amount;					
-							vertical_collision_happened = true;
+							h.min.y -= incr;
+							h.max.y -= incr;
+							amount += incr;
+						}
+						entity->pos.y -= amount;					
+
+						if (entity->vel.y > 0.0f) {
+							entity->vel.y = 0.0f;
+							entity->state = EntityState_Free;
 						}
 					}
 				}
 			}
 		}
-	}
-
-	if (!touching_floor && entity->vel.y > 0.0f) 
-	{
-		entity->state = EntityState_Fall;
-	}
-	else if (touching_floor)
-	{
-		entity->state = EntityState_Free;
 	}
 }
 
@@ -977,6 +959,43 @@ function void UpdatePlayer(Context* ctx)
 	} 
 	else switch (player->state)
 	{
+		case EntityState_Free: 
+		{
+			vec2s acc = {0.0f, 0.0f};
+
+			acc.y += GRAVITY;
+
+			if (!ctx->gamepad) 
+			{
+				acc.x = (float)input_dir * PLAYER_ACC;
+			} 
+			else 
+			{
+				acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
+			}
+
+			if (input_dir == 0 && player->vel.x == 0.0f) 
+			{
+				SetAnimSprite(&player->anim, player_idle);
+			} 
+			else 
+			{
+				SetAnimSprite(&player->anim, player_run);
+				if (player->vel.x != 0.0f) 
+				{
+					player->dir = (int32_t)glm_signf(player->vel.x);
+				} 
+				else if (input_dir != 0) 
+				{
+					player->dir = input_dir;
+				}
+			}
+
+			UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+
+			bool loop = true;
+			UpdateAnim(ctx, &player->anim, loop);
+		} break;
 		case EntityState_Inactive:
 			break;
 	    case EntityState_Die: 
@@ -1043,44 +1062,6 @@ function void UpdatePlayer(Context* ctx)
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
-		} break;
-
-		case EntityState_Free: 
-		{
-			vec2s acc = {0.0f, 0.0f};
-
-			acc.y += GRAVITY;
-
-			if (!ctx->gamepad) 
-			{
-				acc.x = (float)input_dir * PLAYER_ACC;
-			} 
-			else 
-			{
-				acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
-			}
-
-			if (input_dir == 0 && player->vel.x == 0.0f) 
-			{
-				SetAnimSprite(&player->anim, player_idle);
-			} 
-			else 
-			{
-				SetAnimSprite(&player->anim, player_run);
-				if (player->vel.x != 0.0f) 
-				{
-					player->dir = (int32_t)glm_signf(player->vel.x);
-				} 
-				else if (input_dir != 0) 
-				{
-					player->dir = input_dir;
-				}
-			}
-
-			UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
-
-			bool loop = true;
-			UpdateAnim(ctx, &player->anim, loop);
 		} break;
 
 		default: 
