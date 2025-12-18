@@ -6,7 +6,7 @@
 #define TOGGLE_FULLSCREEN 1
 #define TOGGLE_REPLAY_FRAMES 1
 #define TOGGLE_TESTS 0
-#define TOGGLE_VULKAN_VALIDATION 0
+#define TOGGLE_VULKAN_VALIDATION 1
 
 #define GAME_WIDTH 960
 #define GAME_HEIGHT 540
@@ -218,6 +218,13 @@ typedef struct VulkanBuffer
 	void* mapped_memory;
 } VulkanBuffer;
 
+typedef struct Uniforms
+{
+	ivec2s window_size;
+	ivec2s tileset_size;
+	int32_t tile_size;
+} Uniforms;
+
 typedef struct Vulkan 
 {
 	VkInstance instance;
@@ -268,6 +275,7 @@ typedef struct Vulkan
 	/*
 	Memory layout:
 		uint32_t raw_image_data[][dst_buf_size];
+		Uniforms uniforms;
 		Tile tiles[];
 	*/
 	VulkanBuffer static_staging_buffer;
@@ -285,6 +293,12 @@ typedef struct Vulkan
 	*/
 	VulkanBuffer vertex_buffer;
 
+	/*
+	Memory layout:
+		Uniforms uniforms;
+	*/
+	VulkanBuffer uniform_buffer;
+
 	VkDeviceMemory image_memory;
 
 	bool staged;
@@ -301,6 +315,7 @@ typedef struct Context
 	Stack stack;
 
 	SDL_Window* window;
+	ivec2s window_size;
 	bool vsync;
 	bool running;
 
@@ -1258,6 +1273,9 @@ int32_t main(int32_t argc, char* argv[])
 #endif // TOGGLE_PROFILING
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
+
+			ctx->window_size.x = window_width;
+			ctx->window_size.y = window_height;
 			
 			SPALL_BUFFER_END();
 		}
@@ -1743,19 +1761,27 @@ int32_t main(int32_t argc, char* argv[])
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorSetLayout");
 
-		VkDescriptorSetLayoutBinding binding = 
+		VkDescriptorSetLayoutBinding bindings[] =
 		{
-			.binding = 0,
-			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			.descriptorCount = 1,
-			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			{
+				.binding = 0,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+			},
+			{
+				.binding = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			}
 		};
 
 		VkDescriptorSetLayoutCreateInfo info =
 		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.bindingCount = 1,
-			.pBindings = &binding,
+			.bindingCount = SDL_arraysize(bindings),
+			.pBindings = bindings,
 		};
 		
 		VK_CHECK(vkCreateDescriptorSetLayout(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_set_layout));
@@ -2315,6 +2341,7 @@ int32_t main(int32_t argc, char* argv[])
 				}
 			}
 		}
+		ctx->vk.static_staging_buffer.size += sizeof(Uniforms);
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
@@ -2344,6 +2371,13 @@ int32_t main(int32_t argc, char* argv[])
 				}
 			}
 		}
+		ivec2s tileset_size = GetTilesetDimensions(ctx, spr_tiles);
+		Uniforms uniforms = {
+			.window_size = ctx->window_size,
+			.tileset_size = tileset_size,
+			.tile_size = 16,
+		};
+		VulkanCopyBuffer(sizeof(uniforms), &uniforms, &ctx->vk.static_staging_buffer);
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
@@ -2529,18 +2563,23 @@ int32_t main(int32_t argc, char* argv[])
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDescriptorPool");
 
-		VkDescriptorPoolSize size = 
-		{
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			(uint32_t)ctx->num_sprites,
+		VkDescriptorPoolSize sizes[] = {
+			{
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				(uint32_t)ctx->num_sprites,
+			},
+			{
+				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				1,
+			},
 		};
 
 		VkDescriptorPoolCreateInfo info =
 		{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = (uint32_t)ctx->num_sprites,
-			.poolSizeCount = 1,
-			.pPoolSizes = &size,
+			.maxSets = (uint32_t)ctx->num_sprites + 1,
+			.poolSizeCount = SDL_arraysize(sizes),
+			.pPoolSizes = sizes,
 		};
 
 		VK_CHECK(vkCreateDescriptorPool(ctx->vk.device, &info, NULL, &ctx->vk.descriptor_pool));
@@ -2570,7 +2609,13 @@ int32_t main(int32_t argc, char* argv[])
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
 		VkDescriptorImageInfo* image_infos = StackAlloc(&ctx->stack, ctx->num_sprites, VkDescriptorImageInfo);
-		VkWriteDescriptorSet* writes = StackAlloc(&ctx->stack, ctx->num_sprites, VkWriteDescriptorSet);
+		VkWriteDescriptorSet* writes = StackAlloc(&ctx->stack, ctx->num_sprites*2, VkWriteDescriptorSet);
+
+		VkDescriptorBufferInfo uniform_buffer_descriptor_info = {
+			.buffer = ctx->vk.uniform_buffer.handle,
+			.offset = 0,
+			.range = ctx->vk.uniform_buffer.size,
+		};
 
 		size_t i = 0;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
@@ -2580,6 +2625,16 @@ int32_t main(int32_t argc, char* argv[])
 			{
 				sd->vk_descriptor_set = descriptor_sets[i];
 
+				writes[i*2] = (VkWriteDescriptorSet)
+				{
+				    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				    .dstSet = sd->vk_descriptor_set,
+				    .dstBinding = 0,
+				    .descriptorCount = 1,
+				    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				    .pBufferInfo = &uniform_buffer_descriptor_info,
+				};
+
 				image_infos[i] = (VkDescriptorImageInfo)
 				{
 					.sampler = ctx->vk.sampler,
@@ -2587,11 +2642,11 @@ int32_t main(int32_t argc, char* argv[])
 					.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				};
 
-				writes[i] = (VkWriteDescriptorSet)
+				writes[i*2 + 1] = (VkWriteDescriptorSet)
 				{
 				    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				    .dstSet = sd->vk_descriptor_set,
-				    .dstBinding = 0,
+				    .dstBinding = 1,
 				    .descriptorCount = 1,
 				    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 				    .pImageInfo = &image_infos[i],
@@ -2602,7 +2657,7 @@ int32_t main(int32_t argc, char* argv[])
 		}
 		SDL_assert(i == ctx->num_sprites);
 
-		vkUpdateDescriptorSets(ctx->vk.device, (uint32_t)ctx->num_sprites, writes, 0, NULL);
+		vkUpdateDescriptorSets(ctx->vk.device, (uint32_t)ctx->num_sprites*2, writes, 0, NULL);
 
 		StackFree(&ctx->stack, writes);
 		StackFree(&ctx->stack, image_infos);
@@ -2638,6 +2693,16 @@ int32_t main(int32_t argc, char* argv[])
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
+
+		SPALL_BUFFER_END();
+	}
+
+	// VulkanCreateUniformBuffer
+	{
+		SPALL_BUFFER_BEGIN_NAME("VulkanCreateUniformBuffer");
+
+		ctx->vk.uniform_buffer = VulkanCreateBuffer(&ctx->vk, sizeof(Uniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		VulkanSetBufferName(ctx->vk.device, ctx->vk.uniform_buffer.handle, "Uniform Buffer");
 
 		SPALL_BUFFER_END();
 	}
@@ -2932,7 +2997,7 @@ int32_t main(int32_t argc, char* argv[])
 				VK_CHECK(vkBeginCommandBuffer(cb, &info));
 			}
 
-			// VulkanCopyStagingBuffers
+			// VulkanCopyStagingBufferToBuffers
 			if (!ctx->vk.staged) 
 			{
 				ctx->vk.staged = true;
@@ -3003,6 +3068,13 @@ int32_t main(int32_t argc, char* argv[])
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
 					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = 0,
+						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.buffer = ctx->vk.uniform_buffer.handle,
+						.size = ctx->vk.uniform_buffer.size,
+					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, (uint32_t)ctx->num_sprites, image_memory_barriers_before);
 				
@@ -3050,6 +3122,8 @@ int32_t main(int32_t argc, char* argv[])
 					StackFree(&ctx->stack, regions);
 				}
 
+				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.uniform_buffer, UINT64_MAX);
+
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				vertex_buffer_write_offset = ctx->vk.vertex_buffer.write_offset;
 
@@ -3063,6 +3137,13 @@ int32_t main(int32_t argc, char* argv[])
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
 						.size = ctx->vk.vertex_buffer.size,
+					},
+					{
+						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+						.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+						.buffer = ctx->vk.uniform_buffer.handle,
+						.size = ctx->vk.uniform_buffer.size,
 					},
 				};
 				vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, NULL, SDL_arraysize(buffer_memory_barriers_after), buffer_memory_barriers_after, 0, NULL);
