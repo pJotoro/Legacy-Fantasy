@@ -863,7 +863,8 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 			tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
 			if (TileIsSolid(&ctx->level, tile_pos) && RectsIntersect(hitbox, tile_rect)) 
 			{
-				SDL_assert(!RectsIntersect(prev_hitbox, tile_rect));
+				if (!RectsIntersect(prev_hitbox, tile_rect)) continue;
+				if (entity->vel.x != 0.0f)
 				{
 					Rect h = prev_hitbox;
 					h.min.x = hitbox.min.x;
@@ -882,23 +883,20 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 					}
 
 				}
+				if (entity->vel.y != 0.0f)
 				{
 					Rect h = prev_hitbox;
 					h.min.y = hitbox.min.y;
 					h.max.y = hitbox.max.y;
 					if (RectsIntersect(h, tile_rect)) 
 					{
-						int32_t amount = 0;
-						int32_t incr = (int32_t)glm_signf(entity->vel.y);
-						while (RectsIntersect(h, tile_rect)) 
-						{
-							h.min.y -= incr;
-							h.max.y -= incr;
-							amount += incr;
-						}
+						int32_t sign = (int32_t)glm_signf(entity->vel.y);
+						h.min.y = tile_rect.max.y;
+						h.max.y = tile_rect.min.y;
 						entity->pos.y -= amount;					
 
-						if (entity->vel.y > 0.0f) {
+						if (entity->vel.y > 0.0f) 
+						{
 							entity->vel.y = 0.0f;
 							entity->state = EntityState_Free;
 						}
@@ -906,6 +904,11 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 				}
 			}
 		}
+	}
+
+	if (vel.y > 0.0f && entity->vel.y > 0.0f)
+	{
+		entity->state = EntityState_Fall;
 	}
 }
 
