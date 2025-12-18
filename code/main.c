@@ -1129,7 +1129,7 @@ int32_t main(int32_t argc, char* argv[])
 			window_width *= 2;
 			window_height *= 2;
 			window_flags |= SDL_WINDOW_FULLSCREEN;
-#endif // TOGGLE_PROFILING
+#endif // TOGGLE_FULLSCREEN
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
 
