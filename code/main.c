@@ -493,9 +493,6 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	}
 	if (hitbox->max.x > hitbox->min.x && hitbox->max.y > hitbox->min.y) 
 	{
-		ivec2s origin = GetSpriteOrigin(ctx, sprite, frame_idx, dir);
-		hitbox->min = glms_ivec2_sub(hitbox->min, origin);
-		hitbox->max = glms_ivec2_sub(hitbox->max, origin);
 		res = true;
 	}
 
@@ -801,7 +798,10 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
 
 function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
-	
+	Rect hitbox = GetEntityHitbox(ctx, entity);
+	ivec2s origin = GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, entity->dir);
+
+
 }
 
 function void UpdatePlayer(Context* ctx) 
