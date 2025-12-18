@@ -918,7 +918,7 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 		}
 	}
 
-	if (vel.y > 0.0f && entity->vel.y > 0.0f)
+	if (vel.y > 0.0f && entity->vel.y > 0.0f && entity->state != EntityState_Free)
 	{
 		entity->state = EntityState_Fall;
 	}
