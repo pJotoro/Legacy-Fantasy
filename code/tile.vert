@@ -1,5 +1,3 @@
-// TODO: Use uniforms instead of constants for TILESET_WIDTH, TILESET_HEIGHT, TILE_SIZE, WINDOW_WIDTH, and WINDOW_HEIGHT.
-
 #version 460
 
 layout (location = 0) in ivec2 in_src;
@@ -26,5 +24,5 @@ void main() {
     src += a[gl_VertexIndex];
 
     gl_Position = vec4(pos, 0.0, 1.0);
-    out_src = vec2(float(src.x) / float(uniforms.tile_size), float(src.y) / float(uniforms.tile_size));
+    out_src = vec2(float(src.x) / float(uniforms.tileset_size.x), float(src.y) / float(uniforms.tileset_size.y));
 }
