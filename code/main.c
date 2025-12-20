@@ -1422,16 +1422,23 @@ int32_t main(int32_t argc, char* argv[])
 	// VulkanGetPhysicalDevice
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanGetPhysicalDevice");
+		uint32_t count;
+		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk.instance, &count, NULL));
+		VkPhysicalDevice* physical_devices = StackAlloc(&ctx->stack, count, VkPhysicalDevice);
+		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk.instance, &count, physical_devices));
 
-		// HACK: This only happens to work and make sense on my laptop!.
-		uint32_t physical_device_count = 2;
-		VkPhysicalDevice physical_devices[2];
-		VK_CHECK(vkEnumeratePhysicalDevices(ctx->vk.instance, &physical_device_count, physical_devices));
-		ctx->vk.physical_device = physical_devices[1];
+		for (size_t i = 0; i < (size_t)count; i += 1)
+		{
+			ctx->vk.physical_device = physical_devices[i];
+			vkGetPhysicalDeviceProperties(ctx->vk.physical_device, &ctx->vk.physical_device_properties);
+			vkGetPhysicalDeviceMemoryProperties(ctx->vk.physical_device, &ctx->vk.physical_device_memory_properties);
+			if (ctx->vk.physical_device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			{
+				break;
+			}
+		}
 
-		vkGetPhysicalDeviceProperties(ctx->vk.physical_device, &ctx->vk.physical_device_properties);
-		vkGetPhysicalDeviceMemoryProperties(ctx->vk.physical_device, &ctx->vk.physical_device_memory_properties);
-
+		StackFree(&ctx->stack, physical_devices);
 		SPALL_BUFFER_END();
 	}
 
