@@ -537,7 +537,6 @@ function void LoadSprite(Context* ctx, char* path)
 	sd->num_frames = header.num_frames;
 	sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
 
-	uint16_t layer_idx = 0;
 	uint16_t hitbox_layer_idx = UINT16_MAX;
 	uint16_t origin_layer_idx = UINT16_MAX;
 
@@ -561,7 +560,7 @@ function void LoadSprite(Context* ctx, char* path)
 		// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#layer-chunk-0x2004
 		if (frame_idx == 0) 
 		{
-			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
+			for (size_t chunk_idx = 0, layer_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 			{
 				void* raw_chunk = NULL; 
 				size_t raw_chunk_size = 0;
@@ -578,12 +577,12 @@ function void LoadSprite(Context* ctx, char* path)
 					if (SDL_strcmp(layer_name, "Hitbox") == 0) 
 					{
 						SDL_assert(hitbox_layer_idx == UINT16_MAX);
-						hitbox_layer_idx = layer_idx;
+						hitbox_layer_idx = (uint16_t)layer_idx;
 					} 
 					else if (SDL_strcmp(layer_name, "Origin") == 0) 
 					{
 						SDL_assert(origin_layer_idx == UINT16_MAX);
-						origin_layer_idx = layer_idx;					
+						origin_layer_idx = (uint16_t)layer_idx;					
 					}
 					layer_idx += 1;
 
@@ -744,13 +743,13 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	If no hitbox is found and the frame index is 0, loop forward instead.
 	*/
 	bool res = false;
-	for (ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; frame_idx >= 0; frame_idx -= 1) 
+	for (ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; frame_idx >= 0 && !res; frame_idx -= 1) 
 	{
 		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 	}
 	if (!res && entity->anim.frame_idx == 0) 
 	{
-		for (size_t frame_idx = 1; frame_idx < sd->num_frames; frame_idx += 1) 
+		for (size_t frame_idx = 1; frame_idx < sd->num_frames && !res; frame_idx += 1) 
 		{
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
 		}
