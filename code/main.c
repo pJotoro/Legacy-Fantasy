@@ -68,7 +68,7 @@ typedef struct SpriteCell
 {
 	void* dst_buf; // invalid after VulkanCreateStaticStagingBuffer.
 
-	ivec2s offset;
+	ivec2s origin;
 	ivec2s size;
 	int32_t z_idx;
 	uint32_t layer_idx;
@@ -78,7 +78,6 @@ typedef struct SpriteFrame
 {
 	SpriteCell* cells; size_t num_cells;
 	Rect hitbox;
-	ivec2s origin;
 	float dur;
 } SpriteFrame;
 
@@ -86,6 +85,7 @@ typedef struct SpriteDesc
 {
 	char* name;
 
+	ivec2s origin;
 	ivec2s size;
 	SpriteFrame* frames; size_t num_frames;
 	
@@ -370,11 +370,10 @@ static Sprite spr_tiles;
 
 static float dt;
 
-function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir) 
+function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) 
 {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-	SDL_assert(frame_idx < sd->num_frames);
-	ivec2s origin = sd->frames[frame_idx].origin;
+	ivec2s origin = sd->origin;
 	if (dir == -1) 
 	{
 		origin.x = sd->size.x - origin.x;
@@ -384,7 +383,7 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, size_t frame_idx, i
 
 function ivec2s GetEntityOrigin(Context* ctx, Entity* entity)
 {
-	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->anim.frame_idx, (size_t)entity->dir);
+	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
 function bool SetAnimSprite(Anim* anim, Sprite sprite) 
@@ -618,7 +617,10 @@ function void LoadSprite(Context* ctx, char* path)
 				} 
 				else if (chunk->layer_idx == origin_layer_idx) 
 				{
-					sd->frames[frame_idx].origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
+					if (frame_idx == 0)
+					{
+						sd->origin = (ivec2s){(int32_t)chunk->x, (int32_t)chunk->y};
+					}
 				} 
 				else 
 				{
@@ -654,8 +656,8 @@ function void LoadSprite(Context* ctx, char* path)
 
 					SpriteCell cell = 
 				{
-						.offset.x = (int32_t)chunk->x,
-						.offset.y = (int32_t)chunk->y,
+						.origin.x = (int32_t)chunk->x,
+						.origin.y = (int32_t)chunk->y,
 						.z_idx = chunk->z_idx,
 						.layer_idx = (uint32_t)chunk->layer_idx,
 						.size.x = (int32_t)chunk->w,
@@ -936,11 +938,12 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	}
 }
 
-
 function void UpdatePlayer(Context* ctx) 
 {
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
+	ivec2s origin = GetEntityOrigin(ctx, player);
+	SDL_Log("origin: {%d, %d}", origin.x, origin.y);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
@@ -3060,8 +3063,8 @@ int32_t main(int32_t argc, char* argv[])
 								},
 								.imageOffset = (VkOffset3D)
 								{
-									.x = cell->offset.x,
-									.y = cell->offset.y,
+									.x = cell->origin.x,
+									.y = cell->origin.y,
 									.z = 0,
 								},
 								.imageExtent = (VkExtent3D)
