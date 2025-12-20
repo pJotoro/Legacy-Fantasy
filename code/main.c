@@ -760,28 +760,6 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	return hitbox;
 }
 
-function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
-{
-	SPALL_BUFFER_BEGIN();
-	bool res = false;
-
-    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
-    {
-    	Rect ha = GetEntityHitbox(ctx, a);
-    	ha.min = glms_ivec2_add(ha.min, a->pos);
-    	ha.max = glms_ivec2_add(ha.max, a->pos);
-
-    	Rect hb = GetEntityHitbox(ctx, b);
-    	hb.min = glms_ivec2_add(hb.min, b->pos);
-    	hb.max = glms_ivec2_add(hb.max, b->pos);
-
-    	res = RectsIntersect(ha, hb);
-    } 
-
-    SPALL_BUFFER_END();
-    return res;
-}
-
 function Rect GetEntityRect(Context* ctx, Entity* entity)
 {
 	Rect res = GetEntityHitbox(ctx, entity);
@@ -791,6 +769,22 @@ function Rect GetEntityRect(Context* ctx, Entity* entity)
 	res.min = glms_ivec2_sub(res.min, origin); 
 	res.max = glms_ivec2_sub(res.max, origin); 
 	return res;
+}
+
+function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
+{
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
+    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
+    {
+    	Rect ha = GetEntityRect(ctx, a);
+    	Rect hb = GetEntityRect(ctx, b);
+    	res = RectsIntersect(ha, hb);
+    } 
+
+    SPALL_BUFFER_END();
+    return res;
 }
 
 function void MoveEntity(Entity* entity, vec2s vel)
