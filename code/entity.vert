@@ -7,7 +7,7 @@ layout (location = 0) out vec2 out_texture_pos;
 layout (location = 1) flat out int out_frame_idx;
 
 layout (binding = 0) uniform Uniforms {
-    ivec2 window_size;
+    ivec2 viewport_size;
     ivec2 tileset_size;
     int tile_size;
 } uniforms;
@@ -21,7 +21,7 @@ void main() {
     size.y *= a[gl_VertexIndex].y;
     pos += size;
 
-    gl_Position = vec4(float(pos.x)/float(uniforms.window_size.x/4) - 1.0, float(pos.y)/float(uniforms.window_size.y/4) - 1.0, 0.0, 1.0);
+    gl_Position = vec4(float(pos.x)/float(uniforms.viewport_size.x) - 1.0, float(pos.y)/float(uniforms.viewport_size.y) - 1.0, 0.0, 1.0);
     out_texture_pos = vec2(a[gl_VertexIndex]);
     out_frame_idx = in_frame_idx;
 }

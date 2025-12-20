@@ -217,7 +217,7 @@ typedef struct VulkanBuffer
 
 typedef struct Uniforms
 {
-	ivec2s window_size;
+	ivec2s viewport_size;
 	ivec2s tileset_size;
 	int32_t tile_size;
 } Uniforms;
@@ -312,7 +312,7 @@ typedef struct Context
 	Stack stack;
 
 	SDL_Window* window;
-	ivec2s window_size;
+	ivec2s viewport_size;
 	bool vsync;
 	bool running;
 
@@ -1271,8 +1271,8 @@ int32_t main(int32_t argc, char* argv[])
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
 
-			ctx->window_size.x = window_width;
-			ctx->window_size.y = window_height;
+			ctx->viewport_size.x = 480;
+			ctx->viewport_size.y = 270;
 			
 			SPALL_BUFFER_END();
 		}
@@ -2381,7 +2381,7 @@ int32_t main(int32_t argc, char* argv[])
 		}
 		ivec2s tileset_size = GetTilesetDimensions(ctx, spr_tiles);
 		Uniforms uniforms = {
-			.window_size = ctx->window_size,
+			.viewport_size = ctx->viewport_size,
 			.tileset_size = tileset_size,
 			.tile_size = 16,
 		};
