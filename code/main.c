@@ -745,7 +745,7 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	bool res = false;
 	for (ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; frame_idx >= 0 && !res; frame_idx -= 1) 
 	{
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox);
 	}
 	if (!res && entity->anim.frame_idx == 0) 
 	{
@@ -2887,8 +2887,11 @@ int32_t main(int32_t argc, char* argv[])
 			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) 
 			{
 				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+				if (entity->state != EntityState_Inactive)
+				{
+					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+				}
 			}
 
 			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
@@ -2896,24 +2899,27 @@ int32_t main(int32_t argc, char* argv[])
 			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) 
 			{
 				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				size_t base_frame_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) 
+				if (entity->state != EntityState_Inactive)
 				{
-					base_frame_idx += sd->frames[frame_idx].num_cells;
-				}
-				for (
-					size_t cell_idx = 0; 
-					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
-					++cell_idx, ++instance_idx) 
-				{
-					Instance* instance = &instances[instance_idx];
+					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					size_t base_frame_idx = 0;
+					for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) 
+					{
+						base_frame_idx += sd->frames[frame_idx].num_cells;
+					}
+					for (
+						size_t cell_idx = 0; 
+						cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
+						++cell_idx, ++instance_idx) 
+					{
+						Instance* instance = &instances[instance_idx];
 
-					ivec2s origin = GetEntityOrigin(ctx, entity);
-					instance->rect.min = glms_ivec2_sub(entity->pos, origin);
-					instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
-					instance->anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
-				}			
+						ivec2s origin = GetEntityOrigin(ctx, entity);
+						instance->rect.min = glms_ivec2_sub(entity->pos, origin);
+						instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
+						instance->anim_frame_idx = (uint32_t)(base_frame_idx + cell_idx);
+					}			
+				}
 			}
 
 			VulkanCopyBuffer(num_instances * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
@@ -3226,9 +3232,10 @@ int32_t main(int32_t argc, char* argv[])
 				size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
 				
 				// DrawPlayer
+				// NOTE: Right now, the player can't die. If it could, we would have to change this.
 				SpriteDesc* sd = GetSpriteDesc(ctx, entities[0].anim.sprite);
-				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 				size_t num_instances_player = sd->frames[entities[0].anim.frame_idx].num_cells;
+				vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
 				vkCmdDraw(cb, 6, (uint32_t)num_instances_player, 0, 0);
 
 				// DrawEnemies
@@ -3244,26 +3251,30 @@ int32_t main(int32_t argc, char* argv[])
 					entity_idx < num_entities;
 
 					first_instance += cur_num_instances,
-					num_instances_leftover -= cur_num_instances) 
+					num_instances_leftover -= cur_num_instances)
 				{
 					Entity* entity = &entities[entity_idx];
-					Sprite sprite = entity->anim.sprite;
-					SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-
-					cur_num_instances = sd->frames[entity->anim.frame_idx].num_cells;
-
-					entity_idx += 1;
-					while (
-						entity_idx < num_entities && 
-						cur_num_instances < num_instances_leftover && 
-						SpritesEqual(sprite, entities[entity_idx].anim.sprite)) 
+					if (entity->state != EntityState_Inactive)
 					{
-						cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
-						entity_idx += 1;
-					}
+						Sprite sprite = entity->anim.sprite;
+						SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 
-					vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
-					vkCmdDraw(cb, 6, (uint32_t)cur_num_instances, 0, (uint32_t)first_instance);
+						cur_num_instances = sd->frames[entity->anim.frame_idx].num_cells;
+
+						entity_idx += 1;
+						while (
+							entity_idx < num_entities && 
+							cur_num_instances < num_instances_leftover && 
+							SpritesEqual(sprite, entities[entity_idx].anim.sprite) &&
+							entities[entity_idx].state != EntityState_Inactive)
+						{
+							cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
+							entity_idx += 1;
+						}
+
+						vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 0, 1, &sd->vk_descriptor_set, 0, NULL);
+						vkCmdDraw(cb, 6, (uint32_t)cur_num_instances, 0, (uint32_t)first_instance);
+					}
 				}
 			}
 
