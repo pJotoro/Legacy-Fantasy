@@ -2911,7 +2911,7 @@ int32_t main(int32_t argc, char* argv[])
 					ivec2s origin = GetEntityOrigin(ctx, entity);
 					instance->rect.min = glms_ivec2_sub(entity->pos, origin);
 					instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
-					instance->anim_frame_idx = (int32_t)(base_frame_idx + cell_idx)*entity->dir;
+					instance->anim_frame_idx = (int32_t)(base_frame_idx + cell_idx + 1)*entity->dir;
 				}			
 			}
 
