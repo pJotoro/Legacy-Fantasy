@@ -1,10 +1,10 @@
 #version 460
 
 layout (location = 0) in ivec4 in_rect;
-layout (location = 1) in uint in_frame_idx;
+layout (location = 1) in int in_frame_idx;
 
 layout (location = 0) out vec2 out_texture_pos;
-layout (location = 1) flat out uint out_frame_idx;
+layout (location = 1) flat out int out_frame_idx;
 
 layout (binding = 0) uniform Uniforms {
     ivec2 window_size;
