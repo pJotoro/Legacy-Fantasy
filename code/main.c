@@ -2603,7 +2603,7 @@ int32_t main(int32_t argc, char* argv[])
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
 		VkDescriptorImageInfo* image_infos = StackAlloc(&ctx->stack, descriptor_set_count - 1, VkDescriptorImageInfo);
-		VkWriteDescriptorSet* writes = SDL_malloc(descriptor_set_count * sizeof(VkWriteDescriptorSet)); SDL_CHECK(writes);
+		VkWriteDescriptorSet* writes = SDL_malloc(descriptor_set_count * sizeof(VkWriteDescriptorSet)); SDL_CHECK(writes); // TODO: Why does this allocation keep getting over-written?
 
 		ctx->vk.descriptor_set_uniforms = descriptor_sets[0];
 		writes[0] = (VkWriteDescriptorSet)
@@ -2664,7 +2664,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDynamicStagingBuffer");
 
 		VkDeviceSize size = 0;
-		size += ctx->level.num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
+		size += ctx->level.num_entities*sizeof(Instance)*2;
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
@@ -2677,7 +2677,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateVertexBuffer");
 
 		size_t size = 0;
-		size += ctx->level.num_entities*sizeof(Instance)*256; // TODO: Find a better way to determine the size!
+		size += ctx->level.num_entities*sizeof(Instance)*2;
 		for (size_t tile_layer_idx = 0; tile_layer_idx < ctx->level.num_tile_layers; tile_layer_idx += 1) 
 		{
 			TileLayer* tile_layer = &ctx->level.tile_layers[tile_layer_idx];
