@@ -1790,7 +1790,7 @@ int32_t main(int32_t argc, char* argv[])
 			{
 				.binding = 0,
 				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.descriptorCount = (uint32_t)ctx->num_sprites,
+				.descriptorCount = 1,
 				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 			}
 		};
@@ -2627,7 +2627,7 @@ int32_t main(int32_t argc, char* argv[])
 				{
 				    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				    .dstSet = sd->vk_descriptor_set,
-				    .dstBinding = 1,
+				    .dstBinding = 0,
 				    .descriptorCount = 1,
 				    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 				    .pImageInfo = &image_infos[i-1],
