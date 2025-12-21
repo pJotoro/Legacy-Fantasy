@@ -3041,14 +3041,14 @@ int32_t main(int32_t argc, char* argv[])
 						.srcAccessMask = 0,
 						.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
 						.buffer = ctx->vk.dynamic_staging_buffer.handle,
-						.size = ctx->vk.dynamic_staging_buffer.size, // TODO
+						.size = ctx->vk.dynamic_staging_buffer.size,
 					},
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
 						.srcAccessMask = 0,
 						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
-						.size = ctx->vk.vertex_buffer.size, // TODO
+						.size = ctx->vk.vertex_buffer.size,
 					},
 					{
 						.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -3112,7 +3112,7 @@ int32_t main(int32_t argc, char* argv[])
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				VkDeviceSize vertex_buffer_start = ctx->vk.vertex_buffer.offset;
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);  // TODO: This is probably copying way too much memory!
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				ctx->vk.vertex_buffer.start = vertex_buffer_start;
 
 				{
@@ -3121,7 +3121,7 @@ int32_t main(int32_t argc, char* argv[])
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
-						.size = ctx->vk.vertex_buffer.size, // TODO
+						.size = ctx->vk.vertex_buffer.size,
 					};
 
 					vkCmdPipelineBarrier(cb, 
@@ -3165,7 +3165,7 @@ int32_t main(int32_t argc, char* argv[])
 						.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
-						.size = ctx->vk.vertex_buffer.size, // TODO
+						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
 				vkCmdPipelineBarrier(cb, 
@@ -3174,7 +3174,7 @@ int32_t main(int32_t argc, char* argv[])
 					SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 
 					0, NULL);
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX); // TODO: This is probably copying way too much memory!
+				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
 				{
@@ -3183,7 +3183,7 @@ int32_t main(int32_t argc, char* argv[])
 						.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 						.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 						.buffer = ctx->vk.vertex_buffer.handle,
-						.size = ctx->vk.vertex_buffer.size, // TODO
+						.size = ctx->vk.vertex_buffer.size,
 					},
 				};
 				vkCmdPipelineBarrier(cb, 
