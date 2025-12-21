@@ -570,8 +570,8 @@ function void LoadSprite(Context* ctx, char* path)
 		{
 			for (size_t chunk_idx = 0, layer_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 			{
-				void* raw_chunk = NULL; 
-				size_t raw_chunk_size = 0;
+				void* raw_chunk; 
+				size_t raw_chunk_size;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 				if (chunk_type == ASE_ChunkType_Layer) 
 				{
@@ -605,8 +605,8 @@ function void LoadSprite(Context* ctx, char* path)
 		
 		for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1)
 		{
-			void* raw_chunk = NULL;
-			size_t raw_chunk_size = 0;
+			void* raw_chunk;
+			size_t raw_chunk_size;
 			ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
 			if (chunk_type == ASE_ChunkType_Cell)
@@ -651,8 +651,8 @@ function void LoadSprite(Context* ctx, char* path)
 
 			for (size_t chunk_idx = 0; chunk_idx < frame.num_chunks; chunk_idx += 1) 
 			{
-				void* raw_chunk = NULL; 
-				size_t raw_chunk_size = 0;
+				void* raw_chunk; 
+				size_t raw_chunk_size;
 				ASE_ChunkType chunk_type = ASE_ReadChunk(fs, &ctx->stack, &raw_chunk, &raw_chunk_size);
 
 				ASE_CellChunk* chunk = raw_chunk;
