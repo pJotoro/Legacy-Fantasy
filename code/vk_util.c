@@ -89,46 +89,73 @@ function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer)
 function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(!buffer->mapped_memory);
-	VK_CHECK(vkMapMemory(vk->device, buffer->memory, buffer->write_offset, buffer->size, 0, &buffer->mapped_memory));
+#if SDL_ASSERT_LEVEL >= 2
+	SDL_assert(buffer->mode == VulkanBufferMode_None);
+	buffer->mode = VulkanBufferMode_Write;
+#endif
+	VK_CHECK(vkMapMemory(vk->device, buffer->memory, buffer->start + buffer->offset, buffer->size - buffer->start, 0, &buffer->mapped_memory));
 }
 
 function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(buffer->mapped_memory);
+#if SDL_ASSERT_LEVEL >= 2
+	SDL_assert(buffer->mode == VulkanBufferMode_Write);
+	buffer->mode = VulkanBufferMode_None;
+#endif
 	vkUnmapMemory(vk->device, buffer->memory);
 	buffer->mapped_memory = NULL;
-	buffer->write_offset = 0;
+	buffer->offset = 0;
 }
 
 function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) 
 {
 	SDL_assert(src_size > 0);
 	SDL_assert(buffer->mapped_memory);
-	SDL_assert(buffer->write_offset + src_size <= buffer->size);
+	SDL_assert(buffer->offset + src_size <= buffer->size - buffer->start);
+#if SDL_ASSERT_LEVEL >= 2
+	SDL_assert(buffer->mode == VulkanBufferMode_Write);
+#endif
 
 	uint8_t* mapped_memory = buffer->mapped_memory;
-	SDL_memcpy(mapped_memory + buffer->write_offset, src, src_size);
-	buffer->write_offset += src_size;
+	SDL_memcpy(mapped_memory + buffer->start + buffer->offset, src, src_size);
+	buffer->offset += src_size;
 }
 
 function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) 
 {
+#if SDL_ASSERT_LEVEL >= 2
+	SDL_assert(src->mode == VulkanBufferMode_None || src->mode == VulkanBufferMode_Read);
+	src->mode = VulkanBufferMode_Read;
+	SDL_assert(dst->mode == VulkanBufferMode_None || dst->mode == VulkanBufferMode_Write);
+	dst->mode = VulkanBufferMode_Write;
+#endif
 	VkBufferCopy region = 
 	{
-		.srcOffset = src->read_offset,
-		.dstOffset = dst->write_offset,
-		.size = SDL_min(size, SDL_min(src->size - src->read_offset, dst->size - dst->write_offset)),
+		.srcOffset = src->start + src->offset,
+		.dstOffset = dst->start + dst->offset,
+		.size = SDL_min(size, SDL_min(src->size - (src->start + src->offset), dst->size - (dst->start + dst->offset))),
 	};
 	SDL_assert(region.size != 0);
 	vkCmdCopyBuffer(cb, src->handle, dst->handle, 1, &region);
-	src->read_offset += region.size;
-	dst->write_offset += region.size;
+	src->offset += region.size;
+	dst->offset += region.size;
 }
 
 function void VulkanResetBuffer(VulkanBuffer* buffer) 
 {
-	buffer->read_offset = 0;
-	buffer->write_offset = 0;
+#if SDL_ASSERT_LEVEL >= 2
+	SDL_assert(buffer->mode != VulkanBufferMode_None);
+	if (buffer->mapped_memory)
+	{
+		buffer->mode = (buffer->mode == VulkanBufferMode_Write) ? VulkanBufferMode_Read : VulkanBufferMode_Write;
+	}
+	else
+	{
+		buffer->mode = VulkanBufferMode_None;
+	}
+#endif
+	buffer->offset = 0;
 }
 
 function void VulkanSetImageName(VkDevice device, VkImage image, char* name) 

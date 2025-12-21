@@ -205,14 +205,26 @@ typedef struct VulkanFrame
 
 #define PIPELINE_COUNT 2
 
+#if SDL_ASSERT_LEVEL >= 2
+typedef enum VulkanBufferMode
+{
+	VulkanBufferMode_None,
+	VulkanBufferMode_Write,
+	VulkanBufferMode_Read,
+} VulkanBufferMode;
+#endif
+
 typedef struct VulkanBuffer 
 {
 	VkBuffer handle;
 	VkDeviceSize size;
-	VkDeviceSize read_offset;
-	VkDeviceSize write_offset;
+	VkDeviceSize offset;
+	VkDeviceSize start;
 	VkDeviceMemory memory;
 	void* mapped_memory;
+#if SDL_ASSERT_LEVEL >= 2
+	VulkanBufferMode mode;
+#endif
 } VulkanBuffer;
 
 typedef struct Uniforms
@@ -2406,7 +2418,7 @@ int32_t main(int32_t argc, char* argv[])
 			VulkanCopyBuffer(tile_layer->num_tiles*sizeof(Tile), tile_layer->tiles, &ctx->vk.static_staging_buffer);
 		}
 
-		SDL_assert(ctx->vk.static_staging_buffer.write_offset == ctx->vk.static_staging_buffer.size);
+		SDL_assert(ctx->vk.static_staging_buffer.offset == ctx->vk.static_staging_buffer.size);
 		VulkanUnmapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
 		SPALL_BUFFER_END();
@@ -2591,7 +2603,7 @@ int32_t main(int32_t argc, char* argv[])
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
 		VkDescriptorImageInfo* image_infos = StackAlloc(&ctx->stack, descriptor_set_count - 1, VkDescriptorImageInfo);
-		VkWriteDescriptorSet* writes = StackAlloc(&ctx->stack, descriptor_set_count, VkWriteDescriptorSet);
+		VkWriteDescriptorSet* writes = SDL_malloc(descriptor_set_count * sizeof(VkWriteDescriptorSet)); SDL_CHECK(writes);
 
 		ctx->vk.descriptor_set_uniforms = descriptor_sets[0];
 		writes[0] = (VkWriteDescriptorSet)
@@ -2640,7 +2652,6 @@ int32_t main(int32_t argc, char* argv[])
 
 		vkUpdateDescriptorSets(ctx->vk.device, (uint32_t)descriptor_set_count, writes, 0, NULL);
 
-		StackFree(&ctx->stack, writes);
 		StackFree(&ctx->stack, image_infos);
 		StackFree(&ctx->stack, descriptor_sets);
 		StackFree(&ctx->stack, descriptor_set_layouts);
@@ -2687,8 +2698,6 @@ int32_t main(int32_t argc, char* argv[])
 #endif // TOGGLE_REPLAY_FRAMES
 
 	ResetGame(ctx);
-
-	VkDeviceSize vertex_buffer_write_offset = 0;
 
 	ctx->running = true;
 	while (ctx->running) 
@@ -2933,6 +2942,8 @@ int32_t main(int32_t argc, char* argv[])
 			}
 
 			VulkanCopyBuffer(num_instances * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
+			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
+
 			StackFree(&ctx->stack, instances);
 			
 			SPALL_BUFFER_END();
@@ -3068,7 +3079,7 @@ int32_t main(int32_t argc, char* argv[])
 							SDL_assert(region_idx < sd->vk_image_array_layers);
 							regions[region_idx] = (VkBufferImageCopy)
 							{
-								.bufferOffset = ctx->vk.static_staging_buffer.read_offset,
+								.bufferOffset = ctx->vk.static_staging_buffer.offset,
 								.imageSubresource = (VkImageSubresourceLayers)
 								{
 									.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -3090,7 +3101,7 @@ int32_t main(int32_t argc, char* argv[])
 								},
 							};
 							region_idx += 1;
-							ctx->vk.static_staging_buffer.read_offset += cell->size.x*cell->size.y * sizeof(uint32_t);
+							ctx->vk.static_staging_buffer.offset += cell->size.x*cell->size.y * sizeof(uint32_t);
 						}
 					}
 					vkCmdCopyBufferToImage(cb, ctx->vk.static_staging_buffer.handle, sd->vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, (uint32_t)sd->vk_image_array_layers, regions);
@@ -3100,9 +3111,9 @@ int32_t main(int32_t argc, char* argv[])
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.uniform_buffer, UINT64_MAX);
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
-				vertex_buffer_write_offset = ctx->vk.vertex_buffer.write_offset;
-
+				VkDeviceSize vertex_buffer_start = ctx->vk.vertex_buffer.offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);  // TODO: This is probably copying way too much memory!
+				ctx->vk.vertex_buffer.start = vertex_buffer_start;
 
 				{
 					VkBufferMemoryBarrier barrier = {
@@ -3163,7 +3174,6 @@ int32_t main(int32_t argc, char* argv[])
 					SDL_arraysize(buffer_memory_barriers_before), buffer_memory_barriers_before, 
 					0, NULL);
 
-				ctx->vk.vertex_buffer.write_offset = vertex_buffer_write_offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX); // TODO: This is probably copying way too much memory!
 
 				VkBufferMemoryBarrier buffer_memory_barriers_after[] = 
@@ -3239,7 +3249,7 @@ int32_t main(int32_t argc, char* argv[])
 			}
 			// DrawEntities
 			{
-				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &vertex_buffer_write_offset);
+				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &ctx->vk.vertex_buffer.start);
 
 				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
 
@@ -3333,7 +3343,7 @@ int32_t main(int32_t argc, char* argv[])
 			ctx->vk.current_frame = (ctx->vk.current_frame + 1) % ctx->vk.num_frames;
 
 			VulkanResetBuffer(&ctx->vk.dynamic_staging_buffer);
-			VulkanResetBuffer(&ctx->vk.vertex_buffer);		
+			VulkanResetBuffer(&ctx->vk.vertex_buffer);
 
 			SPALL_BUFFER_END();
 		}
