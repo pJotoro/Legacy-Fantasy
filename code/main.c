@@ -1374,7 +1374,15 @@ int32_t main(int32_t argc, char* argv[])
 		debug_info.pNext = &validation_info;
 #endif // TOGGLE_VULKAN_VALIDATION
 
-		VK_CHECK(vkCreateInstance(&create_info, NULL, &ctx->vk.instance));
+		if (vkCreateInstance(&create_info, NULL, &ctx->vk.instance) != VK_SUCCESS)
+		{
+			SDL_CHECK(SDL_ShowSimpleMessageBox(
+				SDL_MESSAGEBOX_ERROR, 
+				"FATAL ERROR", 
+				"Please update your graphics driver. If that doesn't work, your computer is a toaster!", 
+				NULL));
+			return -1;
+		}
 		volkLoadInstanceOnly(ctx->vk.instance);
 
 		SPALL_BUFFER_END();
@@ -1521,8 +1529,6 @@ int32_t main(int32_t argc, char* argv[])
 
 	// VulkanCreateDeviceAndGetDeviceQueues
 	{
-		SPALL_BUFFER_BEGIN_NAME("VulkanCreateDeviceAndGetDeviceQueues");
-
 		{
 			uint32_t count;
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, NULL);
@@ -1571,13 +1577,17 @@ int32_t main(int32_t argc, char* argv[])
 			.enabledExtensionCount = SDL_arraysize(vk_device_extensions),
 			.ppEnabledExtensionNames = vk_device_extensions,
 		};
-		SPALL_BUFFER_BEGIN_NAME("vkCreateDevice");
-		VK_CHECK(vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device));
-		SPALL_BUFFER_END();
+		if (vkCreateDevice(ctx->vk.physical_device, &device_info, NULL, &ctx->vk.device) != VK_SUCCESS)
+		{
+			SDL_CHECK(SDL_ShowSimpleMessageBox(
+				SDL_MESSAGEBOX_ERROR, 
+				"FATAL ERROR", 
+				"Please update your graphics driver. If that doesn't work, your computer is a toaster!", 
+				NULL));
+			return -1;
+		}
 
-		SPALL_BUFFER_BEGIN_NAME("volkLoadDevice");
 		volkLoadDevice(ctx->vk.device);
-		SPALL_BUFFER_END();
 
 		ctx->vk.queues = ArenaAlloc(&ctx->arena, num_queues, VkQueue);
 		size_t queue_array_idx = 0;
@@ -1585,9 +1595,7 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			for (uint32_t queue_idx = 0; queue_idx < ctx->vk.queue_family_properties[queue_family_idx].queueCount; queue_idx += 1) 
 			{
-				SPALL_BUFFER_BEGIN_NAME("vkGetDeviceQueue");
 				vkGetDeviceQueue(ctx->vk.device, (uint32_t)queue_family_idx, queue_idx, &ctx->vk.queues[queue_array_idx]);
-				SPALL_BUFFER_END();
 				++queue_array_idx;
 			}
 		}
@@ -1595,8 +1603,6 @@ int32_t main(int32_t argc, char* argv[])
 		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
 
 		StackFree(&ctx->stack, queue_infos);
-
-		SPALL_BUFFER_END();
 	}
 
 	// VulkanCreateSwapchain
