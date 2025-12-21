@@ -5,7 +5,7 @@ layout (location = 1) in ivec2 in_dst;
 
 layout (location = 0) out vec2 out_src;
 
-layout (binding = 0) uniform Uniforms {
+layout (binding = 0, set = 0) uniform Uniforms {
     ivec2 viewport_size;
     ivec2 tileset_size;
     int tile_size;

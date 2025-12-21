@@ -6,7 +6,7 @@ layout (location = 1) in int in_frame_idx;
 layout (location = 0) out vec2 out_texture_pos;
 layout (location = 1) flat out int out_frame_idx;
 
-layout (binding = 0) uniform Uniforms {
+layout (binding = 0, set = 0) uniform Uniforms {
     ivec2 viewport_size;
     ivec2 tileset_size;
     int tile_size;
