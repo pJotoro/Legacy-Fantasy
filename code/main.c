@@ -277,9 +277,6 @@ typedef struct Vulkan
 
 	VkDescriptorPool descriptor_pool;
 
-	VkViewport viewport;
-	VkRect2D scissor;
-	
 	VulkanFrame* frames; size_t num_frames;
 	size_t current_frame;
 
@@ -1937,34 +1934,31 @@ int32_t main(int32_t argc, char* argv[])
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateGraphicsPipelines");
 
-		VkDynamicState dynamic_states[] = 
-		{
-			VK_DYNAMIC_STATE_VIEWPORT,
-			VK_DYNAMIC_STATE_SCISSOR,
-		};
 		VkPipelineDynamicStateCreateInfo dynamic_state_info =
 		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-			.dynamicStateCount = SDL_arraysize(dynamic_states),
-			.pDynamicStates = dynamic_states,
 		};
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = 
 		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 			.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
 		};
-		ctx->vk.viewport = (VkViewport)
+		VkViewport viewport =
 		{
 			.width = (float)ctx->vk.swapchain_info.imageExtent.width,
 			.height = (float)ctx->vk.swapchain_info.imageExtent.height,
 			.maxDepth = 1.0f,
 		};
-		ctx->vk.scissor.extent = ctx->vk.swapchain_info.imageExtent;
+		VkRect2D scissor = {
+			.extent = ctx->vk.swapchain_info.imageExtent,
+		};
 		VkPipelineViewportStateCreateInfo viewport_info =
 		{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 			.viewportCount = 1,
+			.pViewports = &viewport,
 			.scissorCount = 1,
+			.pScissors = &scissor,
 		};
 		VkPipelineRasterizationStateCreateInfo rasterization_info =
 		{
@@ -3220,17 +3214,6 @@ int32_t main(int32_t argc, char* argv[])
 		// Draw
 		{
 			SPALL_BUFFER_BEGIN_NAME("Draw");
-
-			{
-				uint32_t first_viewport = 0;
-				uint32_t num_viewports = 1;
-				vkCmdSetViewport(cb, first_viewport, num_viewports, &ctx->vk.viewport);
-			}
-			{
-				uint32_t first_scissor = 0;
-				uint32_t num_scissors = 1;
-				vkCmdSetScissor(cb, first_scissor, num_scissors, &ctx->vk.scissor);
-			}
 
 			// DrawTiles
 			{
