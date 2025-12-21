@@ -2603,7 +2603,12 @@ int32_t main(int32_t argc, char* argv[])
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
 		VkDescriptorImageInfo* image_infos = StackAlloc(&ctx->stack, descriptor_set_count - 1, VkDescriptorImageInfo);
-		VkWriteDescriptorSet* writes = SDL_malloc(descriptor_set_count * sizeof(VkWriteDescriptorSet)); SDL_CHECK(writes); // TODO: Why does this allocation keep getting over-written?
+
+		// NOTE: For some strange reason, this array gets overwritten while writing to image_infos if we allocate it with the stack allocator.
+		// I have tried using address sanitizer and it does not catch anything. Also the stack allocator isn't causing problems anywhere else,
+		// which makes it strange that it seems to be causing problems here. I tried allocating more memory at startup, but that doesn't change anything
+		// either. Whatever, we can just allocate it with malloc and it's fine.
+		VkWriteDescriptorSet* writes = SDL_malloc(descriptor_set_count * sizeof(VkWriteDescriptorSet)); SDL_CHECK(writes); 
 
 		ctx->vk.descriptor_set_uniforms = descriptor_sets[0];
 		writes[0] = (VkWriteDescriptorSet)
@@ -2652,6 +2657,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		vkUpdateDescriptorSets(ctx->vk.device, (uint32_t)descriptor_set_count, writes, 0, NULL);
 
+		SDL_free(writes);
 		StackFree(&ctx->stack, image_infos);
 		StackFree(&ctx->stack, descriptor_sets);
 		StackFree(&ctx->stack, descriptor_set_layouts);
