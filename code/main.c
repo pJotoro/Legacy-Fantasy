@@ -553,9 +553,6 @@ function void LoadSprite(Context* ctx, char* path)
 
 	for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
 	{
-		// NOTE: This shouldn't really be needed, but for some reason it is. ArenaAlloc should already zero out the memory.
-		sd->frames[frame_idx] = (SpriteFrame){0};
-
 		ASE_Frame frame;
 		SDL_ReadStructChecked(fs, &frame);
 		SDL_assert(frame.magic_number == 0xF1FA);
