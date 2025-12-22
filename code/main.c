@@ -1650,7 +1650,7 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.surface = ctx->vk.surface,
-			.minImageCount = SDL_min(ctx->vk.surface_capabilities.minImageCount + 1, ctx->vk.surface_capabilities.maxImageCount),
+			.minImageCount = SDL_min(2, ctx->vk.surface_capabilities.maxImageCount),
 			.imageFormat = format.format,
 			.imageColorSpace = format.colorSpace,
 			.imageExtent = ctx->vk.surface_capabilities.currentExtent,
