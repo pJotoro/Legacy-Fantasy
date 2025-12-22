@@ -868,7 +868,6 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 
 	if (rect.min.x % TILE_SIZE == 0) 
 	{
-		*left = false;
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.x = rect.min.x/TILE_SIZE;
 		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
@@ -881,9 +880,8 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 			}
 		}
 	}
-	if (right && (rect.max.x+1) % TILE_SIZE == 0) 
+	if ((rect.max.x+1) % TILE_SIZE == 0) 
 	{
-		*right = false;
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
 		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
@@ -896,9 +894,8 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 			}
 		}
 	}
-	if (up && rect.min.y % TILE_SIZE == 0) 
+	if (rect.min.y % TILE_SIZE == 0) 
 	{
-		*up = false;
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = (rect.min.y-TILE_SIZE)/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
@@ -911,9 +908,8 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 			}
 		}
 	} 
-	if (down && (rect.max.y+1) % TILE_SIZE == 0) 
+	if ((rect.max.y+1) % TILE_SIZE == 0) 
 	{
-		*down = false;
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
