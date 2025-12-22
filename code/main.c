@@ -908,7 +908,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 			}
 		}
 	} 
-	if ((rect.max.y+1) % TILE_SIZE == 0) 
+	if ((rect.max.y+1) % TILE_SIZE == 0)
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
@@ -960,10 +960,7 @@ static void UpdatePlayer(Context* ctx)
 			} break;
 		}
 	}
-	SDL_assert(touching_left == 0 || touching_left == 1);
-	SDL_assert(touching_right == 0 || touching_right == 1);
-	SDL_assert(touching_up == 0 || touching_up == 1);
-	SDL_assert(touching_down == 0 || touching_down == 1);
+	SDL_assert(!touching_down);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
