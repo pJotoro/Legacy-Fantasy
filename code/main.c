@@ -778,7 +778,7 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 			{
 				Rect tile_rect = TileToRect(tile);
 
-				if (RectsIntersect(rect, tile_rect))
+				if (TileIsSolid(&ctx->level, tile) && RectsIntersect(rect, tile_rect))
 				{
 					_tiles_overlapping[i++] = tile;
 					res = true;
@@ -825,11 +825,14 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 		entity->pos_remainder.x = 0.0f;
 		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
 		{
-			Rect tile_rect = TileToRect(tiles_overlapping[i]);
-			while (RectsIntersect(rect, tile_rect))
+			if (TileIsSolid(&ctx->level, tiles_overlapping[i]))
 			{
-				rect.min.x -= entity->dir;
-				rect.max.x -= entity->dir;
+				Rect tile_rect = TileToRect(tiles_overlapping[i]);
+				while (RectsIntersect(rect, tile_rect))
+				{
+					rect.min.x -= entity->dir;
+					rect.max.x -= entity->dir;
+				}
 			}
 		}
 		ivec2s origin = GetEntityOrigin(ctx, entity);
@@ -974,7 +977,6 @@ static void UpdatePlayer(Context* ctx)
 			}
 		} break;
 	}
-	SDL_assert(!touching_down);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
@@ -1038,21 +1040,21 @@ static void UpdatePlayer(Context* ctx)
 				{
 					player->dir = input_dir;
 				}
-			}
 
-			if (!touching_left || !touching_right)
-			{
-				float acc;
-				if (!ctx->gamepad) 
+				if (!touching_left || !touching_right)
 				{
-					acc = (float)input_dir * PLAYER_ACC;
-				} 
-				else 
-				{
-					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+					float acc;
+					if (!ctx->gamepad) 
+					{
+						acc = (float)input_dir * PLAYER_ACC;
+					} 
+					else 
+					{
+						acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+					}
+
+					MoveEntityX(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 				}
-
-				MoveEntityX(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 			}
 
 			bool loop = true;
@@ -1105,14 +1107,19 @@ static void UpdatePlayer(Context* ctx)
 	    	SetAnimSprite(&player->anim, player_jump_end);
 
 	    	Entity player_x = *player;
-	    	MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
 	    	Entity player_y = *player;
-	    	MoveEntityY(ctx, &player_y, GRAVITY);
 
-	    	player->pos.x = player_x.pos.x;
-	    	player->pos_remainder.x = player_x.pos_remainder.x;
+	    	if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
+	    	{
+	    		MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    		player->pos.x = player_x.pos.x;
+	    		player->pos_remainder.x = player_x.pos_remainder.x;
+	    	}
+
+	    	MoveEntityY(ctx, &player_y, GRAVITY);
 	    	player->pos.y = player_y.pos.y;
 	    	player->pos_remainder.y = player_y.pos_remainder.y;
+	    	player->vel.y = player_y.vel.y;
 
 	    	bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
