@@ -127,7 +127,7 @@ typedef struct TileLayer
 
 typedef struct Level 
 {
-	ivec2s size; // measured in tiles
+	ivec2s size; // measured in tiles, not pixels
 
 	// NOTE: entities[0] is always the player.
 	Entity* entities; size_t num_entities;
@@ -755,11 +755,105 @@ static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     return res;
 }
 
-static void MoveEntity(Entity* entity, vec2s vel)
+static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_overlapping, ivec2s** tiles_overlapping)
 {
-	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
-	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
-	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
+	bool res = false;
+
+	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x) / TILE_SIZE;
+	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y) / TILE_SIZE;
+	*tiles_overlapping = StackAlloc(&ctx->stack, (size_t)(rect_width_in_tiles*rect_height_in_tiles), ivec2s);
+	
+	ivec2s tile;
+	size_t i = 0;
+	for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
+	{
+		for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
+		{
+			Rect tile_rect = TileToRect(tile);
+
+			if (RectsIntersect(rect, tile_rect))
+			{
+				SDL_assert(i < (size_t)(rect_width_in_tiles*rect_height_in_tiles));
+				*tiles_overlapping[i++] = tile;
+				res = true;
+			}
+		}
+	}
+
+	*num_tiles_overlapping = i;
+
+	return res;
+}
+
+static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, float max_vel)
+{
+	entity->vel.x += acc*dt;
+
+	entity->pos_remainder.x += entity->vel.x*dt;
+	entity->pos.x += (int32_t)SDL_roundf(entity->pos_remainder.x);
+	entity->pos_remainder.x -= SDL_roundf(entity->pos_remainder.x);
+	
+	if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
+	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
+	
+	if (max_vel != 0.0f)
+	{
+		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
+	}
+
+	Rect rect = GetEntityRect(ctx, entity); 
+	size_t num_tiles_overlapping; 
+	ivec2s* tiles_overlapping;
+	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
+	{
+		entity->pos_remainder.x = 0.0f;
+		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
+		{
+			Rect tile_rect = TileToRect(tiles_overlapping[i]);
+			while (RectsIntersect(rect, tile_rect))
+			{
+				rect.min.x -= entity->dir;
+				rect.max.x -= entity->dir;
+			}
+		}
+		ivec2s origin = GetEntityOrigin(ctx, entity);
+		entity->pos.x = rect.min.x + origin.x;
+	}
+
+	StackFree(&ctx->stack, tiles_overlapping);
+}
+
+static void MoveEntityY(Context* ctx, Entity* entity, float acc)
+{
+	if (acc == 0.0f) return;
+
+	entity->vel.y += acc*dt;
+
+	entity->pos_remainder.y += entity->vel.y*dt;
+	entity->pos.y += (int32_t)SDL_roundf(entity->pos_remainder.y);
+	entity->pos_remainder.y -= SDL_roundf(entity->pos_remainder.y);
+
+	Rect rect = GetEntityRect(ctx, entity); 
+	size_t num_tiles_overlapping; 
+	ivec2s* tiles_overlapping;
+	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
+	{
+		entity->pos_remainder.y = 0.0f;
+		int32_t sign = (int32_t)glm_signf(acc);
+		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
+		{
+			Rect tile_rect = TileToRect(tiles_overlapping[i]);
+			while (RectsIntersect(rect, tile_rect))
+			{
+				rect.min.y -= sign;
+				rect.max.y -= sign;
+			}
+		}
+		ivec2s origin = GetEntityOrigin(ctx, entity);
+		entity->pos.y = rect.min.y + origin.y;
+	}
+
+	StackFree(&ctx->stack, tiles_overlapping);
 }
 
 static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* up, bool* down)
@@ -768,7 +862,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if (left && rect.min.x % TILE_SIZE == 0) 
 	{
 		*left = false;
-		ivec2s tile_pos; // measured in tiles
+		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.x = rect.min.x/TILE_SIZE;
 		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
 		{
@@ -783,7 +877,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if (right && (rect.max.x+1) % TILE_SIZE == 0) 
 	{
 		*right = false;
-		ivec2s tile_pos; // measured in tiles
+		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
 		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
 		{
@@ -798,7 +892,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if (up && rect.min.y % TILE_SIZE == 0) 
 	{
 		*up = false;
-		ivec2s tile_pos; // measured in tiles
+		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = (rect.min.y-TILE_SIZE)/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
 		{
@@ -813,7 +907,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if (down && (rect.max.y+1) % TILE_SIZE == 0) 
 	{
 		*down = false;
-		ivec2s tile_pos; // measured in tiles
+		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
 		{
@@ -828,151 +922,40 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	return res;
 }
 
-static void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
-{
-	Rect entity_rect = GetEntityRect(ctx, entity);
-	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
-
-	if (entity->state == EntityState_Free) 
-	{
-		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
-		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
-		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
-	}
-
-	vec2s vel = entity->vel;
-	if (entity->vel.x < 0.0f && entity_rect.min.x % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles
-		tile_pos.x = entity_rect.min.x/TILE_SIZE;
-		for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.y) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.x = 0.0f;
-				break;
-			}
-		}
-	} 
-	else if (entity->vel.x > 0.0f && (entity_rect.max.x+1) % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles
-		tile_pos.x = (entity_rect.max.x+1)/TILE_SIZE;
-		for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.y) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.x = 0.0f;
-				break;
-			}
-		}
-	}
-	if (entity->vel.y < 0.0f && entity_rect.min.y % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles
-		tile_pos.y = (entity_rect.min.y-TILE_SIZE)/TILE_SIZE;
-		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.x) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.y = 0.0f;
-				break;
-			}
-		}
-	} 
-	else if (entity->vel.y > 0.0f && (entity_rect.max.y+1) % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles
-		tile_pos.y = (entity_rect.max.y+1)/TILE_SIZE;
-		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.x) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				vel.y = 0.0f;
-				entity->vel.y = 0.0f;
-				entity->state = EntityState_Free;
-				break;
-			}
-		}
-	}
-
-    MoveEntity(entity, vel);
-
-    Rect prev_entity_rect = entity_rect;
-    entity_rect = GetEntityRect(ctx, entity);
-
-	ivec2s tile_pos; // measured in tiles
-	for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= (entity_rect.max.y+1)/TILE_SIZE; ++tile_pos.y) 
-	{
-		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= (entity_rect.max.x+1)/TILE_SIZE; ++tile_pos.x) 
-		{
-			Rect tile_rect = TilePosToRect(tile_pos);
-			if (TileIsSolid(&ctx->level, tile_pos) && RectsIntersect(entity_rect, tile_rect)) 
-			{
-				if (!RectsIntersect(prev_entity_rect, tile_rect)) continue;
-				if (entity->vel.x != 0.0f)
-				{
-					Rect er = prev_entity_rect;
-					er.min.x = entity_rect.min.x;
-					er.max.x = entity_rect.max.x;
-					if (RectsIntersect(er, tile_rect)) 
-					{
-						int32_t amount = 0;
-						int32_t incr = (int32_t)glm_signf(entity->vel.x);
-						while (RectsIntersect(er, tile_rect)) 
-						{
-							er.min.x -= incr;
-							er.max.x -= incr;
-							amount += incr;
-						}
-						entity->pos.x -= amount;
-					}
-
-				}
-				if (entity->vel.y != 0.0f)
-				{
-					Rect er = prev_entity_rect;
-					er.min.y = entity_rect.min.y;
-					er.max.y = entity_rect.max.y;
-					if (RectsIntersect(er, tile_rect)) 
-					{
-						int32_t amount = 0;
-						int32_t incr = (int32_t)glm_signf(entity->vel.y);
-						while (RectsIntersect(er, tile_rect)) 
-						{
-							er.min.y -= incr;
-							er.max.y -= incr;
-							amount += incr;
-						}
-						entity->pos.y -= amount;
-
-						if (entity->vel.y > 0.0f) 
-						{
-							entity->vel.y = 0.0f;
-							entity->state = EntityState_Free;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (vel.y > 0.0f && entity->vel.y > 0.0f && entity->state != EntityState_Free)
-	{
-		entity->state = EntityState_Fall;
-	}
-}
-
 static void UpdatePlayer(Context* ctx) 
 {
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 
-	bool left, right, up, down;
-	Rect rect = GetEntityRect(ctx, player);
-	if (RectTouchingLevel(ctx, rect, &left, &right, &up, &down))
+	bool touching_left, touching_right, touching_up, touching_down;
+	if (RectTouchingLevel(ctx, GetEntityRect(ctx, player), 
+		&touching_left, &touching_right, &touching_up, &touching_down))
 	{
-		
+		switch (player->state)
+		{
+			case EntityState_Fall:
+			{
+				if (touching_down)
+				{
+					player->state = EntityState_Free;
+					player->vel.y = 0.0f;
+				}
+			} break;
+			case EntityState_Jump:
+			{
+				if (touching_up)
+				{
+					player->state = EntityState_Fall;
+				}
+			} break;
+			case EntityState_Free:
+			{
+				if (!touching_down)
+				{
+					player->state = EntityState_Fall;
+				}
+			} break;
+		}
 	}
 
 	int32_t input_dir = 0;
@@ -1022,19 +1005,6 @@ static void UpdatePlayer(Context* ctx)
 	{
 		case EntityState_Free: 
 		{
-			vec2s acc = {0.0f, 0.0f};
-
-			acc.y += GRAVITY;
-
-			if (!ctx->gamepad) 
-			{
-				acc.x = (float)input_dir * PLAYER_ACC;
-			} 
-			else 
-			{
-				acc.x = ctx->gamepad_left_stick.x * PLAYER_ACC;
-			}
-
 			if (input_dir == 0 && player->vel.x == 0.0f) 
 			{
 				SetAnimSprite(&player->anim, player_idle);
@@ -1052,7 +1022,20 @@ static void UpdatePlayer(Context* ctx)
 				}
 			}
 
-			UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);		
+			if (!touching_left || !touching_right)
+			{
+				float acc;
+				if (!ctx->gamepad) 
+				{
+					acc = (float)input_dir * PLAYER_ACC;
+				} 
+				else 
+				{
+					acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
+				}
+
+				MoveEntityX(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+			}
 
 			bool loop = true;
 			UpdateAnim(ctx, &player->anim, loop);
@@ -1103,8 +1086,15 @@ static void UpdatePlayer(Context* ctx)
 	    {
 	    	SetAnimSprite(&player->anim, player_jump_end);
 
-	    	vec2s acc = {0.0f, GRAVITY};
-	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	Entity player_x = *player;
+	    	MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	Entity player_y = *player;
+	    	MoveEntityY(ctx, &player_y, GRAVITY);
+
+	    	player->pos.x = player_x.pos.x;
+	    	player->pos_remainder.x = player_x.pos_remainder.x;
+	    	player->pos.y = player_y.pos.y;
+	    	player->pos_remainder.y = player_y.pos_remainder.y;
 
 	    	bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
@@ -1112,14 +1102,21 @@ static void UpdatePlayer(Context* ctx)
 	    	
 		case EntityState_Jump: 
 		{
-			vec2s acc = {0.0f};
+			float acc = 0.0f;
 			if (SetAnimSprite(&player->anim, player_jump_start)) 
 			{
-				acc.y -= PLAYER_JUMP;
+				acc -= PLAYER_JUMP;
 			}
 
-	    	acc.y += GRAVITY;
-	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	Entity player_x = *player;
+	    	MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	Entity player_y = *player;
+	    	MoveEntityY(ctx, &player_y, acc);
+
+	    	player->pos.x = player_x.pos.x;
+	    	player->pos_remainder.x = player_x.pos_remainder.x;
+	    	player->pos.y = player_y.pos.y;
+	    	player->pos_remainder.y = player_y.pos_remainder.y;
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
@@ -1138,48 +1135,51 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 {
 	SPALL_BUFFER_BEGIN();
 
-	switch (boar->state) 
-	{
-		case EntityState_Hurt: 
-		{
-			SetAnimSprite(&boar->anim, boar_hit);
+	UNUSED(ctx);
+	UNUSED(boar);
 
-			bool loop = false;
-			UpdateAnim(ctx, &boar->anim, loop);
+	// switch (boar->state) 
+	// {
+	// 	case EntityState_Hurt: 
+	// 	{
+	// 		SetAnimSprite(&boar->anim, boar_hit);
 
-			if (boar->anim.ended) 
-			{
-				boar->state = EntityState_Inactive;
-			}
-		} break;
+	// 		bool loop = false;
+	// 		UpdateAnim(ctx, &boar->anim, loop);
 
-		case EntityState_Fall: 
-		{
-			SetAnimSprite(&boar->anim, boar_idle);
+	// 		if (boar->anim.ended) 
+	// 		{
+	// 			boar->state = EntityState_Inactive;
+	// 		}
+	// 	} break;
 
-			vec2s acc = {0.0f, GRAVITY};
-			UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+	// 	case EntityState_Fall: 
+	// 	{
+	// 		SetAnimSprite(&boar->anim, boar_idle);
 
-			bool loop = true;
-			UpdateAnim(ctx, &boar->anim, loop);
-		} break;
+	// 		vec2s acc = {0.0f, GRAVITY};
+	// 		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
-		case EntityState_Free: 
-		{
-			SetAnimSprite(&boar->anim, boar_idle);
+	// 		bool loop = true;
+	// 		UpdateAnim(ctx, &boar->anim, loop);
+	// 	} break;
 
-			vec2s acc = {0.0f, GRAVITY};
-			UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+	// 	case EntityState_Free: 
+	// 	{
+	// 		SetAnimSprite(&boar->anim, boar_idle);
 
-			bool loop = true;
-			UpdateAnim(ctx, &boar->anim, loop);
-		} break;
+	// 		vec2s acc = {0.0f, GRAVITY};
+	// 		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
 
-		default: 
-		{
-			// TODO?
-		} break;
-	}
+	// 		bool loop = true;
+	// 		UpdateAnim(ctx, &boar->anim, loop);
+	// 	} break;
+
+	// 	default: 
+	// 	{
+	// 		// TODO?
+	// 	} break;
+	// }
 
 	SPALL_BUFFER_END();
 }

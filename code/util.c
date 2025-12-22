@@ -302,7 +302,7 @@ static int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell*
     return 0;
 }
 
-static Rect TilePosToRect(ivec2s tile)
+static Rect TileToRect(ivec2s tile)
 {
     Rect res;
     res.min = glms_ivec2_scale(tile, TILE_SIZE);
