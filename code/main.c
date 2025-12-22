@@ -762,6 +762,68 @@ static void MoveEntity(Entity* entity, vec2s vel)
 	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
 
+static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* up, bool* down)
+{
+	bool res = false;
+	if (left && rect.min.x % TILE_SIZE == 0) 
+	{
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.x = rect.min.x/TILE_SIZE;
+		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*left = true;
+				break;
+			}
+		}
+	}
+	if (right && (rect.max.x+1) % TILE_SIZE == 0) 
+	{
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
+		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*right = true;
+				break;
+			}
+		}
+	}
+	if (up && rect.min.y % TILE_SIZE == 0) 
+	{
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.y = (rect.min.y-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*up = true;
+				break;
+			}
+		}
+	} 
+	if (down && (rect.max.y+1) % TILE_SIZE == 0) 
+	{
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
+		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*down = true;
+				break;
+			}
+		}
+	}
+	return res;
+}
+
 static void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
 	Rect entity_rect = GetEntityRect(ctx, entity);
