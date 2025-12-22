@@ -1,21 +1,21 @@
-function FORCEINLINE vec2s vec2_from_ivec2(ivec2s v) 
+static vec2s vec2_from_ivec2(ivec2s v) 
 {
 	return (vec2s){(float)v.x, (float)v.y};
 }
 
-function FORCEINLINE ivec2s ivec2_from_vec2(vec2s v) 
+static ivec2s ivec2_from_vec2(vec2s v) 
 {
 	return (ivec2s){(int32_t)v.x, (int32_t)v.y};
 }
 
-function FORCEINLINE vec2s glms_vec2_round(vec2s v) 
+static vec2s glms_vec2_round(vec2s v) 
 {
     v.x = SDL_roundf(v.x);
     v.y = SDL_roundf(v.y);
     return v;
 }
 
-function FORCEINLINE bool RectsIntersect(Rect a, Rect b) 
+static bool RectsIntersect(Rect a, Rect b) 
 {
 	bool d0 = b.max.x < a.min.x;
     bool d1 = a.max.x < b.min.x;
@@ -24,7 +24,7 @@ function FORCEINLINE bool RectsIntersect(Rect a, Rect b)
     return !(d0 | d1 | d2 | d3);
 }
 
-function FORCEINLINE size_t HashString(char* key, size_t len) 
+static size_t HashString(char* key, size_t len) 
 {
     if (len == 0) 
     {
@@ -34,7 +34,7 @@ function FORCEINLINE size_t HashString(char* key, size_t len)
 }
 
 // Why not just divide by 32768.0f? It's because there is one more negative value than positive value.
-function FORCEINLINE float NormInt16(int16_t i16) 
+static float NormInt16(int16_t i16) 
 {
     int32_t i32 = (int32_t)i16;
     i32 += 32768;                               // 0 <= i32 <= 65535
@@ -43,7 +43,7 @@ function FORCEINLINE float NormInt16(int16_t i16)
     return res;
 }
 
-function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) 
+static bool* GetTiles(Level* level, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
     ivec2s size = level->size;
@@ -51,19 +51,19 @@ function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles)
     return level->tiles;
 }
 
-function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) 
+static TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx) 
 {
     return &level->tile_layers[tile_layer_idx];
 }
 
-function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) 
+static Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
     *num_tiles = (size_t)level->size.x*level->size.y;
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
-function FORCEINLINE bool TileIsSolid(Level* level, ivec2s /* measured in tiles */ pos) 
+static bool TileIsSolid(Level* level, ivec2s /* measured in tiles */ pos) 
 {
     if ((!(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y))) return false;
     size_t idx = (size_t)(pos.x + pos.y*level->size.x);
@@ -71,22 +71,22 @@ function FORCEINLINE bool TileIsSolid(Level* level, ivec2s /* measured in tiles 
     return level->tiles[idx];
 }
 
-function FORCEINLINE bool TileIsValid(Tile tile) 
+static bool TileIsValid(Tile tile) 
 {
     return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
 }
 
-function FORCEINLINE bool TilesEqual(Tile a, Tile b) 
+static bool TilesEqual(Tile a, Tile b) 
 {
     return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
 }
 
-function FORCEINLINE Entity* GetPlayer(Context* ctx) 
+static Entity* GetPlayer(Context* ctx) 
 {
     return &ctx->level.entities[0];
 }
 
-function FORCEINLINE Entity* GetEntities(Context* ctx, size_t* num_entities) 
+static Entity* GetEntities(Context* ctx, size_t* num_entities) 
 {
     SDL_assert(num_entities);
     if (ctx->level.num_entities == 0) 
@@ -100,7 +100,7 @@ function FORCEINLINE Entity* GetEntities(Context* ctx, size_t* num_entities)
     }
 }
 
-function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies) 
+static Entity* GetEnemies(Context* ctx, size_t* num_enemies) 
 {
     SDL_assert(num_enemies);
     if (ctx->level.num_entities <= 1) 
@@ -114,14 +114,14 @@ function FORCEINLINE Entity* GetEnemies(Context* ctx, size_t* num_enemies)
     }
 }
 
-function FORCEINLINE void ResetAnim(Anim* anim) 
+static void ResetAnim(Anim* anim) 
 {
     anim->frame_idx = 0;
     anim->dt_accumulator = 0.0;
     anim->ended = false;
 }
 
-function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite) 
+static bool SpriteIsValid(Context* ctx, Sprite sprite) 
 {
     if (!(sprite.idx >= 0 && sprite.idx < MAX_SPRITES)) return false;
     SpriteDesc* sd = &ctx->sprites[sprite.idx];
@@ -129,25 +129,25 @@ function FORCEINLINE bool SpriteIsValid(Context* ctx, Sprite sprite)
     return size_check;
 }
 
-function FORCEINLINE SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) 
+static SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) 
 {
     if (!SpriteIsValid(ctx, sprite)) return NULL;
     return &ctx->sprites[sprite.idx];
 }
 
-function FORCEINLINE bool SpritesEqual(Sprite a, Sprite b) 
+static bool SpritesEqual(Sprite a, Sprite b) 
 {
     return a.idx == b.idx;
 }
 
 // https://www.gingerbill.org/series/memory-allocation-strategies/
 
-function FORCEINLINE bool IsPowerOf2(uintptr_t x) 
+static bool IsPowerOf2(uintptr_t x) 
 {
     return (x & (x-1)) == 0;
 }
 
-function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align) 
+static uintptr_t AlignForward(uintptr_t ptr, uintptr_t align) 
 {
     SDL_assert(IsPowerOf2(align));
     size_t p = ptr;
@@ -160,7 +160,7 @@ function FORCEINLINE uintptr_t AlignForward(uintptr_t ptr, uintptr_t align)
     return p;
 }
 
-function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) 
+static void* ArenaAllocRaw(Arena* arena, size_t size, size_t align) 
 {
     if (size == 0) return NULL;
 
@@ -182,7 +182,7 @@ function FORCEINLINE void* ArenaAllocRaw(Arena* arena, size_t size, size_t align
 
 #define ArenaAlloc(ARENA, COUNT, TYPE) (TYPE*)ArenaAllocRaw((ARENA), (COUNT)*sizeof(TYPE), alignof(TYPE))
 
-function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t header_size) 
+static size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t header_size) 
 {
     SDL_assert(IsPowerOf2(alignment));
     uintptr_t modulo = ptr & (alignment-1); // (ptr % alignment) as it assumes alignment is a power of two
@@ -211,7 +211,7 @@ function size_t CalcPaddingWithHeader(uintptr_t ptr, uintptr_t alignment, size_t
     return (size_t)padding;
 }
 
-function void* StackAllocRaw(Stack* stack, size_t size, size_t align) 
+static void* StackAllocRaw(Stack* stack, size_t size, size_t align) 
 {
     void* res = NULL;
 
@@ -241,7 +241,7 @@ function void* StackAllocRaw(Stack* stack, size_t size, size_t align)
 
 #define StackAlloc(STACK, COUNT, TYPE) (TYPE*)StackAllocRaw(STACK, COUNT*sizeof(TYPE), alignof(TYPE))
 
-function void StackFree(Stack* stack, void* ptr) 
+static void StackFree(Stack* stack, void* ptr) 
 {
     if (ptr) 
     {
@@ -271,12 +271,12 @@ function void StackFree(Stack* stack, void* ptr)
     }
 }
 
-function void StackFreeAll(Stack* stack) 
+static void StackFreeAll(Stack* stack) 
 {
     stack->curr_offset = 0;
 }
 
-function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) 
+static int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemoryRequirements* a, const VkImageMemoryRequirements* b) 
 {
     SDL_assert(a && b);
     if (a->memoryRequirements.memoryTypeBits < b->memoryRequirements.memoryTypeBits) return -1;
@@ -288,7 +288,7 @@ function int32_t SDLCALL VulkanCompareImageMemoryRequirements(const VkImageMemor
     return -1; // this could be 1, but then the sort would be unstable
 }
 
-function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) 
+static int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCell* b) 
 {
     ssize_t a_order = (ssize_t)a->layer_idx + a->z_idx;
     ssize_t b_order = (ssize_t)b->layer_idx + b->z_idx;
@@ -302,7 +302,7 @@ function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCel
     return 0;
 }
 
-function FORCEINLINE Rect TilePosToRect(ivec2s tile)
+static Rect TilePosToRect(ivec2s tile)
 {
     Rect res;
     res.min = glms_ivec2_scale(tile, TILE_SIZE);

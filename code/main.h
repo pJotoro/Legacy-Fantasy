@@ -62,9 +62,6 @@ typedef int64_t ssize_t;
 
 #define STMT(X) do {X} while (false)
 
-#define FORCEINLINE SDL_FORCE_INLINE
-#define function static
-
 #define UNUSED(X) (void)X
 
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.

@@ -1,4 +1,4 @@
-function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) 
+static uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_req, VkMemoryPropertyFlags properties) 
 {
     uint32_t memory_type_idx;
     bool found_memory_type_idx = false;
@@ -14,7 +14,7 @@ function uint32_t VulkanGetMemoryTypeIdx(Vulkan* vk, VkMemoryRequirements* mem_r
     return memory_type_idx;
 }
 
-function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device, const char* path, VkShaderStageFlags stage) 
+static VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device, const char* path, VkShaderStageFlags stage) 
 {
     VkPipelineShaderStageCreateInfo res = 
     {
@@ -38,7 +38,7 @@ function VkPipelineShaderStageCreateInfo VulkanCreateShaderStage(VkDevice device
     return res;
 }
 
-function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memory_properties) 
+static VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memory_properties) 
 {
 	VulkanBuffer res = {.size = size};
 	{
@@ -74,7 +74,7 @@ function VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBuffer
 	return res;
 }
 
-function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) 
+static void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(!buffer->mapped_memory);
 	SDL_assert(buffer->handle);
@@ -86,7 +86,7 @@ function void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer)
 	*buffer = (VulkanBuffer){0};
 }
 
-function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
+static void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(!buffer->mapped_memory);
 #if SDL_ASSERT_LEVEL >= 2
@@ -96,7 +96,7 @@ function void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer)
 	VK_CHECK(vkMapMemory(vk->device, buffer->memory, buffer->start + buffer->offset, buffer->size - buffer->start, 0, &buffer->mapped_memory));
 }
 
-function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
+static void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(buffer->mapped_memory);
 #if SDL_ASSERT_LEVEL >= 2
@@ -108,7 +108,7 @@ function void VulkanUnmapBufferMemory(Vulkan* vk, VulkanBuffer* buffer)
 	buffer->offset = 0;
 }
 
-function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) 
+static void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* buffer) 
 {
 	SDL_assert(src_size > 0);
 	SDL_assert(buffer->mapped_memory);
@@ -122,7 +122,7 @@ function void VulkanCopyBuffer(VkDeviceSize src_size, void* src, VulkanBuffer* b
 	buffer->offset += src_size;
 }
 
-function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) 
+static void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanBuffer* dst, VkDeviceSize size) 
 {
 #if SDL_ASSERT_LEVEL >= 2
 	SDL_assert(src->mode == VulkanBufferMode_None || src->mode == VulkanBufferMode_Read);
@@ -142,7 +142,7 @@ function void VulkanCmdCopyBuffer(VkCommandBuffer cb, VulkanBuffer* src, VulkanB
 	dst->offset += region.size;
 }
 
-function void VulkanResetBuffer(VulkanBuffer* buffer) 
+static void VulkanResetBuffer(VulkanBuffer* buffer) 
 {
 #if SDL_ASSERT_LEVEL >= 2
 	SDL_assert(buffer->mode != VulkanBufferMode_None);
@@ -158,7 +158,7 @@ function void VulkanResetBuffer(VulkanBuffer* buffer)
 	buffer->offset = 0;
 }
 
-function void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
+static void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
 {
 #if TOGGLE_VULKAN_VALIDATION
 	{
@@ -178,7 +178,7 @@ function void VulkanSetImageName(VkDevice device, VkImage image, char* name)
 #endif
 }
 
-function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
+static void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
 {
 #if TOGGLE_VULKAN_VALIDATION
 	{
@@ -198,7 +198,7 @@ function void VulkanSetImageViewName(VkDevice device, VkImageView image_view, ch
 #endif
 }
 
-function void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
+static void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
 {
 #if TOGGLE_VULKAN_VALIDATION
 	{

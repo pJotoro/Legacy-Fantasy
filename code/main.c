@@ -347,7 +347,7 @@ static Sprite spr_tiles;
 
 static float dt;
 
-function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) 
+static ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) 
 {
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 	ivec2s origin = sd->origin;
@@ -358,12 +358,12 @@ function ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir)
 	return origin;
 }
 
-function ivec2s GetEntityOrigin(Context* ctx, Entity* entity)
+static ivec2s GetEntityOrigin(Context* ctx, Entity* entity)
 {
 	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
-function bool SetAnimSprite(Anim* anim, Sprite sprite) 
+static bool SetAnimSprite(Anim* anim, Sprite sprite) 
 {
     bool sprite_changed = false;
     if (!SpritesEqual(anim->sprite, sprite)) 
@@ -375,7 +375,7 @@ function bool SetAnimSprite(Anim* anim, Sprite sprite)
     return sprite_changed;
 }
 
-function void UpdateAnim(Context* ctx, Anim* anim, bool loop) 
+static void UpdateAnim(Context* ctx, Anim* anim, bool loop) 
 {
 	SPALL_BUFFER_BEGIN();
 
@@ -406,7 +406,7 @@ function void UpdateAnim(Context* ctx, Anim* anim, bool loop)
     SPALL_BUFFER_END();
 }
 
-function void ResetGame(Context* ctx) 
+static void ResetGame(Context* ctx) 
 {
 	Entity* player = &ctx->level.entities[0];
 	
@@ -434,7 +434,7 @@ function void ResetGame(Context* ctx)
 	}	
 }
 
-function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
+static ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
 {
 	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
 	SDL_assert(sd->num_frames == 1);
@@ -442,7 +442,7 @@ function ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 	return sd->size;
 }
 
-function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
+static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
 {
 	bool res = false;
 	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
@@ -462,7 +462,7 @@ function bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int
 	return res;
 }
 
-function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) 
+static ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) 
 {
 	ASE_ChunkHeader chunk_header = {0};
 	SDL_ReadStructChecked(fs, &chunk_header);
@@ -476,7 +476,7 @@ function ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_
 	return chunk_header.type;
 }
 
-function void LoadSprite(Context* ctx, char* path) 
+static void LoadSprite(Context* ctx, char* path) 
 {
 	SPALL_BUFFER_BEGIN();
 
@@ -671,7 +671,7 @@ function void LoadSprite(Context* ctx, char* path)
 	SPALL_BUFFER_END();
 }
 
-function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, const char* dirname, const char* fname) 
+static SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, const char* dirname, const char* fname) 
 {
 	Context* ctx = userdata;
 	SPALL_BUFFER_BEGIN();
@@ -704,7 +704,7 @@ function SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, 
 	return SDL_ENUM_CONTINUE;
 }
 
-function Rect GetEntityHitbox(Context* ctx, Entity* entity) 
+static Rect GetEntityHitbox(Context* ctx, Entity* entity) 
 {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
@@ -728,7 +728,7 @@ function Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	return hitbox;
 }
 
-function Rect GetEntityRect(Context* ctx, Entity* entity)
+static Rect GetEntityRect(Context* ctx, Entity* entity)
 {
 	Rect res = GetEntityHitbox(ctx, entity);
 	res.min = glms_ivec2_add(res.min, entity->pos); 
@@ -739,7 +739,7 @@ function Rect GetEntityRect(Context* ctx, Entity* entity)
 	return res;
 }
 
-function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
+static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
 {
 	SPALL_BUFFER_BEGIN();
 	bool res = false;
@@ -755,14 +755,14 @@ function bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
     return res;
 }
 
-function void MoveEntity(Entity* entity, vec2s vel)
+static void MoveEntity(Entity* entity, vec2s vel)
 {
 	entity->pos_remainder = glms_vec2_add(entity->pos_remainder, glms_vec2_scale(vel, dt));
 	entity->pos = glms_ivec2_add(entity->pos, ivec2_from_vec2(glms_vec2_round(entity->pos_remainder)));
 	entity->pos_remainder = glms_vec2_sub(entity->pos_remainder, glms_vec2_round(entity->pos_remainder));
 }
 
-function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
+static void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float fric, float max_vel) 
 {
 	Rect entity_rect = GetEntityRect(ctx, entity);
 	entity->vel = glms_vec2_add(entity->vel, glms_vec2_scale(acc, dt));
@@ -897,7 +897,7 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	}
 }
 
-function void UpdatePlayer(Context* ctx) 
+static void UpdatePlayer(Context* ctx) 
 {
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
@@ -1061,7 +1061,7 @@ function void UpdatePlayer(Context* ctx)
 	SPALL_BUFFER_END();
 }
 
-function void UpdateBoar(Context* ctx, Entity* boar) 
+static void UpdateBoar(Context* ctx, Entity* boar) 
 {
 	SPALL_BUFFER_BEGIN();
 
@@ -1112,7 +1112,7 @@ function void UpdateBoar(Context* ctx, Entity* boar)
 }
 
 #if TOGGLE_REPLAY_FRAMES
-function void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
+static void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
 {
 	if (replay_frame_idx < ctx->replay_frame_idx_max) 
 	{
