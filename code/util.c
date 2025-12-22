@@ -46,8 +46,8 @@ function FORCEINLINE float NormInt16(int16_t i16)
 function FORCEINLINE bool* GetTiles(Level* level, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
-    TilePos size = level->size;
-    *num_tiles = (size_t)(size.val.x*size.val.y);
+    ivec2s size = level->size;
+    *num_tiles = (size_t)(size.x*size.y);
     return level->tiles;
 }
 
@@ -59,26 +59,26 @@ function FORCEINLINE TileLayer* GetTileLayer(Level* level, size_t tile_layer_idx
 function FORCEINLINE Tile* GetLayerTiles(Level* level, size_t tile_layer_idx, size_t* num_tiles) 
 {
     SDL_assert(num_tiles);
-    *num_tiles = (size_t)level->size.val.x*level->size.val.y;
+    *num_tiles = (size_t)level->size.x*level->size.y;
     return level->tile_layers[tile_layer_idx].tiles;
 }
 
-function FORCEINLINE bool TileIsSolid(Level* level, TilePos pos) 
+function FORCEINLINE bool TileIsSolid(Level* level, ivec2s /* measured in tiles */ pos) 
 {
-    if ((!(pos.val.x >= 0 && pos.val.x < level->size.val.x && pos.val.y >= 0 && pos.val.y < level->size.val.y))) return false;
-    size_t idx = (size_t)(pos.val.x + pos.val.y*level->size.val.x);
-    SDL_assert(idx < level->size.val.x*level->size.val.y);
+    if ((!(pos.x >= 0 && pos.x < level->size.x && pos.y >= 0 && pos.y < level->size.y))) return false;
+    size_t idx = (size_t)(pos.x + pos.y*level->size.x);
+    SDL_assert(idx < level->size.x*level->size.y);
     return level->tiles[idx];
 }
 
 function FORCEINLINE bool TileIsValid(Tile tile) 
 {
-    return tile.src.val.x != -1 && tile.src.val.y != -1 && tile.dst.val.x != -1 && tile.dst.val.y != -1;
+    return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
 }
 
 function FORCEINLINE bool TilesEqual(Tile a, Tile b) 
 {
-    return a.src.val.x == b.src.val.x && a.src.val.y == b.src.val.y && a.dst.val.x == b.dst.val.x && a.dst.val.y == b.dst.val.y;
+    return a.src.x == b.src.x && a.src.y == b.src.y && a.dst.x == b.dst.x && a.dst.y == b.dst.y;
 }
 
 function FORCEINLINE Entity* GetPlayer(Context* ctx) 
@@ -300,4 +300,12 @@ function int32_t SDLCALL CompareSpriteCells(const SpriteCell* a, const SpriteCel
         return 1;
     }
     return 0;
+}
+
+function FORCEINLINE Rect TilePosToRect(ivec2s tile)
+{
+    Rect res;
+    res.min = glms_ivec2_scale(tile, TILE_SIZE);
+    res.max = glms_ivec2_adds(res.min, TILE_SIZE);
+    return res;
 }

@@ -30,40 +30,6 @@ typedef struct Rect
 	ivec2s max;
 } Rect;
 
-typedef struct TilePos
-{
-	ivec2s val;
-} TilePos;
-
-function FORCEINLINE TilePos ToTilePos(ivec2s level_pos)
-{
-	TilePos res;
-	res.val = glms_ivec2_divs(level_pos, TILE_SIZE);
-	return res;
-}
-
-function FORCEINLINE TilePos ToTilePosStrict(ivec2s level_pos)
-{
-	SDL_assert(level_pos.x % TILE_SIZE == 0 && level_pos.y % TILE_SIZE == 0);
-
-	TilePos res;
-	res.val = glms_ivec2_divs(level_pos, TILE_SIZE);
-	return res;
-}
-
-function FORCEINLINE ivec2s ToLevelPos(TilePos tile_pos)
-{
-	ivec2s res = glms_ivec2_scale(tile_pos.val, TILE_SIZE);
-	return res;
-}
-
-function FORCEINLINE TilePos ShiftTilePos(TilePos tp, int32_t shift_x, int32_t shift_y) {
-	TilePos res;
-	res.val.x = tp.val.x + shift_x;
-	res.val.y = tp.val.y + shift_y;
-	return res;
-}
-
 typedef struct SpriteCell 
 {
 	void* dst_buf; // invalid after VulkanCreateStaticStagingBuffer.
@@ -149,8 +115,8 @@ typedef struct Entity
 
 typedef struct Tile 
 {
-	TilePos src;
-	TilePos dst;
+	ivec2s src;
+	ivec2s dst;
 } Tile;
 
 typedef struct TileLayer 
@@ -161,7 +127,7 @@ typedef struct TileLayer
 
 typedef struct Level 
 {
-	TilePos size;
+	ivec2s size; // measured in tiles
 
 	// NOTE: entities[0] is always the player.
 	Entity* entities; size_t num_entities;
@@ -811,9 +777,9 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	vec2s vel = entity->vel;
 	if (entity->vel.x < 0.0f && entity_rect.min.x % TILE_SIZE == 0) 
 	{
-		TilePos tile_pos;
-		tile_pos.val.x = entity_rect.min.x/TILE_SIZE;
-		for (tile_pos.val.y = entity_rect.min.y/TILE_SIZE; tile_pos.val.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.val.y) 
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.x = entity_rect.min.x/TILE_SIZE;
+		for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.y) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -824,9 +790,9 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	} 
 	else if (entity->vel.x > 0.0f && (entity_rect.max.x+1) % TILE_SIZE == 0) 
 	{
-		TilePos tile_pos;
-		tile_pos.val.x = (entity_rect.max.x+1)/TILE_SIZE;
-		for (tile_pos.val.y = entity_rect.min.y/TILE_SIZE; tile_pos.val.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.val.y) 
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.x = (entity_rect.max.x+1)/TILE_SIZE;
+		for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= entity_rect.max.y/TILE_SIZE; ++tile_pos.y) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -837,9 +803,9 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	}
 	if (entity->vel.y < 0.0f && entity_rect.min.y % TILE_SIZE == 0) 
 	{
-		TilePos tile_pos;
-		tile_pos.val.y = (entity_rect.min.y-TILE_SIZE)/TILE_SIZE;
-		for (tile_pos.val.x = entity_rect.min.x/TILE_SIZE; tile_pos.val.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.y = (entity_rect.min.y-TILE_SIZE)/TILE_SIZE;
+		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.x) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -850,9 +816,9 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
 	} 
 	else if (entity->vel.y > 0.0f && (entity_rect.max.y+1) % TILE_SIZE == 0) 
 	{
-		TilePos tile_pos;
-		tile_pos.val.y = (entity_rect.max.y+1)/TILE_SIZE;
-		for (tile_pos.val.x = entity_rect.min.x/TILE_SIZE; tile_pos.val.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.val.x) 
+		ivec2s tile_pos; // measured in tiles
+		tile_pos.y = (entity_rect.max.y+1)/TILE_SIZE;
+		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= entity_rect.max.x/TILE_SIZE; ++tile_pos.x) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -869,14 +835,12 @@ function void UpdateEntityPhysics(Context* ctx, Entity* entity, vec2s acc, float
     Rect prev_entity_rect = entity_rect;
     entity_rect = GetEntityRect(ctx, entity);
 
-	TilePos tile_pos;
-	for (tile_pos.val.y = entity_rect.min.y/TILE_SIZE; tile_pos.val.y <= (entity_rect.max.y+1)/TILE_SIZE; ++tile_pos.val.y) 
+	ivec2s tile_pos; // measured in tiles
+	for (tile_pos.y = entity_rect.min.y/TILE_SIZE; tile_pos.y <= (entity_rect.max.y+1)/TILE_SIZE; ++tile_pos.y) 
 	{
-		for (tile_pos.val.x = entity_rect.min.x/TILE_SIZE; tile_pos.val.x <= (entity_rect.max.x+1)/TILE_SIZE; ++tile_pos.val.x) 
+		for (tile_pos.x = entity_rect.min.x/TILE_SIZE; tile_pos.x <= (entity_rect.max.x+1)/TILE_SIZE; ++tile_pos.x) 
 		{
-			Rect tile_rect;
-			tile_rect.min = ToLevelPos(tile_pos);
-			tile_rect.max = glms_ivec2_adds(tile_rect.min, TILE_SIZE);
+			Rect tile_rect = TilePosToRect(tile_pos);
 			if (TileIsSolid(&ctx->level, tile_pos) && RectsIntersect(entity_rect, tile_rect)) 
 			{
 				if (!RectsIntersect(prev_entity_rect, tile_rect)) continue;
@@ -937,7 +901,6 @@ function void UpdatePlayer(Context* ctx)
 {
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
-	ivec2s origin = GetEntityOrigin(ctx, player);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
@@ -978,7 +941,7 @@ function void UpdatePlayer(Context* ctx)
 		} break;
 	}
 
-	if (player->pos.y > (float)(ctx->level.size.val.y*TILE_SIZE)) 
+	if (player->pos.y > (float)(ctx->level.size.y*TILE_SIZE)) 
 	{
 		ResetGame(ctx);
 	} 
@@ -2152,12 +2115,12 @@ int32_t main(int32_t argc, char* argv[])
 		cJSON* level_node = level_nodes->child;
 
 		cJSON* w = cJSON_GetObjectItem(level_node, "pxWid");
-		ctx->level.size.val.x = ((int32_t)cJSON_GetNumberValue(w))/TILE_SIZE;
+		ctx->level.size.x = ((int32_t)cJSON_GetNumberValue(w))/TILE_SIZE;
 
 		cJSON* h = cJSON_GetObjectItem(level_node, "pxHei");
-		ctx->level.size.val.y = ((int32_t)cJSON_GetNumberValue(h))/TILE_SIZE;
+		ctx->level.size.y = ((int32_t)cJSON_GetNumberValue(h))/TILE_SIZE;
 
-		size_t num_tiles = (size_t)(ctx->level.size.val.x*ctx->level.size.val.y);
+		size_t num_tiles = (size_t)(ctx->level.size.x*ctx->level.size.y);
 		ctx->level.tiles = ArenaAlloc(&ctx->arena, num_tiles, bool);
 
 		ctx->level.num_tile_layers = 3;
