@@ -938,7 +938,6 @@ function void UpdatePlayer(Context* ctx)
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 	ivec2s origin = GetEntityOrigin(ctx, player);
-	SDL_Log("origin: {%d, %d}", origin.x, origin.y);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
@@ -1085,9 +1084,6 @@ function void UpdatePlayer(Context* ctx)
 
 	    	acc.y += GRAVITY;
 	    	UpdateEntityPhysics(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
-
-
-
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
