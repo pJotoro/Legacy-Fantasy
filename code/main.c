@@ -759,28 +759,44 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 {
 	bool res = false;
 
-	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x + 2*TILE_SIZE) / TILE_SIZE;
-	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y + 2*TILE_SIZE) / TILE_SIZE;
-	*tiles_overlapping = StackAlloc(&ctx->stack, (size_t)(rect_width_in_tiles*rect_height_in_tiles), ivec2s);
-	
-	ivec2s tile;
-	size_t i = 0;
-	for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
+	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x)/TILE_SIZE;
+	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y)/TILE_SIZE;
+	if (rect_width_in_tiles*rect_height_in_tiles <= 0)
 	{
-		for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
+		*num_tiles_overlapping = 0;
+		*tiles_overlapping = NULL;
+	}
+	else
+	{
+		ivec2s* _tiles_overlapping = StackAlloc(&ctx->stack, (size_t)(rect_width_in_tiles*rect_height_in_tiles), ivec2s);
+		
+		ivec2s tile;
+		size_t i = 0;
+		for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
 		{
-			Rect tile_rect = TileToRect(tile);
-
-			if (RectsIntersect(rect, tile_rect))
+			for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
 			{
-				SDL_assert(i < (size_t)(rect_width_in_tiles*rect_height_in_tiles));
-				(*tiles_overlapping)[i++] = tile;
-				res = true;
+				Rect tile_rect = TileToRect(tile);
+
+				if (RectsIntersect(rect, tile_rect))
+				{
+					_tiles_overlapping[i++] = tile;
+					res = true;
+				}
 			}
 		}
-	}
 
-	*num_tiles_overlapping = i;
+		if (!res)
+		{
+			*num_tiles_overlapping = 0;
+			StackFree(&ctx->stack, _tiles_overlapping);
+		}
+		else
+		{
+			*num_tiles_overlapping = i;
+			*tiles_overlapping = _tiles_overlapping;
+		}
+	}
 
 	return res;
 }
@@ -818,9 +834,9 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 		}
 		ivec2s origin = GetEntityOrigin(ctx, entity);
 		entity->pos.x = rect.min.x + origin.x;
-	}
 
-	StackFree(&ctx->stack, tiles_overlapping);
+		StackFree(&ctx->stack, tiles_overlapping);
+	}
 }
 
 static void MoveEntityY(Context* ctx, Entity* entity, float acc)
@@ -851,9 +867,9 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 		}
 		ivec2s origin = GetEntityOrigin(ctx, entity);
 		entity->pos.y = rect.min.y + origin.y;
-	}
 
-	StackFree(&ctx->stack, tiles_overlapping);
+		StackFree(&ctx->stack, tiles_overlapping);
+	}
 }
 
 static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* up, bool* down)
@@ -931,34 +947,32 @@ static void UpdatePlayer(Context* ctx)
 	Entity* player = GetPlayer(ctx);
 
 	bool touching_left, touching_right, touching_up, touching_down;
-	if (RectTouchingLevel(ctx, GetEntityRect(ctx, player), 
-		&touching_left, &touching_right, &touching_up, &touching_down))
+	RectTouchingLevel(ctx, GetEntityRect(ctx, player), 
+		&touching_left, &touching_right, &touching_up, &touching_down);
+	switch (player->state)
 	{
-		switch (player->state)
+		case EntityState_Fall:
 		{
-			case EntityState_Fall:
+			if (touching_down)
 			{
-				if (touching_down)
-				{
-					player->state = EntityState_Free;
-					player->vel.y = 0.0f;
-				}
-			} break;
-			case EntityState_Jump:
+				player->state = EntityState_Free;
+				player->vel.y = 0.0f;
+			}
+		} break;
+		case EntityState_Jump:
+		{
+			if (touching_up)
 			{
-				if (touching_up)
-				{
-					player->state = EntityState_Fall;
-				}
-			} break;
-			case EntityState_Free:
+				player->state = EntityState_Fall;
+			}
+		} break;
+		case EntityState_Free:
+		{
+			if (!touching_down)
 			{
-				if (!touching_down)
-				{
-					player->state = EntityState_Fall;
-				}
-			} break;
-		}
+				player->state = EntityState_Fall;
+			}
+		} break;
 	}
 	SDL_assert(!touching_down);
 
