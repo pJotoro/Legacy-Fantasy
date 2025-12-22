@@ -759,8 +759,8 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 {
 	bool res = false;
 
-	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x) / TILE_SIZE;
-	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y) / TILE_SIZE;
+	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x + 2*TILE_SIZE) / TILE_SIZE;
+	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y + 2*TILE_SIZE) / TILE_SIZE;
 	*tiles_overlapping = StackAlloc(&ctx->stack, (size_t)(rect_width_in_tiles*rect_height_in_tiles), ivec2s);
 	
 	ivec2s tile;
@@ -774,7 +774,7 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 			if (RectsIntersect(rect, tile_rect))
 			{
 				SDL_assert(i < (size_t)(rect_width_in_tiles*rect_height_in_tiles));
-				*tiles_overlapping[i++] = tile;
+				(*tiles_overlapping)[i++] = tile;
 				res = true;
 			}
 		}
@@ -859,7 +859,14 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* up, bool* down)
 {
 	bool res = false;
-	if (left && rect.min.x % TILE_SIZE == 0) 
+	
+	SDL_assert(left && right && up && down);
+	*left = false;
+	*right = false;
+	*up = false;
+	*down = false;
+
+	if (rect.min.x % TILE_SIZE == 0) 
 	{
 		*left = false;
 		ivec2s tile_pos; // measured in tiles, not pixels
@@ -957,6 +964,10 @@ static void UpdatePlayer(Context* ctx)
 			} break;
 		}
 	}
+	SDL_assert(touching_left == 0 || touching_left == 1);
+	SDL_assert(touching_right == 0 || touching_right == 1);
+	SDL_assert(touching_up == 0 || touching_up == 1);
+	SDL_assert(touching_down == 0 || touching_down == 1);
 
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
