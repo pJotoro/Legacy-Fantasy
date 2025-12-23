@@ -3347,12 +3347,12 @@ int32_t main(int32_t argc, char* argv[])
 					cur_num_instances = 0,
 					entity_idx = 1;
 
-					first_instance < num_instances && 
+					first_instance < num_instances &&
 					num_instances_leftover > 0 &&
 					entity_idx < num_entities;
 
 					first_instance += cur_num_instances,
-					num_instances_leftover -= cur_num_instances) 
+					num_instances_leftover -= cur_num_instances)
 				{
 					Entity* entity = &entities[entity_idx];
 					if (entity->state == EntityState_Inactive)
@@ -3369,11 +3369,14 @@ int32_t main(int32_t argc, char* argv[])
 					entity_idx += 1;
 					while (
 						entity_idx < num_entities && 
-						cur_num_instances < num_instances_leftover && 
-						SpritesEqual(sprite, entities[entity_idx].anim.sprite)) 
+						cur_num_instances < num_instances_leftover) 
 					{
 						if (entities[entity_idx].state != EntityState_Inactive)
 						{
+							if (!SpritesEqual(sprite, entities[entity_idx].anim.sprite))
+							{
+								break;
+							}
 							cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
 						}
 						entity_idx += 1;
