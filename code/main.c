@@ -959,6 +959,13 @@ static void UpdatePlayer(Context* ctx)
 				player->state = EntityState_Fall;
 			}
 		} break;
+		case EntityState_Attack:
+		{
+			if (player->anim.ended) 
+			{
+				player->state = EntityState_Free;
+			}
+		}
 	}
 
 	int32_t input_dir = 0;
@@ -1071,10 +1078,6 @@ static void UpdatePlayer(Context* ctx)
 			
 			bool loop = false;
 			UpdateAnim(ctx, &player->anim, loop);
-			if (player->anim.ended) 
-			{
-				player->state = EntityState_Free;
-			}
 		} break;
 	    	
 	    case EntityState_Fall: 
