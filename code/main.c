@@ -801,8 +801,11 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 	entity->pos.x += (int32_t)SDL_roundf(entity->pos_remainder.x);
 	entity->pos_remainder.x -= SDL_roundf(entity->pos_remainder.x);
 	
-	if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
-	else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
+	if (fric != 0.0f)
+	{
+		if (entity->vel.x < 0.0f) entity->vel.x = SDL_min(0.0f, entity->vel.x + fric*dt);
+		else if (entity->vel.x > 0.0f) entity->vel.x = SDL_max(0.0f, entity->vel.x - fric*dt);
+	}
 	
 	if (max_vel != 0.0f)
 	{
@@ -837,8 +840,6 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 
 static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 {
-	if (acc == 0.0f) return;
-
 	entity->vel.y += acc*dt;
 
 	entity->pos_remainder.y += entity->vel.y*dt;
@@ -1107,7 +1108,7 @@ static void UpdatePlayer(Context* ctx)
 
 	    	if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
 	    	{
-	    		MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    		MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
 	    	}
 
 	    	MoveEntityY(ctx, &player_y, GRAVITY);
@@ -1132,7 +1133,7 @@ static void UpdatePlayer(Context* ctx)
 			}
 
 	    	Entity player_x = *player;
-	    	MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
+	    	MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
 	    	Entity player_y = *player;
 	    	MoveEntityY(ctx, &player_y, acc);
 
