@@ -763,9 +763,9 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 	
 	ivec2s tile;
 	size_t i = 0;
-	for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
+	for (tile.y = rect.min.y/TILE_SIZE; tile.y <= (rect.max.y+1)/TILE_SIZE; tile.y += 1)
 	{
-		for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
+		for (tile.x = rect.min.x/TILE_SIZE; tile.x <= (rect.max.x+1)/TILE_SIZE; tile.x += 1)
 		{
 			Rect tile_rect = TileToRect(tile);
 
@@ -815,6 +815,7 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
 	{
 		entity->pos_remainder.x = 0.0f;
+		int32_t amount = 0;
 		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
 		{
 			if (TileIsSolid(&ctx->level, tiles_overlapping[i]))
@@ -824,11 +825,11 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 				{
 					rect.min.x -= entity->dir;
 					rect.max.x -= entity->dir;
+					amount -= 1;
 				}
 			}
 		}
-		ivec2s origin = GetEntityOrigin(ctx, entity);
-		entity->pos.x = rect.min.x + origin.x;
+		entity->pos.x += amount;		
 
 		StackFree(&ctx->stack, tiles_overlapping);
 	}
@@ -852,6 +853,7 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 		entity->pos_remainder.y = 0.0f;
 		int32_t sign = (int32_t)glm_signf(entity->vel.y);
 		SDL_assert(sign != 0);
+		int32_t amount = 0;
 		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
 		{
 			Rect tile_rect = TileToRect(tiles_overlapping[i]);
@@ -859,10 +861,11 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 			{
 				rect.min.y -= sign;
 				rect.max.y -= sign;
+				amount -= 1;
 			}
 		}
-		ivec2s origin = GetEntityOrigin(ctx, entity);
-		entity->pos.y = rect.min.y + origin.y;
+		entity->pos.y += amount;
+		if (sign == 1) entity->vel.y = 0.0f;
 
 		StackFree(&ctx->stack, tiles_overlapping);
 	}
@@ -882,7 +885,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.x = rect.min.x/TILE_SIZE;
-		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
+		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= (rect.max.y+1)/TILE_SIZE; tile_pos.y += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -895,8 +898,8 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if ((rect.max.x+1) % TILE_SIZE == 0) 
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.x = rect.max.x/TILE_SIZE;
-		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
+		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
+		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= (rect.max.y+1)/TILE_SIZE; tile_pos.y += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -910,7 +913,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
 		tile_pos.y = rect.min.y/TILE_SIZE;
-		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
+		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= (rect.max.x+1)/TILE_SIZE; tile_pos.x += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
@@ -923,8 +926,8 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if ((rect.max.y+1) % TILE_SIZE == 0)
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.y = rect.max.y/TILE_SIZE;
-		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
+		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
+		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= (rect.max.x+1)/TILE_SIZE; tile_pos.x += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
 			{
