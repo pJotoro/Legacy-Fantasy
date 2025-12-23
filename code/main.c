@@ -759,43 +759,35 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 {
 	bool res = false;
 
-	int32_t rect_width_in_tiles = (rect.max.x - rect.min.x)/TILE_SIZE;
-	int32_t rect_height_in_tiles = (rect.max.y - rect.min.y)/TILE_SIZE;
-	if (rect_width_in_tiles*rect_height_in_tiles <= 0)
+	ivec2s* _tiles_overlapping = StackAlloc(&ctx->stack, 32, ivec2s);
+	
+	ivec2s tile;
+	size_t i = 0;
+	for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
 	{
+		for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
+		{
+			Rect tile_rect = TileToRect(tile);
+
+			if (TileIsSolid(&ctx->level, tile) && RectsIntersect(rect, tile_rect))
+			{
+				SDL_assert(i < 32);
+				_tiles_overlapping[i++] = tile;
+				res = true;
+			}
+		}
+	}
+
+	if (!res)
+	{
+		StackFree(&ctx->stack, _tiles_overlapping);
 		*num_tiles_overlapping = 0;
 		*tiles_overlapping = NULL;
 	}
 	else
 	{
-		ivec2s* _tiles_overlapping = StackAlloc(&ctx->stack, (size_t)(rect_width_in_tiles*rect_height_in_tiles), ivec2s);
-		
-		ivec2s tile;
-		size_t i = 0;
-		for (tile.y = rect.min.y/TILE_SIZE; tile.y <= rect.max.y/TILE_SIZE; tile.y += 1)
-		{
-			for (tile.x = rect.min.x/TILE_SIZE; tile.x <= rect.max.x/TILE_SIZE; tile.x += 1)
-			{
-				Rect tile_rect = TileToRect(tile);
-
-				if (TileIsSolid(&ctx->level, tile) && RectsIntersect(rect, tile_rect))
-				{
-					_tiles_overlapping[i++] = tile;
-					res = true;
-				}
-			}
-		}
-
-		if (!res)
-		{
-			*num_tiles_overlapping = 0;
-			StackFree(&ctx->stack, _tiles_overlapping);
-		}
-		else
-		{
-			*num_tiles_overlapping = i;
-			*tiles_overlapping = _tiles_overlapping;
-		}
+		*num_tiles_overlapping = i;
+		*tiles_overlapping = _tiles_overlapping;
 	}
 
 	return res;
@@ -858,7 +850,8 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
 	{
 		entity->pos_remainder.y = 0.0f;
-		int32_t sign = (int32_t)glm_signf(acc);
+		int32_t sign = (int32_t)glm_signf(entity->vel.y);
+		SDL_assert(sign != 0);
 		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
 		{
 			Rect tile_rect = TileToRect(tiles_overlapping[i]);
@@ -902,7 +895,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if ((rect.max.x+1) % TILE_SIZE == 0) 
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
+		tile_pos.x = rect.max.x/TILE_SIZE;
 		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= rect.max.y/TILE_SIZE; tile_pos.y += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
@@ -916,7 +909,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if (rect.min.y % TILE_SIZE == 0) 
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.y = (rect.min.y-TILE_SIZE)/TILE_SIZE;
+		tile_pos.y = rect.min.y/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
@@ -930,7 +923,7 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 	if ((rect.max.y+1) % TILE_SIZE == 0)
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
+		tile_pos.y = rect.max.y/TILE_SIZE;
 		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= rect.max.x/TILE_SIZE; tile_pos.x += 1) 
 		{
 			if (TileIsSolid(&ctx->level, tile_pos)) 
@@ -1112,11 +1105,13 @@ static void UpdatePlayer(Context* ctx)
 	    	if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
 	    	{
 	    		MoveEntityX(ctx, &player_x, 0.0f, PLAYER_FRIC, PLAYER_MAX_VEL);
-	    		player->pos.x = player_x.pos.x;
-	    		player->pos_remainder.x = player_x.pos_remainder.x;
 	    	}
 
 	    	MoveEntityY(ctx, &player_y, GRAVITY);
+
+	    	player->pos.x = player_x.pos.x;
+	    	player->pos_remainder.x = player_x.pos_remainder.x;
+	    	player->vel.x = player_x.vel.x;
 	    	player->pos.y = player_y.pos.y;
 	    	player->pos_remainder.y = player_y.pos_remainder.y;
 	    	player->vel.y = player_y.vel.y;
@@ -1140,8 +1135,10 @@ static void UpdatePlayer(Context* ctx)
 
 	    	player->pos.x = player_x.pos.x;
 	    	player->pos_remainder.x = player_x.pos_remainder.x;
+	    	player->vel.x = player_x.vel.x;
 	    	player->pos.y = player_y.pos.y;
 	    	player->pos_remainder.y = player_y.pos_remainder.y;
+	    	player->vel.y = player_y.vel.y;
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);

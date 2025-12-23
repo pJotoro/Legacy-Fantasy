@@ -71,7 +71,7 @@ static bool TileIsSolid(Level* level, ivec2s /* measured in tiles */ pos)
     return level->tiles[idx];
 }
 
-static bool TileIsValid(Tile tile) 
+static bool TileIsValid(Tile tile)
 {
     return tile.src.x != -1 && tile.src.y != -1 && tile.dst.x != -1 && tile.dst.y != -1;
 }
