@@ -846,40 +846,39 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 	entity->pos.y += (int32_t)SDL_roundf(entity->pos_remainder.y);
 	entity->pos_remainder.y -= SDL_roundf(entity->pos_remainder.y);
 
-	Rect rect = GetEntityRect(ctx, entity); 
-	size_t num_tiles_overlapping;
-	ivec2s* tiles_overlapping;
-	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
+	if (entity->vel.y > 0.0f)
 	{
-		entity->pos_remainder.y = 0.0f;
-		int32_t sign = (int32_t)glm_signf(entity->vel.y);
-		SDL_assert(sign != 0);
-		int32_t amount = 0;
-		for (size_t i = 0; i < num_tiles_overlapping; i += 1)
+		Rect rect = GetEntityRect(ctx, entity); 
+		size_t num_tiles_overlapping;
+		ivec2s* tiles_overlapping;
+		if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
 		{
-			Rect tile_rect = TileToRect(tiles_overlapping[i]);
-			while (RectsIntersect(rect, tile_rect))
+			entity->pos_remainder.y = 0.0f;
+			int32_t amount = 0;
+			for (size_t i = 0; i < num_tiles_overlapping; i += 1)
 			{
-				rect.min.y -= sign;
-				rect.max.y -= sign;
-				amount -= sign;
+				Rect tile_rect = TileToRect(tiles_overlapping[i]);
+				while (RectsIntersect(rect, tile_rect))
+				{
+					rect.min.y -= 1;
+					rect.max.y -= 1;
+					amount -= 1;
+				}
 			}
-		}
-		entity->pos.y += amount;
-		if (sign == 1) entity->vel.y = 0.0f;
+			entity->pos.y += amount;
 
-		StackFree(&ctx->stack, tiles_overlapping);
+			StackFree(&ctx->stack, tiles_overlapping);
+		}
 	}
 }
 
-static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* up, bool* down)
+static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* down)
 {
 	bool res = false;
 	
-	SDL_assert(left && right && up && down);
+	SDL_assert(left && right && down);
 	*left = false;
 	*right = false;
-	*up = false;
 	*down = false;
 
 	if (rect.min.x % TILE_SIZE == 0) 
@@ -910,20 +909,6 @@ static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, 
 			}
 		}
 	}
-	if (rect.min.y % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.y = rect.min.y/TILE_SIZE;
-		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= (rect.max.x+1)/TILE_SIZE; tile_pos.x += 1) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				res = true;
-				*up = true;
-				break;
-			}
-		}
-	} 
 	if ((rect.max.y+1) % TILE_SIZE == 0)
 	{
 		ivec2s tile_pos; // measured in tiles, not pixels
@@ -946,9 +931,9 @@ static void UpdatePlayer(Context* ctx)
 	SPALL_BUFFER_BEGIN();
 	Entity* player = GetPlayer(ctx);
 
-	bool touching_left, touching_right, touching_up, touching_down;
+	bool touching_left, touching_right, touching_down;
 	RectTouchingLevel(ctx, GetEntityRect(ctx, player), 
-		&touching_left, &touching_right, &touching_up, &touching_down);
+		&touching_left, &touching_right, &touching_down);
 	switch (player->state)
 	{
 		case EntityState_Fall:
@@ -961,7 +946,7 @@ static void UpdatePlayer(Context* ctx)
 		} break;
 		case EntityState_Jump:
 		{
-			if (touching_up || player->vel.y >= 0.0f)
+			if (player->vel.y > 0.0f)
 			{
 				player->state = EntityState_Fall;
 			}
@@ -998,14 +983,6 @@ static void UpdatePlayer(Context* ctx)
 			else if (ctx->button_jump) 
 			{
 				player->state = EntityState_Jump;
-			}
-		} break;
-		case EntityState_Jump: 
-		{
-			if (ctx->button_jump_released) 
-			{
-				player->vel.y /= 2.0f;
-				player->state = EntityState_Fall;
 			}
 		} break;
 		default: 
@@ -1105,17 +1082,14 @@ static void UpdatePlayer(Context* ctx)
 
 	    	Entity player_x = *player;
 	    	Entity player_y = *player;
-
 	    	if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
 	    	{
 	    		MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+	    		player->pos.x = player_x.pos.x;
+	    		player->pos_remainder.x = player_x.pos_remainder.x;
+	    		player->vel.x = player_x.vel.x;
 	    	}
-
 	    	MoveEntityY(ctx, &player_y, GRAVITY);
-
-	    	player->pos.x = player_x.pos.x;
-	    	player->pos_remainder.x = player_x.pos_remainder.x;
-	    	player->vel.x = player_x.vel.x;
 	    	player->pos.y = player_y.pos.y;
 	    	player->pos_remainder.y = player_y.pos_remainder.y;
 	    	player->vel.y = player_y.vel.y;
@@ -1127,26 +1101,46 @@ static void UpdatePlayer(Context* ctx)
 		case EntityState_Jump: 
 		{
 			float acc = 0.0f;
-			if (SetAnimSprite(&player->anim, player_jump_start)) 
+			static bool jumped;
+			if (SetAnimSprite(&player->anim, player_jump_start))
+			{
+				jumped = false;
+			}
+			if (player->anim.frame_idx == 2 && player->anim.dt_accumulator == 0.0f)
 			{
 				acc -= PLAYER_JUMP;
+				jumped = true;
+
+				Entity player_x = *player;
+				Entity player_y = *player;
+				if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
+		    	{
+		    		MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+		    		player->pos.x = player_x.pos.x;
+		    		player->pos_remainder.x = player_x.pos_remainder.x;
+		    		player->vel.x = player_x.vel.x;
+		    	}
+		    	MoveEntityY(ctx, &player_y, acc);
+		    	player->pos.y = player_y.pos.y;
+		    	player->pos_remainder.y = player_y.pos_remainder.y;
+		    	player->vel.y = player_y.vel.y;
 			}
-			else
+			else if (jumped)
 			{
 				acc += GRAVITY;
+
+				Entity player_x = *player;
+				MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+				Entity player_y = *player;
+				MoveEntityY(ctx, &player_y, acc);
+
+				player->pos.x = player_x.pos.x;
+				player->pos_remainder.x = player_x.pos_remainder.x;
+				player->vel.x = player_x.vel.x;
+				player->pos.y = player_y.pos.y;
+				player->pos_remainder.y = player_y.pos_remainder.y;
+				player->vel.y = player_y.vel.y;
 			}
-
-	    	Entity player_x = *player;
-	    	MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
-	    	Entity player_y = *player;
-	    	MoveEntityY(ctx, &player_y, acc);
-
-	    	player->pos.x = player_x.pos.x;
-	    	player->pos_remainder.x = player_x.pos_remainder.x;
-	    	player->vel.x = player_x.vel.x;
-	    	player->pos.y = player_y.pos.y;
-	    	player->pos_remainder.y = player_y.pos_remainder.y;
-	    	player->vel.y = player_y.vel.y;
 
 			bool loop = false;
 	    	UpdateAnim(ctx, &player->anim, loop);
@@ -2776,7 +2770,6 @@ int32_t main(int32_t argc, char* argv[])
 			}
 
 			ctx->button_jump = false;
-			ctx->button_jump_released = false;
 			ctx->button_attack = false;
 			ctx->left_mouse_pressed = false;
 
@@ -2863,9 +2856,6 @@ int32_t main(int32_t argc, char* argv[])
 						case SDLK_RIGHT:
 							ctx->button_right = 0;
 							break;
-						case SDLK_UP:
-							ctx->button_jump_released = true;
-							break;
 						}					
 					}
 					break;
@@ -2888,14 +2878,6 @@ int32_t main(int32_t argc, char* argv[])
 						break;
 					case SDL_GAMEPAD_BUTTON_WEST:
 						ctx->button_attack = true;
-						break;
-					}
-					break;
-				case SDL_EVENT_GAMEPAD_BUTTON_UP:
-					switch (event.gbutton.button) 
-					{
-					case SDL_GAMEPAD_BUTTON_SOUTH:
-						ctx->button_jump_released = true;
 						break;
 					}
 					break;
