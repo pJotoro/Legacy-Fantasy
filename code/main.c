@@ -2993,8 +2993,11 @@ int32_t main(int32_t argc, char* argv[])
 			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) 
 			{
 				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+				if (entity->state != EntityState_Inactive)
+				{
+					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					num_instances += sd->frames[entity->anim.frame_idx].num_cells;
+				}
 			}
 
 			Instance* instances = StackAlloc(&ctx->stack, num_instances, Instance);
@@ -3002,23 +3005,26 @@ int32_t main(int32_t argc, char* argv[])
 			for (size_t entity_idx = 0, instance_idx = 0; entity_idx < num_entities && instance_idx < num_instances; entity_idx += 1) 
 			{
 				Entity* entity = &entities[entity_idx];
-				SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
-				size_t base_frame_idx = 0;
-				for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) 
+				if (entity->state != EntityState_Inactive)
 				{
-					base_frame_idx += sd->frames[frame_idx].num_cells;
+					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					size_t base_frame_idx = 0;
+					for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) 
+					{
+						base_frame_idx += sd->frames[frame_idx].num_cells;
+					}
+					for (
+						size_t cell_idx = 0; 
+						cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
+						++cell_idx, ++instance_idx) 
+					{
+						Instance* instance = &instances[instance_idx];
+						ivec2s origin = GetEntityOrigin(ctx, entity);
+						instance->rect.min = glms_ivec2_sub(entity->pos, origin);
+						instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
+						instance->anim_frame_idx = (int32_t)(base_frame_idx + cell_idx + 1)*entity->dir;
+					}			
 				}
-				for (
-					size_t cell_idx = 0; 
-					cell_idx < sd->frames[entity->anim.frame_idx].num_cells && instance_idx < num_instances; 
-					++cell_idx, ++instance_idx) 
-				{
-					Instance* instance = &instances[instance_idx];
-					ivec2s origin = GetEntityOrigin(ctx, entity);
-					instance->rect.min = glms_ivec2_sub(entity->pos, origin);
-					instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
-					instance->anim_frame_idx = (int32_t)(base_frame_idx + cell_idx + 1)*entity->dir;
-				}			
 			}
 
 			VulkanCopyBuffer(num_instances * sizeof(Instance), instances, &ctx->vk.dynamic_staging_buffer);
@@ -3349,6 +3355,12 @@ int32_t main(int32_t argc, char* argv[])
 					num_instances_leftover -= cur_num_instances) 
 				{
 					Entity* entity = &entities[entity_idx];
+					if (entity->state == EntityState_Inactive)
+					{
+						entity_idx += 1;
+						continue;
+					}
+
 					Sprite sprite = entity->anim.sprite;
 					SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 
@@ -3360,7 +3372,10 @@ int32_t main(int32_t argc, char* argv[])
 						cur_num_instances < num_instances_leftover && 
 						SpritesEqual(sprite, entities[entity_idx].anim.sprite)) 
 					{
-						cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
+						if (entities[entity_idx].state != EntityState_Inactive)
+						{
+							cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
+						}
 						entity_idx += 1;
 					}
 
