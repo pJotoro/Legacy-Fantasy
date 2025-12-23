@@ -955,6 +955,7 @@ static void UpdatePlayer(Context* ctx)
 		{
 			if (!touching_down)
 			{
+				player->pos.x += player->dir*(TILE_SIZE-1);
 				player->state = EntityState_Fall;
 			}
 		} break;
