@@ -847,7 +847,7 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 	entity->pos_remainder.y -= SDL_roundf(entity->pos_remainder.y);
 
 	Rect rect = GetEntityRect(ctx, entity); 
-	size_t num_tiles_overlapping; 
+	size_t num_tiles_overlapping;
 	ivec2s* tiles_overlapping;
 	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
 	{
@@ -961,7 +961,7 @@ static void UpdatePlayer(Context* ctx)
 		} break;
 		case EntityState_Jump:
 		{
-			if (touching_up)
+			if (touching_up || player->vel.y >= 0.0f)
 			{
 				player->state = EntityState_Fall;
 			}
@@ -1130,6 +1130,10 @@ static void UpdatePlayer(Context* ctx)
 			if (SetAnimSprite(&player->anim, player_jump_start)) 
 			{
 				acc -= PLAYER_JUMP;
+			}
+			else
+			{
+				acc += GRAVITY;
 			}
 
 	    	Entity player_x = *player;
