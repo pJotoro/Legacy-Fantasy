@@ -828,7 +828,7 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 				{
 					rect.min.x -= entity->dir;
 					rect.max.x -= entity->dir;
-					amount -= 1;
+					amount -= entity->dir;
 				}
 			}
 		}
@@ -862,7 +862,7 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 			{
 				rect.min.y -= sign;
 				rect.max.y -= sign;
-				amount -= 1;
+				amount -= sign;
 			}
 		}
 		entity->pos.y += amount;
