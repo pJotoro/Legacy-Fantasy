@@ -715,9 +715,9 @@ static Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	{
 		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 	}
-	if (!res && entity->anim.frame_idx == 0) 
+	if (!res) 
 	{
-		for (size_t frame_idx = 1; frame_idx < sd->num_frames && !res; frame_idx += 1) 
+		for (size_t frame_idx = entity->anim.frame_idx + 1; frame_idx < sd->num_frames && !res; frame_idx += 1) 
 		{
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
 		}
@@ -1160,51 +1160,86 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 {
 	SPALL_BUFFER_BEGIN();
 
-	UNUSED(ctx);
-	UNUSED(boar);
+	bool touching_left, touching_right, touching_down;
+	RectTouchingLevel(ctx, GetEntityRect(ctx, boar), 
+		&touching_left, &touching_right, &touching_down);
+	switch (boar->state)
+	{
+		case EntityState_Fall:
+		{
+			if (touching_down)
+			{
+				boar->state = EntityState_Free;
+				boar->vel.y = 0.0f;
+			}
+		} break;
+		case EntityState_Jump:
+		{
+			if (boar->vel.y > 0.0f)
+			{
+				boar->state = EntityState_Fall;
+			}
+		} break;
+		case EntityState_Free:
+		{
+			if (!touching_down)
+			{
+				boar->pos.x += boar->dir*(TILE_SIZE-1);
+				boar->state = EntityState_Fall;
+			}
+		} break;
+	}
 
-	// switch (boar->state) 
-	// {
-	// 	case EntityState_Hurt: 
-	// 	{
-	// 		SetAnimSprite(&boar->anim, boar_hit);
+	switch (boar->state) 
+	{
+		case EntityState_Hurt: 
+		{
+			SetAnimSprite(&boar->anim, boar_hit);
 
-	// 		bool loop = false;
-	// 		UpdateAnim(ctx, &boar->anim, loop);
+			bool loop = false;
+			UpdateAnim(ctx, &boar->anim, loop);
 
-	// 		if (boar->anim.ended) 
-	// 		{
-	// 			boar->state = EntityState_Inactive;
-	// 		}
-	// 	} break;
+			if (boar->anim.ended) 
+			{
+				boar->state = EntityState_Inactive;
+			}
+		} break;
 
-	// 	case EntityState_Fall: 
-	// 	{
-	// 		SetAnimSprite(&boar->anim, boar_idle);
+		case EntityState_Fall: 
+		{
+			SetAnimSprite(&boar->anim, boar_idle);
 
-	// 		vec2s acc = {0.0f, GRAVITY};
-	// 		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
+			Entity boar_x = *boar;
+			Entity boar_y = *boar;
+			if (boar->vel.x != 0.0f || boar->pos_remainder.x != 0.0f)
+			{
+				MoveEntityX(ctx, &boar_x, 0.0f, 0.0f, 0.0f);
+				boar->pos.x = boar_x.pos.x;
+				boar->pos_remainder.x = boar_x.pos_remainder.x;
+				boar->vel.x = boar_x.vel.x;
+			}
+			MoveEntityY(ctx, &boar_y, GRAVITY);
+			boar->pos.y = boar_y.pos.y;
+			boar->pos_remainder.y = boar_y.pos_remainder.y;
+			boar->vel.y = boar_y.vel.y;
+			
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
 
-	// 		bool loop = true;
-	// 		UpdateAnim(ctx, &boar->anim, loop);
-	// 	} break;
+		case EntityState_Free: 
+		{
+			SetAnimSprite(&boar->anim, boar_idle);
 
-	// 	case EntityState_Free: 
-	// 	{
-	// 		SetAnimSprite(&boar->anim, boar_idle);
+			bool loop = true;
+			UpdateAnim(ctx, &boar->anim, loop);
+		} break;
 
-	// 		vec2s acc = {0.0f, GRAVITY};
-	// 		UpdateEntityPhysics(ctx, boar, acc, BOAR_FRIC, BOAR_MAX_VEL);
-
-	// 		bool loop = true;
-	// 		UpdateAnim(ctx, &boar->anim, loop);
-	// 	} break;
-
-	// 	default: 
-	// 	{
-	// 		// TODO?
-	// 	} break;
-	// }
+		default: 
+		{
+			// TODO?
+		} break;
+	}
 
 	SPALL_BUFFER_END();
 }
