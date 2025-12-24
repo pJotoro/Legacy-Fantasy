@@ -1,4 +1,4 @@
-#define TOGGLE_PROFILING 1
+#define TOGGLE_PROFILING 0
 
 #include "main.h"
 #include "aseprite.h"
@@ -6,9 +6,9 @@
 #define TOGGLE_FULLSCREEN 1
 #define TOGGLE_REPLAY_FRAMES 1
 #define TOGGLE_TESTS 0
-#define TOGGLE_VULKAN_VALIDATION 1
+#define TOGGLE_VULKAN_VALIDATION 0
 
-#define GAMEPAD_THRESHOLD 0.5f
+#define GAMEPAD_THRESHOLD 0.1f
 
 #define PLAYER_ACC 0.5f
 #define PLAYER_FRIC 0.2f
@@ -971,9 +971,9 @@ static void UpdatePlayer(Context* ctx)
 	int32_t input_dir = 0;
 	if (ctx->gamepad) 
 	{
-		if (ctx->gamepad_left_stick.x == 0.0f) input_dir = 0;
-		else if (ctx->gamepad_left_stick.x > 0.0f) input_dir = 1;
-		else if (ctx->gamepad_left_stick.x < 0.0f) input_dir = -1;
+		if (ctx->gamepad_left_stick.x > GAMEPAD_THRESHOLD) input_dir = 1;
+		else if (ctx->gamepad_left_stick.x < -GAMEPAD_THRESHOLD) input_dir = -1;
+		else input_dir = 0;
 	} 
 	else 
 	{
@@ -2813,10 +2813,8 @@ int32_t main(int32_t argc, char* argv[])
 			ctx->left_mouse_pressed = false;
 
 			SDL_Event event;
-			while (SDL_PollEvent(&event)) 
+			while (SDL_PollEvent(&event)) switch (event.type) 
 			{
-				switch (event.type) 
-				{
 				case SDL_EVENT_KEY_DOWN:
 					if (event.key.key == SDLK_ESCAPE) 
 					{
@@ -2826,51 +2824,51 @@ int32_t main(int32_t argc, char* argv[])
 					{
 						switch (event.key.key) 
 						{
-						case SDLK_SPACE:
+							case SDLK_SPACE:
 #if TOGGLE_REPLAY_FRAMES
-							ctx->paused = !ctx->paused;
+								ctx->paused = !ctx->paused;
 #endif // TOGGLE_REPLAY_FRAMES
-							break;
-						case SDLK_0:
-							break;
-						case SDLK_X:
-							ctx->button_attack = true;
-							break;
-						case SDLK_LEFT:
-							if (!event.key.repeat) 
-							{
-								ctx->button_left = 1;
-							}
+								break;
+							case SDLK_0:
+								break;
+							case SDLK_X:
+								ctx->button_attack = true;
+								break;
+							case SDLK_LEFT:
+								if (!event.key.repeat) 
+								{
+									ctx->button_left = 1;
+								}
 #if TOGGLE_REPLAY_FRAMES
-							if (ctx->paused) 
-							{
-								SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
-							}
+								if (ctx->paused) 
+								{
+									SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
+								}
 #endif // TOGGLE_REPLAY_FRAMES
-							break;
-						case SDLK_RIGHT:
-							if (!event.key.repeat) 
-							{
-								ctx->button_right = 1;
-							}
+								break;
+							case SDLK_RIGHT:
+								if (!event.key.repeat) 
+								{
+									ctx->button_right = 1;
+								}
 #if TOGGLE_REPLAY_FRAMES
-							if (ctx->paused) 
-							{
-								SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
-							}
+								if (ctx->paused) 
+								{
+									SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
+								}
 #endif // TOGGLE_REPLAY_FRAMES
-							break;
-						case SDLK_UP:
-							if (!event.key.repeat) 
-							{
-								ctx->button_jump = true;
-							}
-							break;
-						case SDLK_DOWN:
-							break;
-						case SDLK_R:
-							ResetGame(ctx);
-							break;
+								break;
+							case SDLK_UP:
+								if (!event.key.repeat) 
+								{
+									ctx->button_jump = true;
+								}
+								break;
+							case SDLK_DOWN:
+								break;
+							case SDLK_R:
+								ResetGame(ctx);
+								break;
 						}
 					}
 					break;
@@ -2889,47 +2887,46 @@ int32_t main(int32_t argc, char* argv[])
 					{
 						switch (event.key.key) 
 						{
-						case SDLK_LEFT:
-							ctx->button_left = 0;
-							break;
-						case SDLK_RIGHT:
-							ctx->button_right = 0;
-							break;
-						}					
+							case SDLK_LEFT:
+								ctx->button_left = 0;
+								break;
+							case SDLK_RIGHT:
+								ctx->button_right = 0;
+								break;
+						}
 					}
 					break;
 				case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 					switch (event.gaxis.axis) 
 					{
-					case SDL_GAMEPAD_AXIS_LEFTX:
-						ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
-						break;
-					case SDL_GAMEPAD_AXIS_LEFTY:
-						ctx->gamepad_left_stick.y = NormInt16(event.gaxis.value);
-						break;
+						case SDL_GAMEPAD_AXIS_LEFTX:
+							ctx->gamepad_left_stick.x = NormInt16(event.gaxis.value);
+							break;
+						case SDL_GAMEPAD_AXIS_LEFTY:
+							ctx->gamepad_left_stick.y = NormInt16(event.gaxis.value);
+							break;
 					}
 					break;
 				case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 					switch (event.gbutton.button) 
 					{
-					case SDL_GAMEPAD_BUTTON_SOUTH:
-						ctx->button_jump = true;
-						break;
-					case SDL_GAMEPAD_BUTTON_WEST:
-						ctx->button_attack = true;
-						break;
+						case SDL_GAMEPAD_BUTTON_SOUTH:
+							ctx->button_jump = true;
+							break;
+						case SDL_GAMEPAD_BUTTON_WEST:
+							ctx->button_attack = true;
+							break;
 					}
 					break;
 				case SDL_EVENT_QUIT:
 					ctx->running = false;
 					break;
-				}		
 			}
 
-			if (SDL_fabs(ctx->gamepad_left_stick.x) > GAMEPAD_THRESHOLD) 
-			{
-				ctx->gamepad_left_stick.x = 0.0f;
-			}
+			// if (SDL_fabs(ctx->gamepad_left_stick.x) < GAMEPAD_THRESHOLD) 
+			// {
+			// 	ctx->gamepad_left_stick.x = 0.0f;
+			// }
 
 			SPALL_BUFFER_END();
 		}
