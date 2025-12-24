@@ -1357,13 +1357,13 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
 
-			int32_t window_width = display_mode->w/2;
-			int32_t window_height = display_mode->h/2;
-			SDL_WindowFlags window_flags = SDL_WINDOW_HIDDEN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_VULKAN;
-#if TOGGLE_FULLSCREEN
-			window_width *= 2;
-			window_height *= 2;
-			window_flags |= SDL_WINDOW_FULLSCREEN;
+			int32_t window_width = display_mode->w;
+			int32_t window_height = display_mode->h;
+			SDL_WindowFlags window_flags = SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_VULKAN;
+#if !TOGGLE_FULLSCREEN
+			window_width /= 2;
+			window_height /= 2;
+			window_flags &= ~SDL_WINDOW_FULLSCREEN;
 #endif // TOGGLE_FULLSCREEN
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
