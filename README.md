@@ -2,7 +2,7 @@
 This is a prototype of a 2D platformer game rendered using the Vulkan API. [Here is a demo of it.](https://www.youtube.com/watch?v=J81yIJgHqP0)
 
 ## What I did
-Everything except for the art and libraries I used. That is: I wrote all the game code in C; the shaders in GLSL; and the makeshift build system in a mix of CMake, batch files, and a Sublime Text project file. Although I didn't make the art myself at all, I did have to manually add hitboxes to the player and boar sprites; I also had to add an origin to each sprite in order for them to render in the right place.
+Everything except for the art and libraries I used. That is: I wrote all the game code in C; the shaders in GLSL; and the makeshift build system in a mix of CMake, batch files, and a Sublime Text project file. Although I didn't make any of the art, I did have to manually add hitboxes to the player and boar sprites; I also had to add an origin to each sprite in order for them to render in the right place.
 
 ## What I didn't do
 The art can be found here: https://anokolisa.itch.io/sidescroller-pixelart-sprites-asset-pack-forest-16x16.
@@ -22,7 +22,7 @@ For this I used an automatic build instead of the official repository. The autom
 The official repository can be found here: https://github.com/libsdl-org/SDL
 
 ### spall
-This is not a library exactly. It's a profiler, but it comes with a library which you use to record the profile, which you then open with Spall afterwards. You can buy it here: https://gravitymoth.itch.io/spall
+This is not a library exactly. It's a profiler, but it comes with a library which you use to record a profile, which you then open with Spall afterwards. You can buy it here: https://gravitymoth.itch.io/spall
 
 ### vk_video, Volk, vulkan
 These came with the Vulkan SDK, which I downloaded here: https://vulkan.lunarg.com/
@@ -46,9 +46,9 @@ https://github.com/Cyan4973/xxHash/blob/dev/xxhash.h
 # Rationale
 Why put yourself through the insanity of making a game without a game engine? Why not just use Unity or Godot? Believe it or not, I'm no elitist when it comes to making games. Allow me to explain.
 
-I started out with Scratch when I was eleven years old. You know, the website where you "code" by dragging blocks around? Yeah, that one. By the time I was thirteen, I was so sick of Scratch that I intentionally got myself banned. After that, I tried several different game engines, including Unity, Unreal, GameMaker and Construct. In the end, I went with GameMaker because I felt it was the easiest to learn while still having the features I wanted. 
+I started out with Scratch when I was eleven years old. By the time I was thirteen, I was so sick of Scratch that I intentionally got myself banned. After that, I tried several different game engines including Unity, Unreal, GameMaker and Construct. In the end, I went with GameMaker because I felt it was the easiest to learn while still having the features I wanted. 
 
-By the time I was fifteen, I was already sick of GameMaker; that is, I went full circle. Just like before, I tried messing around with different game engines, including Unity, Unreal and Godot. In the end, I went with none of them because I found a series called Handmade Hero, which teaches you how to make a complete game from scratch without any game engine, libraries, frameworks, or whatever else; while watching that series, I realized that computer programming as a whole, not just game programming, is actually extremely interesting. Consequently, over the next three years I learned as much as I possibly could about how everything works under the hood.
+By the time I was fifteen, I was already sick of GameMaker; that is, I went full circle. Just like before, I tried messing around with different game engines including Unity, Unreal and Godot. In the end, I went with none of them because I found a series called Handmade Hero which teaches you how to make a complete game from scratch without any game engine, libraries, frameworks or whatever else; while watching that series, I realized that computer programming as a whole, not just game programming, is actually extremely interesting. Consequently, over the next three years I learned as much as I possibly could about how everything works under the hood.
 
 And then I went to college. Over all those years, I assumed that what I had learned was merely computer *programming*, and that only in college would I finally learn computer *science*; funnily enough, the very first thing I noticed in college was that I knew more than my professors.
 
