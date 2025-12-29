@@ -4,7 +4,7 @@
 #include "aseprite.h"
 
 #define TOGGLE_FULLSCREEN 1
-#define TOGGLE_REPLAY_FRAMES 1
+#define TOGGLE_REPLAY_FRAMES 0
 #define TOGGLE_TESTS 0
 #define TOGGLE_VULKAN_VALIDATION 0
 
