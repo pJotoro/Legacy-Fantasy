@@ -86,20 +86,6 @@ static Entity* GetPlayer(Context* ctx)
     return &ctx->level.entities[0];
 }
 
-static Entity* GetEntities(Context* ctx, size_t* num_entities) 
-{
-    SDL_assert(num_entities);
-    if (ctx->level.num_entities == 0) 
-    {
-        *num_entities = 0;
-        return NULL;
-    } else 
-    {
-        *num_entities = ctx->level.num_entities;
-        return ctx->level.entities;
-    }
-}
-
 static Entity* GetEnemies(Context* ctx, size_t* num_enemies) 
 {
     SDL_assert(num_enemies);

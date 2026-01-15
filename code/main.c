@@ -488,6 +488,68 @@ static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32
 	return res;
 }
 
+static Rect GetEntityHitbox(Context* ctx, Entity* entity) 
+{
+	SPALL_BUFFER_BEGIN();
+	Rect hitbox = {0};
+	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+
+	/**
+	 * First, try to find the hitbox at the current frame index or earlier.
+	 * If that doesn't work, try to find the hitbox at the current frame index plus one or later.
+	 * If that doesn't work, trigger an assertion.
+	 */
+	bool res = false;
+	for (
+		ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; 
+		frame_idx >= 0 && !res; 
+		frame_idx -= 1) 
+	{
+		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
+	}
+	if (!res) 
+	{
+		for (
+			size_t frame_idx = entity->anim.frame_idx + 1; 
+			frame_idx < sd->num_frames && !res; 
+			frame_idx += 1) 
+		{
+			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
+		}
+	}
+	SDL_assert(res);
+
+	SPALL_BUFFER_END();
+	return hitbox;
+}
+
+static Rect GetEntityRect(Context* ctx, Entity* entity)
+{
+	Rect res = GetEntityHitbox(ctx, entity);
+	res.min = glms_ivec2_add(res.min, entity->pos); 
+	res.max = glms_ivec2_add(res.max, entity->pos);
+	ivec2s origin = GetEntityOrigin(ctx, entity); 
+	res.min = glms_ivec2_sub(res.min, origin); 
+	res.max = glms_ivec2_sub(res.max, origin); 
+	return res;
+}
+
+static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
+{
+	SPALL_BUFFER_BEGIN();
+	bool res = false;
+
+    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
+    {
+    	Rect ha = GetEntityRect(ctx, a);
+    	Rect hb = GetEntityRect(ctx, b);
+    	res = RectsIntersect(ha, hb);
+    } 
+
+    SPALL_BUFFER_END();
+    return res;
+}
+
 static ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_raw_chunk, size_t* out_raw_chunk_size) 
 {
 	ASE_ChunkHeader chunk_header = {0};
@@ -730,69 +792,88 @@ static SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, co
 	return SDL_ENUM_CONTINUE;
 }
 
-static Rect GetEntityHitbox(Context* ctx, Entity* entity) 
-{
-	SPALL_BUFFER_BEGIN();
-	Rect hitbox = {0};
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+/**
+ * Collision detection between each entity and the level happens in two passes.
+ * 
+ * First, RectTouchingLevel is called, which checks if a rectangle is only one pixel away from
+ * overlapping the level in each direction. If a direction is true, then that entity should not
+ * move in that direction, although its velocity should be preserved unless the direction is down.
+ * 
+ * Secondly, RectOverlappingLevel is called twice, once for horizontal movement and once for
+ * vertical movement. For each overlapped tile, the entity is moved just enough in the opposite 
+ * direction so that it no longer overlaps the tile.
+ */
 
-	/**
-	 * First, try to find the hitbox at the current frame index or earlier.
-	 * If that doesn't work, try to find the hitbox at the current frame index plus one or later.
-	 * If that doesn't work, trigger an assertion.
-	 */
+static bool RectTouchingLevel(
+	Context* ctx, 
+	Rect rect, 
+	bool* out_left, bool* out_right, bool* out_down)
+{
 	bool res = false;
-	for (
-		ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; 
-		frame_idx >= 0 && !res; 
-		frame_idx -= 1) 
+	
+	SDL_assert(out_left && out_right && out_down);
+	*out_left = false;
+	*out_right = false;
+	*out_down = false;
+
+	if (rect.min.x % TILE_SIZE == 0) 
 	{
-		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
-	}
-	if (!res) 
-	{
+		ivec2s tile_pos; // measured in tiles, not pixels
+		tile_pos.x = rect.min.x/TILE_SIZE;
 		for (
-			size_t frame_idx = entity->anim.frame_idx + 1; 
-			frame_idx < sd->num_frames && !res; 
-			frame_idx += 1) 
+			tile_pos.y = rect.min.y/TILE_SIZE; 
+			tile_pos.y <= (rect.max.y+1)/TILE_SIZE; 
+			tile_pos.y += 1) 
 		{
-			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*out_left = true;
+				break;
+			}
 		}
 	}
-	SDL_assert(res);
-
-	SPALL_BUFFER_END();
-	return hitbox;
-}
-
-static Rect GetEntityRect(Context* ctx, Entity* entity)
-{
-	Rect res = GetEntityHitbox(ctx, entity);
-	res.min = glms_ivec2_add(res.min, entity->pos); 
-	res.max = glms_ivec2_add(res.max, entity->pos);
-	ivec2s origin = GetEntityOrigin(ctx, entity); 
-	res.min = glms_ivec2_sub(res.min, origin); 
-	res.max = glms_ivec2_sub(res.max, origin); 
+	if ((rect.max.x+1) % TILE_SIZE == 0) 
+	{
+		ivec2s tile_pos; // measured in tiles, not pixels
+		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
+		for (
+			tile_pos.y = rect.min.y/TILE_SIZE; 
+			tile_pos.y <= (rect.max.y+1)/TILE_SIZE; 
+			tile_pos.y += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*out_right = true;
+				break;
+			}
+		}
+	}
+	if ((rect.max.y+1) % TILE_SIZE == 0)
+	{
+		ivec2s tile_pos; // measured in tiles, not pixels
+		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
+		for (
+			tile_pos.x = rect.min.x/TILE_SIZE; 
+			tile_pos.x <= (rect.max.x+1)/TILE_SIZE; 
+			tile_pos.x += 1) 
+		{
+			if (TileIsSolid(&ctx->level, tile_pos)) 
+			{
+				res = true;
+				*out_down = true;
+				break;
+			}
+		}
+	}
 	return res;
 }
 
-static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b) 
-{
-	SPALL_BUFFER_BEGIN();
-	bool res = false;
-
-    if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
-    {
-    	Rect ha = GetEntityRect(ctx, a);
-    	Rect hb = GetEntityRect(ctx, b);
-    	res = RectsIntersect(ha, hb);
-    } 
-
-    SPALL_BUFFER_END();
-    return res;
-}
-
-static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_overlapping, ivec2s** tiles_overlapping)
+static bool RectOverlappingLevel(
+	Context* ctx, 
+	Rect rect, 
+	size_t* out_num_tiles_overlapping, ivec2s** out_tiles_overlapping)
 {
 	bool res = false;
 
@@ -818,13 +899,13 @@ static bool RectOverlappingLevel(Context* ctx, Rect rect, size_t* num_tiles_over
 	if (!res)
 	{
 		StackFree(&ctx->stack, _tiles_overlapping);
-		*num_tiles_overlapping = 0;
-		*tiles_overlapping = NULL;
+		*out_num_tiles_overlapping = 0;
+		*out_tiles_overlapping = NULL;
 	}
 	else
 	{
-		*num_tiles_overlapping = i;
-		*tiles_overlapping = _tiles_overlapping;
+		*out_num_tiles_overlapping = i;
+		*out_tiles_overlapping = _tiles_overlapping;
 	}
 
 	return res;
@@ -907,60 +988,6 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 			StackFree(&ctx->stack, tiles_overlapping);
 		}
 	}
-}
-
-static bool RectTouchingLevel(Context* ctx, Rect rect, bool* left, bool* right, bool* down)
-{
-	bool res = false;
-	
-	SDL_assert(left && right && down);
-	*left = false;
-	*right = false;
-	*down = false;
-
-	if (rect.min.x % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.x = rect.min.x/TILE_SIZE;
-		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= (rect.max.y+1)/TILE_SIZE; tile_pos.y += 1) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				res = true;
-				*left = true;
-				break;
-			}
-		}
-	}
-	if ((rect.max.x+1) % TILE_SIZE == 0) 
-	{
-		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.x = (rect.max.x+1)/TILE_SIZE;
-		for (tile_pos.y = rect.min.y/TILE_SIZE; tile_pos.y <= (rect.max.y+1)/TILE_SIZE; tile_pos.y += 1) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				res = true;
-				*right = true;
-				break;
-			}
-		}
-	}
-	if ((rect.max.y+1) % TILE_SIZE == 0)
-	{
-		ivec2s tile_pos; // measured in tiles, not pixels
-		tile_pos.y = (rect.max.y+1)/TILE_SIZE;
-		for (tile_pos.x = rect.min.x/TILE_SIZE; tile_pos.x <= (rect.max.x+1)/TILE_SIZE; tile_pos.x += 1) 
-		{
-			if (TileIsSolid(&ctx->level, tile_pos)) 
-			{
-				res = true;
-				*down = true;
-				break;
-			}
-		}
-	}
-	return res;
 }
 
 static void UpdatePlayer(Context* ctx) 
@@ -1102,7 +1129,7 @@ static void UpdatePlayer(Context* ctx)
 				Entity* enemy = &enemies[enemy_idx];
 				if (EntitiesIntersect(ctx, player, enemy)) 
 				{
-					switch (enemy->type) 
+					switch (enemy->type)
 					{
 					case EntityType_Boar:
 						enemy->state = EntityState_Hurt;
@@ -3022,7 +3049,8 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			SPALL_BUFFER_BEGIN_NAME("VulkanCopyInstancesToDynamicStagingBuffer");
 
-			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			size_t num_entities = ctx->level.num_entities;
+			Entity* entities = ctx->level.entities;
 			num_instances = 0;
 			for (size_t entity_idx = 0; entity_idx < num_entities; entity_idx += 1) 
 			{
@@ -3394,7 +3422,8 @@ int32_t main(int32_t argc, char* argv[])
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
 
-			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			size_t num_entities = ctx->level.num_entities;
+			Entity* entities = ctx->level.entities;
 			
 			// DrawPlayer
 			SpriteDesc* sd = GetSpriteDesc(ctx, entities[0].anim.sprite);
