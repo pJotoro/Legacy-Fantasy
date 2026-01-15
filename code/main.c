@@ -42,24 +42,34 @@ typedef struct SpriteCell
 
 typedef struct SpriteFrame 
 {
-	/*
-	Why have multiple cells in each frame? The reason is because that's how Aseprite does things. 
-	In Aseprite, a sprite is made up of an array of frames, and each frame is made up of an array 
-	of cells. Each cell contains its own compressed image data, which is what SpriteCell::dst_buf 
-	stores. When it comes time to actually render the sprite, we render each cell as its own 
-	texture. This is actually plenty fast, because we don't store a different texture for each 
-	cell; instead, we make each sprite have one texture array, where each cell is one element of 
-	the texture array.
-
-	Now, you might ask: but why not merge the image data from each cell into one image before 
-	uploading to the GPU? That way, you don't have to render each cell separately, every single 
-	time; instead, you just do it all on the CPU beforehand. I'm sure this would be faster, but it 
-	would also be more complicated and less flexible. What if I wanted to apply a shader to just 
-	one cell? For example, a fire effect to just the player's sword. As it stands, this would be 
-	pretty trivial.
-	*/
+	/**
+	 * Why have multiple cells in each frame? The reason is because that's how Aseprite does 
+	 * things. In Aseprite, a sprite is made up of an array of frames, and each frame is made up 
+	 * of an array of cells. Each cell contains its own compressed image data, which is what 
+	 * SpriteCell::dst_buf stores. When it comes time to actually render the sprite, we render 
+	 * each cell as its own texture. This is actually plenty fast, because we don't store a 
+	 * different texture for each cell; instead, we make each sprite have one texture array, 
+	 * where each cell is one element of the texture array.
+	 * 
+	 * Now, you might ask: but why not merge the image data from each cell into one image before 
+	 * uploading to the GPU? That way, you don't have to render each cell separately, every single 
+	 * time; instead, you just do it all on the CPU beforehand. I'm sure this would be faster, but 
+	 * it would also be more complicated and less flexible. What if I wanted to apply a shader to 
+	 * just one cell? For example, a fire effect to just the player's sword. As it stands, this 
+	 * would be pretty trivial.
+	 */
 	SpriteCell* cells; size_t num_cells;
+
+	/**
+	 * Not every frame necessarily has a hitbox. If it exists, it is literally drawn inside of
+	 * Aseprite in a layer called "Hitbox". See GetEntityHitbox to find out how a hitbox is
+	 * selected for an entity.
+	 */
 	Rect hitbox;
+
+	/**
+	 * The duration of the frame. See UpdateAnim to find out how this is used.
+	 */
 	float dur;
 } SpriteFrame;
 
@@ -726,14 +736,25 @@ static Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	Rect hitbox = {0};
 	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
 
+	/**
+	 * First, try to find the hitbox at the current frame index or earlier.
+	 * If that doesn't work, try to find the hitbox at the current frame index plus one or later.
+	 * If that doesn't work, trigger an assertion.
+	 */
 	bool res = false;
-	for (ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; frame_idx >= 0 && !res; frame_idx -= 1) 
+	for (
+		ssize_t frame_idx = (ssize_t)entity->anim.frame_idx; 
+		frame_idx >= 0 && !res; 
+		frame_idx -= 1) 
 	{
 		res = GetSpriteHitbox(ctx, entity->anim.sprite, (size_t)frame_idx, entity->dir, &hitbox); 
 	}
 	if (!res) 
 	{
-		for (size_t frame_idx = entity->anim.frame_idx + 1; frame_idx < sd->num_frames && !res; frame_idx += 1) 
+		for (
+			size_t frame_idx = entity->anim.frame_idx + 1; 
+			frame_idx < sd->num_frames && !res; 
+			frame_idx += 1) 
 		{
 			res = GetSpriteHitbox(ctx, entity->anim.sprite, frame_idx, entity->dir, &hitbox);
 		}
