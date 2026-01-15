@@ -3331,100 +3331,130 @@ int32_t main(int32_t argc, char* argv[])
 			SPALL_BUFFER_END();
 		}
 
-		// Draw
+		/**
+		 * By this point you might be asking: why on Earth are you doing things this way? Why not
+		 * just write a simple GL 1.1x style renderer on top of Vulkan? That would take about the
+		 * same amount of effort as doing things this way, right? Your code seems so hyper-optimized
+		 * for this one specific use-case, that is, drawing either tiles or animated sprites.
+		 * Wouldn't it be better to have something more flexible?
+		 * 
+		 * First of all, yes, my code is hyper-optimized for this one specific use case. So what?
+		 * It only took me about a month and a half to write the Vulkan renderer. Before that, I
+		 * didn't even know what a descriptor is, and I had some wild misconceptions about how
+		 * image layout transitions and pipeline barriers work; all of which is to say, I had no
+		 * idea what I was doing. If I did (which I do now, more or less), then this wouldn't have
+		 * taken longer than maybe a week. If I wanted to render something else, then I would just 
+		 * have to write the code that renders that thing. Simply put, I don't need something more
+		 * flexible, because Vulkan already has all the flexibility I need.
+		 * 
+		 * Second of all, writing an abstraction layer on top of Vulkan completely defeats the
+		 * purpose of using Vulkan. The purpose of using Vulkan is that it gives you much more 
+		 * explicit control over what the hardware is doing than legacy APIs like OpenGL. If I 
+		 * really wanted to use a high level graphics API like OpenGL 1.1x, then I would just use 
+		 * that. My game would likely perform a lot better than if I rolled my own high level 
+		 * renderer, since Nvidia and AMD can do a much better job than me at optimizing for the 
+		 * target hardware. On the other hand, Nvidia and AMD don't know what game I'm making. By
+		 * implementing everything in the most explicit way possible, I can potentially achieve
+		 * much better performance than what is possible with any high level renderer or engine.
+		 * 
+		 * Now, you could argue that for a 2D pixel art game, none of this is necessary, and I
+		 * would agree. If I really wanted to ship a 2D pixel art game, I would use Godot. At the
+		 * same time, I have to learn somehow. I can't make GTA VI all by myself.
+		 */
+
+		// DrawTiles
 		{
-			SPALL_BUFFER_BEGIN_NAME("Draw");
+			VkDeviceSize offset = 0;
+			vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &offset);
 
-			// DrawTiles
+			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
+
+			SpriteDesc* sd =  GetSpriteDesc(ctx, spr_tiles);
+			VkDescriptorSet descriptor_sets[] = {
+				ctx->vk.descriptor_set_uniforms, 
+				sd->vk_descriptor_set
+			};
+			vkCmdBindDescriptorSets(cb, 
+				VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
+				0, SDL_arraysize(descriptor_sets), descriptor_sets, 
+				0, NULL);
+
+			size_t num_tiles = 0;
+			for (size_t layer_idx = 0; layer_idx < ctx->level.num_tile_layers; layer_idx += 1) 
 			{
-				VkDeviceSize offset = 0;
-				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &offset);
-
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
-
-				SpriteDesc* sd =  GetSpriteDesc(ctx, spr_tiles);
-				VkDescriptorSet descriptor_sets[] = {ctx->vk.descriptor_set_uniforms, sd->vk_descriptor_set};
-				vkCmdBindDescriptorSets(cb, 
-					VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
-					0, SDL_arraysize(descriptor_sets), descriptor_sets, 
-					0, NULL);
-
-				size_t num_tiles = 0;
-				for (size_t layer_idx = 0; layer_idx < ctx->level.num_tile_layers; layer_idx += 1) 
-				{
-					num_tiles += ctx->level.tile_layers[layer_idx].num_tiles;
-				}
-				vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
+				num_tiles += ctx->level.tile_layers[layer_idx].num_tiles;
 			}
-			// DrawEntities
+			vkCmdDraw(cb, 6, (uint32_t)num_tiles, 0, 0);
+		}
+		// DrawEntities
+		{
+			vkCmdBindVertexBuffers(cb, 
+				0, 1, 
+				&ctx->vk.vertex_buffer.handle, &ctx->vk.vertex_buffer.start);
+
+			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
+
+			size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
+			
+			// DrawPlayer
+			SpriteDesc* sd = GetSpriteDesc(ctx, entities[0].anim.sprite);
+			vkCmdBindDescriptorSets(cb, 
+				VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
+				1, 1, &sd->vk_descriptor_set, 
+				0, NULL);
+			size_t num_instances_player = sd->frames[entities[0].anim.frame_idx].num_cells;
+			vkCmdDraw(cb, 6, (uint32_t)num_instances_player, 0, 0);
+
+			// DrawEnemies
+			// See VulkanCopyInstancesToDynamicStagingBuffer to see how num_instances was defined.
+			for (size_t
+				first_instance = num_instances_player,
+				num_instances_leftover = num_instances - num_instances_player,
+				cur_num_instances = 0,
+				entity_idx = 1;
+
+				first_instance < num_instances &&
+				num_instances_leftover > 0 &&
+				entity_idx < num_entities;
+
+				first_instance += cur_num_instances,
+				num_instances_leftover -= cur_num_instances)
 			{
-				vkCmdBindVertexBuffers(cb, 0, 1, &ctx->vk.vertex_buffer.handle, &ctx->vk.vertex_buffer.start);
+				Entity* entity = &entities[entity_idx];
+				if (entity->state == EntityState_Inactive)
+				{
+					entity_idx += 1;
+					continue;
+				}
 
-				vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[1]);
+				Sprite sprite = entity->anim.sprite;
+				SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
 
-				size_t num_entities; Entity* entities = GetEntities(ctx, &num_entities);
-				
-				// DrawPlayer
-				SpriteDesc* sd = GetSpriteDesc(ctx, entities[0].anim.sprite);
+				cur_num_instances = sd->frames[entity->anim.frame_idx].num_cells;
+
+				entity_idx += 1;
+				while (
+					entity_idx < num_entities && 
+					cur_num_instances < num_instances_leftover) 
+				{
+					if (entities[entity_idx].state != EntityState_Inactive)
+					{
+						if (!SpritesEqual(sprite, entities[entity_idx].anim.sprite))
+						{
+							break;
+						}
+						SpriteFrame* frame = &sd->frames[entities[entity_idx].anim.frame_idx];
+						cur_num_instances += frame->num_cells;
+					}
+					entity_idx += 1;
+				}
+
 				vkCmdBindDescriptorSets(cb, 
 					VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
 					1, 1, &sd->vk_descriptor_set, 
 					0, NULL);
-				size_t num_instances_player = sd->frames[entities[0].anim.frame_idx].num_cells;
-				vkCmdDraw(cb, 6, (uint32_t)num_instances_player, 0, 0);
-
-				// DrawEnemies
-				// See VulkanCopyInstancesToDynamicStagingBuffer to see how num_instances was defined.
-				for (size_t
-					first_instance = num_instances_player,
-					num_instances_leftover = num_instances - num_instances_player,
-					cur_num_instances = 0,
-					entity_idx = 1;
-
-					first_instance < num_instances &&
-					num_instances_leftover > 0 &&
-					entity_idx < num_entities;
-
-					first_instance += cur_num_instances,
-					num_instances_leftover -= cur_num_instances)
-				{
-					Entity* entity = &entities[entity_idx];
-					if (entity->state == EntityState_Inactive)
-					{
-						entity_idx += 1;
-						continue;
-					}
-
-					Sprite sprite = entity->anim.sprite;
-					SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
-
-					cur_num_instances = sd->frames[entity->anim.frame_idx].num_cells;
-
-					entity_idx += 1;
-					while (
-						entity_idx < num_entities && 
-						cur_num_instances < num_instances_leftover) 
-					{
-						if (entities[entity_idx].state != EntityState_Inactive)
-						{
-							if (!SpritesEqual(sprite, entities[entity_idx].anim.sprite))
-							{
-								break;
-							}
-							cur_num_instances += sd->frames[entities[entity_idx].anim.frame_idx].num_cells;
-						}
-						entity_idx += 1;
-					}
-
-					vkCmdBindDescriptorSets(cb, 
-						VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
-						1, 1, &sd->vk_descriptor_set, 
-						0, NULL);
-					vkCmdDraw(cb, 6, (uint32_t)cur_num_instances, 0, (uint32_t)first_instance);
-				}
+				vkCmdDraw(cb, 6, (uint32_t)cur_num_instances, 0, (uint32_t)first_instance);
 			}
-
-			SPALL_BUFFER_END();
 		}
 
 		// DrawEnd
