@@ -42,6 +42,22 @@ typedef struct SpriteCell
 
 typedef struct SpriteFrame 
 {
+	/*
+	Why have multiple cells in each frame? The reason is because that's how Aseprite does things. 
+	In Aseprite, a sprite is made up of an array of frames, and each frame is made up of an array 
+	of cells. Each cell contains its own compressed image data, which is what SpriteCell::dst_buf 
+	stores. When it comes time to actually render the sprite, we render each cell as its own 
+	texture. This is actually plenty fast, because we don't store a different texture for each 
+	cell; instead, we make each sprite have one texture array, where each cell is one element of 
+	the texture array.
+
+	Now, you might ask: but why not merge the image data from each cell into one image before 
+	uploading to the GPU? That way, you don't have to render each cell separately, every single 
+	time; instead, you just do it all on the CPU beforehand. I'm sure this would be faster, but it 
+	would also be more complicated and less flexible. What if I wanted to apply a shader to just 
+	one cell? For example, a fire effect to just the player's sword. As it stands, this would be 
+	pretty trivial.
+	*/
 	SpriteCell* cells; size_t num_cells;
 	Rect hitbox;
 	float dur;
