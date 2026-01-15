@@ -564,7 +564,7 @@ static ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_ra
 	return chunk_header.type;
 }
 
-static void LoadSprite(Context* ctx, char* path) 
+static Sprite LoadSprite(Context* ctx, char* path) 
 {
 	SPALL_BUFFER_BEGIN();
 
@@ -757,39 +757,7 @@ static void LoadSprite(Context* ctx, char* path)
 
 	SDL_CloseIO(fs);
 	SPALL_BUFFER_END();
-}
-
-static SDL_EnumerationResult SDLCALL EnumerateSpriteDirectory(void* userdata, const char* dirname, const char* fname) 
-{
-	Context* ctx = userdata;
-	SPALL_BUFFER_BEGIN();
-
-	char dir_path[1024]; // dirname\fname
-	SDL_CHECK(SDL_snprintf(dir_path, sizeof(dir_path), "%s%s", dirname, fname) >= 0);
-
-	int32_t num_files;
-	char** files = SDL_GlobDirectory(dir_path, "*.aseprite", 0, &num_files); SDL_CHECK(files);
-	if (num_files == 0) 
-	{
-		SDL_CHECK(SDL_EnumerateDirectory(dir_path, EnumerateSpriteDirectory, ctx));
-	} 
-	else 
-	{
-		ctx->num_sprites += (size_t)num_files;
-
-		for (size_t file_idx = 0; file_idx < (size_t)num_files; file_idx += 1) 
-		{
-			char* file = files[file_idx];
-			char sprite_path[1024]; // dirname\fname\file
-			SDL_CHECK(SDL_snprintf(sprite_path, sizeof(sprite_path), "%s\\%s", dir_path, file) >= 0);
-
-			LoadSprite(ctx, sprite_path);
-		}
-	}
-	
-	SDL_free(files);
-	SPALL_BUFFER_END();
-	return SDL_ENUM_CONTINUE;
+	return sprite;
 }
 
 /**
@@ -1340,26 +1308,6 @@ int32_t main(int32_t argc, char* argv[])
 	UNUSED(argc);
 	UNUSED(argv);
 
-	// GetSprites
-	{
-		// This is the only time that we set the sprite variables.
-		// After that, they are effectively constants.
-
-		player_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-		player_run = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-		player_jump_start = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-		player_jump_end = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
-		player_attack = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
-		player_die = GetSprite("assets\\legacy_fantasy_high_forest\\Character\\Dead\\Dead.aseprite");
-
-		boar_idle = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
-		boar_walk = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
-		boar_run = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
-		boar_hit = GetSprite("assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
-
-		spr_tiles = GetSprite("assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
-	}
-
 	// InitContext
 	Context* ctx;
 	{
@@ -1401,6 +1349,24 @@ int32_t main(int32_t argc, char* argv[])
 		ok = spall_buffer_init(&ctx->spall_ctx, &ctx->spall_buffer); SDL_assert(ok);
 	}
 #endif // TOGGLE_PROFILING
+
+	// This is the only time that we set the sprite variables.
+	// After that, they are effectively constants.
+
+	player_idle = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	player_run = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+	player_jump_start = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+	player_jump_end = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+	player_attack = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
+	player_die = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Dead\\Dead.aseprite");
+
+	boar_idle = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+	boar_walk = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
+	boar_run = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
+	boar_hit = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
+
+	spr_tiles = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+
 
 	// CreateWindow
 	{
@@ -2264,9 +2230,6 @@ int32_t main(int32_t argc, char* argv[])
 		vkDestroyShaderModule(ctx->vk.device, tile_vert.module, NULL);
 		SPALL_BUFFER_END();
 	}
-
-	// LoadSprites
-	SDL_CHECK(SDL_EnumerateDirectory("assets\\legacy_fantasy_high_forest", EnumerateSpriteDirectory, ctx));
 
 #if TOGGLE_TESTS
 	size_t error_count = 0;
