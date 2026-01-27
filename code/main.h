@@ -1,7 +1,7 @@
 #pragma warning(push, 0)
-#include <SDL.h>
-#include <SDL_main.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <SDL3/SDL_vulkan.h>
 
 #include <cglm/struct.h>
 

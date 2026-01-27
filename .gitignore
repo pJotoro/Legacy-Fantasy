@@ -14,3 +14,4 @@ libraries/SDL3/lib/SDL2main.lib
 profile/*
 code/main.cpp
 captures/*.rdc
+*.radproj

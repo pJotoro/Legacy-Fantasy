@@ -3,10 +3,10 @@
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_FULLSCREEN 1
-#define TOGGLE_REPLAY_FRAMES 0
+#define TOGGLE_FULLSCREEN 0
+#define TOGGLE_REPLAY_FRAMES 1
 #define TOGGLE_TESTS 0
-#define TOGGLE_VULKAN_VALIDATION 0
+#define TOGGLE_VULKAN_VALIDATION 1
 
 #define GAMEPAD_THRESHOLD 0.1f
 
