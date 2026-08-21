@@ -1494,6 +1494,17 @@ int32_t main(int32_t argc, char* argv[])
 		// NOTE: After this, dt is effectively a constant.
 		dt = 60.0f/display_mode->refresh_rate;
 
+		// You might ask: why is there no variable dt?
+		// Obviously, for physics, you always need a fixed dt.
+		// For everything else, it is generally better to use the actual dt - that is, to recalculate it every frame.
+		// This is why game engines typically put physics on a separate thread, making it completely orthogonal to the core game loop.
+		// All of that is fine and dandy. However, this is a 2D pixel platformer prototype, so there isn't really a need for anything that fancy. 
+
+		// If you dig through the commit history, you'll find that originally, I was using substepping.
+		// The reason for this is that I was trying to fix some really annoying problems in the physics code, and some brilliant person online told me that the problem is obviously that the physics aren't updating fast enough.
+		// Which is obviously ridiculous for a project like this, but I nevertheless believed it.
+		// I've since learned, after other similar situations, to never assume that a random person on the internet knows my own code better than I do. It's always better to just try to solve the problem myself.
+
 		{
 			SPALL_BUFFER_BEGIN_NAME("SDL_CreateWindow");
 
