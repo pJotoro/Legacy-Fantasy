@@ -12,6 +12,12 @@ It's clean up time! Here are some things I want to do with this codebase before 
 Originally, my plan was much more ambitious. However, I don't want this to turn into a multi-week long job, since I also want to clean up Based Renderer. Therefore, the focus should be to fix the worst problems, and then maybe write a post-mortem about certain mistakes I made and how I would do things differently were I to start a new project.
 */
 
+/*
+Naming convention for functions:
+- If a function is basically a method, put the type at the front of the name. For example, `AnimReset` as opposed to `ResetAnim`.
+- Otherwise, make the function name follow the normal rules of English.
+*/
+
 #define TOGGLE_PROFILING 0
 
 #include "main.h"
@@ -76,13 +82,13 @@ typedef struct SpriteFrame
 
 	/**
 	 * Not every frame necessarily has a hitbox. If it exists, it is literally drawn inside of
-	 * Aseprite in a layer called "Hitbox". See GetEntityHitbox to find out how a hitbox is
+	 * Aseprite in a layer called "Hitbox". See EntityGetHitbox to find out how a hitbox is
 	 * selected for an entity.
 	 */
 	Rect hitbox;
 
 	/**
-	 * The duration of the frame. See UpdateAnim to find out how this is used.
+	 * The duration of the frame. See AnimUpdate to find out how this is used.
 	 */
 	float dur;
 } SpriteFrame;
@@ -114,15 +120,13 @@ typedef struct Anim
 	bool ended;
 } Anim;
 
-typedef uint32_t EntityType;
-enum 
+typedef enum EntityType
 {
 	EntityType_Player,
 	EntityType_Boar,
-};
+} EntityType;
 
-typedef uint32_t EntityState;
-enum 
+typedef enum EntityState 
 {
 	EntityState_Inactive,
 	EntityState_Die,
@@ -131,7 +135,7 @@ enum
 	EntityState_Jump,
 	EntityState_Free,
 	EntityState_Hurt,	
-};
+} EntityState;
 
 typedef struct Instance 
 {
@@ -387,9 +391,9 @@ static Sprite spr_tiles;
 
 static float dt;
 
-static ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir) 
+static ivec2s SpriteGetOrigin(Context* ctx, Sprite sprite, int32_t dir) 
 {
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
 	ivec2s origin = sd->origin;
 	if (dir == -1) 
 	{
@@ -398,28 +402,28 @@ static ivec2s GetSpriteOrigin(Context* ctx, Sprite sprite, int32_t dir)
 	return origin;
 }
 
-static ivec2s GetEntityOrigin(Context* ctx, Entity* entity)
+static ivec2s EntityGetOrigin(Context* ctx, Entity* entity)
 {
-	return GetSpriteOrigin(ctx, entity->anim.sprite, entity->dir);
+	return SpriteGetOrigin(ctx, entity->anim.sprite, entity->dir);
 }
 
-static bool SetAnimSprite(Anim* anim, Sprite sprite) 
+static bool AnimSetSprite(Anim* anim, Sprite sprite) 
 {
     bool sprite_changed = false;
     if (!SpritesEqual(anim->sprite, sprite)) 
     {
         sprite_changed = true;
-        ResetAnim(anim);
+        AnimReset(anim);
         anim->sprite = sprite;
     }
     return sprite_changed;
 }
 
-static void UpdateAnim(Context* ctx, Anim* anim, bool loop) 
+static void AnimUpdate(Context* ctx, Anim* anim, bool loop) 
 {
 	SPALL_BUFFER_BEGIN();
 
-    SpriteDesc* sd = GetSpriteDesc(ctx, anim->sprite);
+    SpriteDesc* sd = SpriteGetDesc(ctx, anim->sprite);
     SDL_assert(anim->frame_idx >= 0 && (size_t)anim->frame_idx < sd->num_frames);
 	float dur = sd->frames[anim->frame_idx].dur;
 	size_t num_frames = sd->num_frames;
@@ -450,8 +454,8 @@ static void ResetGame(Context* ctx)
 {
 	Entity* player = &ctx->level.entities[0];
 	
-	ResetAnim(&player->anim);
-	SetAnimSprite(&player->anim, player_idle);
+	AnimReset(&player->anim);
+	AnimSetSprite(&player->anim, player_idle);
 	player->pos = player->start_pos;
 	player->state = EntityState_Free;
 	player->vel = (vec2s){0.0f};
@@ -461,10 +465,10 @@ static void ResetGame(Context* ctx)
 	{
 		Entity* enemy = &ctx->level.entities[entity_idx];
 
-		ResetAnim(&enemy->anim);
+		AnimReset(&enemy->anim);
 		if (enemy->type == EntityType_Boar) 
 		{
-			SetAnimSprite(&enemy->anim, boar_idle);
+			AnimSetSprite(&enemy->anim, boar_idle);
 		} 
 		// else if (entity->type == EntityType_) {}
 		enemy->pos = enemy->start_pos;
@@ -476,7 +480,7 @@ static void ResetGame(Context* ctx)
 
 static ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset) 
 {
-	SpriteDesc* sd = GetSpriteDesc(ctx, tileset);
+	SpriteDesc* sd = SpriteGetDesc(ctx, tileset);
 	SDL_assert(sd->num_frames == 1);
 	SDL_assert(sd->frames[0].num_cells == 1);
 	return sd->size;
@@ -485,7 +489,7 @@ static ivec2s GetTilesetDimensions(Context* ctx, Sprite tileset)
 static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32_t dir, Rect* hitbox) 
 {
 	bool res = false;
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite); SDL_assert(sd);
+	SpriteDesc* sd = SpriteGetDesc(ctx, sprite); SDL_assert(sd);
 	SDL_assert(frame_idx < sd->num_frames); 
 	SpriteFrame* frame = &sd->frames[frame_idx];
 	SDL_assert(hitbox);
@@ -502,11 +506,11 @@ static bool GetSpriteHitbox(Context* ctx, Sprite sprite, size_t frame_idx, int32
 	return res;
 }
 
-static Rect GetEntityHitbox(Context* ctx, Entity* entity) 
+static Rect EntityGetHitbox(Context* ctx, Entity* entity) 
 {
 	SPALL_BUFFER_BEGIN();
 	Rect hitbox = {0};
-	SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+	SpriteDesc* sd = SpriteGetDesc(ctx, entity->anim.sprite);
 
 	/**
 	 * First, try to find the hitbox at the current frame index or earlier.
@@ -537,12 +541,12 @@ static Rect GetEntityHitbox(Context* ctx, Entity* entity)
 	return hitbox;
 }
 
-static Rect GetEntityRect(Context* ctx, Entity* entity)
+static Rect EntityGetRect(Context* ctx, Entity* entity)
 {
-	Rect res = GetEntityHitbox(ctx, entity);
+	Rect res = EntityGetHitbox(ctx, entity);
 	res.min = glms_ivec2_add(res.min, entity->pos); 
 	res.max = glms_ivec2_add(res.max, entity->pos);
-	ivec2s origin = GetEntityOrigin(ctx, entity); 
+	ivec2s origin = EntityGetOrigin(ctx, entity); 
 	res.min = glms_ivec2_sub(res.min, origin); 
 	res.max = glms_ivec2_sub(res.max, origin); 
 	return res;
@@ -555,8 +559,8 @@ static bool EntitiesIntersect(Context* ctx, Entity* a, Entity* b)
 
     if (a->state != EntityState_Inactive && b->state != EntityState_Inactive)
     {
-    	Rect ha = GetEntityRect(ctx, a);
-    	Rect hb = GetEntityRect(ctx, b);
+    	Rect ha = EntityGetRect(ctx, a);
+    	Rect hb = EntityGetRect(ctx, b);
     	res = RectsIntersect(ha, hb);
     } 
 
@@ -585,7 +589,7 @@ static Sprite LoadSprite(Context* ctx, char* path)
 	SDL_CHECK(SDL_GetPathInfo(path, NULL));
 
 	Sprite sprite = GetSprite(path);
-	SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+	SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
 	SDL_assert(!sd && "Collision");
 	sd = &ctx->sprites[sprite.idx];
 
@@ -893,7 +897,7 @@ static bool RectOverlappingLevel(
 	return res;
 }
 
-static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, float max_vel)
+static void EntityMoveX(Context* ctx, Entity* entity, float acc, float fric, float max_vel)
 {
 	entity->vel.x += acc*dt;
 
@@ -912,7 +916,7 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 		entity->vel.x = SDL_clamp(entity->vel.x, -max_vel, max_vel);
 	}
 
-	Rect rect = GetEntityRect(ctx, entity); 
+	Rect rect = EntityGetRect(ctx, entity); 
 	size_t num_tiles_overlapping; 
 	ivec2s* tiles_overlapping;
 	if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
@@ -938,7 +942,7 @@ static void MoveEntityX(Context* ctx, Entity* entity, float acc, float fric, flo
 	}
 }
 
-static void MoveEntityY(Context* ctx, Entity* entity, float acc)
+static void EntityMoveY(Context* ctx, Entity* entity, float acc)
 {
 	entity->vel.y += acc*dt;
 
@@ -948,7 +952,7 @@ static void MoveEntityY(Context* ctx, Entity* entity, float acc)
 
 	if (entity->vel.y > 0.0f)
 	{
-		Rect rect = GetEntityRect(ctx, entity); 
+		Rect rect = EntityGetRect(ctx, entity); 
 		size_t num_tiles_overlapping;
 		ivec2s* tiles_overlapping;
 		if (RectOverlappingLevel(ctx, rect, &num_tiles_overlapping, &tiles_overlapping))
@@ -978,7 +982,7 @@ static void UpdatePlayer(Context* ctx)
 	Entity* player = GetPlayer(ctx);
 
 	bool touching_left, touching_right, touching_down;
-	RectTouchingLevel(ctx, GetEntityRect(ctx, player), 
+	RectTouchingLevel(ctx, EntityGetRect(ctx, player), 
 		&touching_left, &touching_right, &touching_down);
 	switch (player->state)
 	{
@@ -1055,11 +1059,11 @@ static void UpdatePlayer(Context* ctx)
 		{
 			if (input_dir == 0 && player->vel.x == 0.0f) 
 			{
-				SetAnimSprite(&player->anim, player_idle);
+				AnimSetSprite(&player->anim, player_idle);
 			} 
 			else 
 			{
-				SetAnimSprite(&player->anim, player_run);
+				AnimSetSprite(&player->anim, player_run);
 				if (player->vel.x != 0.0f) 
 				{
 					player->dir = (int32_t)glm_signf(player->vel.x);
@@ -1081,20 +1085,20 @@ static void UpdatePlayer(Context* ctx)
 						acc = ctx->gamepad_left_stick.x * PLAYER_ACC;
 					}
 
-					MoveEntityX(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
+					EntityMoveX(ctx, player, acc, PLAYER_FRIC, PLAYER_MAX_VEL);
 				}
 			}
 
 			bool loop = true;
-			UpdateAnim(ctx, &player->anim, loop);
+			AnimUpdate(ctx, &player->anim, loop);
 		} break;
 		case EntityState_Inactive:
 			break;
 	    case EntityState_Die: 
 	    {
-			SetAnimSprite(&player->anim, player_die);
+			AnimSetSprite(&player->anim, player_die);
 			bool loop = false;
-			UpdateAnim(ctx, &player->anim, loop);
+			AnimUpdate(ctx, &player->anim, loop);
 			if (player->anim.ended) 
 			{
 				ResetGame(ctx);
@@ -1103,7 +1107,7 @@ static void UpdatePlayer(Context* ctx)
 
 	    case EntityState_Attack: 
 	    {
-			SetAnimSprite(&player->anim, player_attack);
+			AnimSetSprite(&player->anim, player_attack);
 
 			size_t num_enemies; Entity* enemies = GetEnemies(ctx, &num_enemies);
 			for (size_t enemy_idx = 0; enemy_idx < num_enemies; enemy_idx += 1) 
@@ -1123,36 +1127,36 @@ static void UpdatePlayer(Context* ctx)
 			}
 			
 			bool loop = false;
-			UpdateAnim(ctx, &player->anim, loop);
+			AnimUpdate(ctx, &player->anim, loop);
 		} break;
 	    	
 	    case EntityState_Fall: 
 	    {
-	    	SetAnimSprite(&player->anim, player_jump_end);
+	    	AnimSetSprite(&player->anim, player_jump_end);
 
 	    	Entity player_x = *player;
 	    	Entity player_y = *player;
 	    	if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
 	    	{
-	    		MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+	    		EntityMoveX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
 	    		player->pos.x = player_x.pos.x;
 	    		player->pos_remainder.x = player_x.pos_remainder.x;
 	    		player->vel.x = player_x.vel.x;
 	    	}
-	    	MoveEntityY(ctx, &player_y, GRAVITY);
+	    	EntityMoveY(ctx, &player_y, GRAVITY);
 	    	player->pos.y = player_y.pos.y;
 	    	player->pos_remainder.y = player_y.pos_remainder.y;
 	    	player->vel.y = player_y.vel.y;
 
 	    	bool loop = false;
-	    	UpdateAnim(ctx, &player->anim, loop);
+	    	AnimUpdate(ctx, &player->anim, loop);
 		} break;
 	    	
 		case EntityState_Jump: 
 		{
 			float acc = 0.0f;
 			static bool jumped;
-			if (SetAnimSprite(&player->anim, player_jump_start))
+			if (AnimSetSprite(&player->anim, player_jump_start))
 			{
 				jumped = false;
 			}
@@ -1165,12 +1169,12 @@ static void UpdatePlayer(Context* ctx)
 				Entity player_y = *player;
 				if (player->vel.x != 0.0f || player->pos_remainder.x != 0.0f)
 		    	{
-		    		MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+		    		EntityMoveX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
 		    		player->pos.x = player_x.pos.x;
 		    		player->pos_remainder.x = player_x.pos_remainder.x;
 		    		player->vel.x = player_x.vel.x;
 		    	}
-		    	MoveEntityY(ctx, &player_y, acc);
+		    	EntityMoveY(ctx, &player_y, acc);
 		    	player->pos.y = player_y.pos.y;
 		    	player->pos_remainder.y = player_y.pos_remainder.y;
 		    	player->vel.y = player_y.vel.y;
@@ -1180,9 +1184,9 @@ static void UpdatePlayer(Context* ctx)
 				acc += GRAVITY;
 
 				Entity player_x = *player;
-				MoveEntityX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
+				EntityMoveX(ctx, &player_x, 0.0f, 0.0f, 0.0f);
 				Entity player_y = *player;
-				MoveEntityY(ctx, &player_y, acc);
+				EntityMoveY(ctx, &player_y, acc);
 
 				player->pos.x = player_x.pos.x;
 				player->pos_remainder.x = player_x.pos_remainder.x;
@@ -1193,7 +1197,7 @@ static void UpdatePlayer(Context* ctx)
 			}
 
 			bool loop = false;
-	    	UpdateAnim(ctx, &player->anim, loop);
+	    	AnimUpdate(ctx, &player->anim, loop);
 		} break;
 
 		default: 
@@ -1210,7 +1214,7 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 	SPALL_BUFFER_BEGIN();
 
 	bool touching_left, touching_right, touching_down;
-	RectTouchingLevel(ctx, GetEntityRect(ctx, boar), 
+	RectTouchingLevel(ctx, EntityGetRect(ctx, boar), 
 		&touching_left, &touching_right, &touching_down);
 	switch (boar->state)
 	{
@@ -1243,10 +1247,10 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 	{
 		case EntityState_Hurt: 
 		{
-			SetAnimSprite(&boar->anim, boar_hit);
+			AnimSetSprite(&boar->anim, boar_hit);
 
 			bool loop = false;
-			UpdateAnim(ctx, &boar->anim, loop);
+			AnimUpdate(ctx, &boar->anim, loop);
 
 			if (boar->anim.ended) 
 			{
@@ -1256,32 +1260,32 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 
 		case EntityState_Fall: 
 		{
-			SetAnimSprite(&boar->anim, boar_idle);
+			AnimSetSprite(&boar->anim, boar_idle);
 
 			Entity boar_x = *boar;
 			Entity boar_y = *boar;
 			if (boar->vel.x != 0.0f || boar->pos_remainder.x != 0.0f)
 			{
-				MoveEntityX(ctx, &boar_x, 0.0f, 0.0f, 0.0f);
+				EntityMoveX(ctx, &boar_x, 0.0f, 0.0f, 0.0f);
 				boar->pos.x = boar_x.pos.x;
 				boar->pos_remainder.x = boar_x.pos_remainder.x;
 				boar->vel.x = boar_x.vel.x;
 			}
-			MoveEntityY(ctx, &boar_y, GRAVITY);
+			EntityMoveY(ctx, &boar_y, GRAVITY);
 			boar->pos.y = boar_y.pos.y;
 			boar->pos_remainder.y = boar_y.pos_remainder.y;
 			boar->vel.y = boar_y.vel.y;
 			
 			bool loop = true;
-			UpdateAnim(ctx, &boar->anim, loop);
+			AnimUpdate(ctx, &boar->anim, loop);
 		} break;
 
 		case EntityState_Free: 
 		{
-			SetAnimSprite(&boar->anim, boar_idle);
+			AnimSetSprite(&boar->anim, boar_idle);
 
 			bool loop = true;
-			UpdateAnim(ctx, &boar->anim, loop);
+			AnimUpdate(ctx, &boar->anim, loop);
 		} break;
 
 		default: 
@@ -2249,7 +2253,7 @@ int32_t main(int32_t argc, char* argv[])
 	size_t error_count = 0;
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 	{
-		SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+		SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 		if (sd) 
 		{
 			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
@@ -2489,7 +2493,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 			if (sd) 
 			{
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
@@ -2516,7 +2520,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 			if (sd) 
 			{
 				for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
@@ -2561,7 +2565,7 @@ int32_t main(int32_t argc, char* argv[])
 		size_t i = 0;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 			if (sd) 
 			{
 				VkImageCreateInfo info = 
@@ -2616,7 +2620,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 			if (sd) 
 			{
 				bool is_tileset = false;
@@ -2755,7 +2759,7 @@ int32_t main(int32_t argc, char* argv[])
 		size_t i = 1;
 		for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 		{
-			SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+			SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 			if (sd) 
 			{
 				sd->vk_descriptor_set = descriptor_sets[i];
@@ -3034,7 +3038,7 @@ int32_t main(int32_t argc, char* argv[])
 				Entity* entity = &entities[entity_idx];
 				if (entity->state != EntityState_Inactive)
 				{
-					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					SpriteDesc* sd = SpriteGetDesc(ctx, entity->anim.sprite);
 					num_instances += sd->frames[entity->anim.frame_idx].num_cells;
 				}
 			}
@@ -3046,7 +3050,7 @@ int32_t main(int32_t argc, char* argv[])
 				Entity* entity = &entities[entity_idx];
 				if (entity->state != EntityState_Inactive)
 				{
-					SpriteDesc* sd = GetSpriteDesc(ctx, entity->anim.sprite);
+					SpriteDesc* sd = SpriteGetDesc(ctx, entity->anim.sprite);
 					size_t base_frame_idx = 0;
 					for (size_t frame_idx = 0; frame_idx < entity->anim.frame_idx; frame_idx += 1) 
 					{
@@ -3058,7 +3062,7 @@ int32_t main(int32_t argc, char* argv[])
 						++cell_idx, ++instance_idx) 
 					{
 						Instance* instance = &instances[instance_idx];
-						ivec2s origin = GetEntityOrigin(ctx, entity);
+						ivec2s origin = EntityGetOrigin(ctx, entity);
 						instance->rect.min = glms_ivec2_sub(entity->pos, origin);
 						instance->rect.max = glms_ivec2_add(instance->rect.min, sd->size);
 						instance->anim_frame_idx = (int32_t)(base_frame_idx + cell_idx + 1)*entity->dir;
@@ -3114,7 +3118,7 @@ int32_t main(int32_t argc, char* argv[])
 				size_t i = 0;
 				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 				{
-					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+					SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 					if (!sd) continue;
 
 					VkImageSubresourceRange subresource_range = 
@@ -3191,7 +3195,7 @@ int32_t main(int32_t argc, char* argv[])
 				
 				for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 				{
-					SpriteDesc* sd = GetSpriteDesc(ctx, (Sprite){sprite_idx});
+					SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
 					if (!sd) continue;
 					VkBufferImageCopy* regions = StackAlloc(&ctx->stack, sd->vk_image_array_layers, VkBufferImageCopy);
 					size_t region_idx = 0;
@@ -3374,7 +3378,7 @@ int32_t main(int32_t argc, char* argv[])
 
 			vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipelines[0]);
 
-			SpriteDesc* sd =  GetSpriteDesc(ctx, spr_tiles);
+			SpriteDesc* sd =  SpriteGetDesc(ctx, spr_tiles);
 			VkDescriptorSet descriptor_sets[] = {
 				ctx->vk.descriptor_set_uniforms, 
 				sd->vk_descriptor_set
@@ -3403,7 +3407,7 @@ int32_t main(int32_t argc, char* argv[])
 			Entity* entities = ctx->level.entities;
 			
 			// DrawPlayer
-			SpriteDesc* sd = GetSpriteDesc(ctx, entities[0].anim.sprite);
+			SpriteDesc* sd = SpriteGetDesc(ctx, entities[0].anim.sprite);
 			vkCmdBindDescriptorSets(cb, 
 				VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vk.pipeline_layout, 
 				1, 1, &sd->vk_descriptor_set, 
@@ -3434,7 +3438,7 @@ int32_t main(int32_t argc, char* argv[])
 				}
 
 				Sprite sprite = entity->anim.sprite;
-				SpriteDesc* sd = GetSpriteDesc(ctx, sprite);
+				SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
 
 				cur_num_instances = sd->frames[entity->anim.frame_idx].num_cells;
 
