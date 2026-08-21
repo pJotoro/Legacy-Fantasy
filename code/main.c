@@ -1,20 +1,15 @@
 /*
 It's clean up time! Here are some things I want to do with this codebase before I show it off at the interview:
 
-1. Change things to make them work more like in Based Renderer:
+- Fix sprite loading.
 - Preprocessor macros
 - Naming conventions
 - Vulkan initialization (things like disabling features I know I won't use)
 # CMake build system.
-
-2. Clean up the damn code! I mean seriously, this code is very messy.
-- Keep everything inside of one file (except aseprite declarations). Normally splitting things up into multiple files is good, but for a codebase this small, I would say it makes it a lot harder to follow what the heck is going on.
 - Strenously domument everything.
 - Eliminate commented out code.
 
-3. Get rid of build_shaders_debug.bat and build_shaders_release.bat. Instead, just build those things in the CMake build system. Also keep the shaders in a folder where the executable is so that way, you can copy-paste the build and still have it work fine.
-
-4. Add another build configuration. I'm not sure what it should be called yet, but "ship" would probably be fine. Basically it would do the same thing as release, except package the game in a zip folder without any unwanted files like debug symbols.
+Originally, my plan was much more ambitious. However, I don't want this to turn into a multi-week long job, since I also want to clean up Based Renderer. Therefore, the focus should be to fix the worst problems, and then maybe write a post-mortem about certain mistakes I made and how I would do things differently were I to start a new project.
 */
 
 #define TOGGLE_PROFILING 0
