@@ -15,8 +15,6 @@ It's clean up time! Here are some things I want to do with this codebase before 
 - Replace cglm with custom vector types.
 - Replace SDL with the Windows API.
 - Replace CMake build system with a batch file.
-
-4. Update the README. 
 */
 
 #define TOGGLE_PROFILING 0
