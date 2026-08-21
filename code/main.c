@@ -3,7 +3,7 @@ It's clean up time! Here are some things I want to do with this codebase before 
 
 - Fix sprite loading.
 - Preprocessor macros
-- Naming conventions
+# Naming conventions
 - Vulkan initialization (things like disabling features I know I won't use)
 # CMake build system.
 - Strenously domument everything.
@@ -18,15 +18,15 @@ Naming convention for functions:
 - Otherwise, make the function name follow the normal rules of English.
 */
 
-#define TOGGLE_PROFILING 0
+#define LEGACY_FANTASY_PROFILING 0
 
 #include "main.h"
 #include "aseprite.h"
 
-#define TOGGLE_FULLSCREEN 0
-#define TOGGLE_REPLAY_FRAMES 1
-#define TOGGLE_TESTS 0
-#define TOGGLE_VULKAN_VALIDATION 1
+#define LEGACY_FANTASY_FULLSCREEN 0
+#define LEGACY_FANTASY_REPLAY_FRAMES 1
+#define LEGACY_FANTASY_TESTS 0
+#define LEGACY_FANTASY_VULKAN_VALIDATION 1
 
 #define GAMEPAD_THRESHOLD 0.1f
 
@@ -180,12 +180,12 @@ typedef struct Level
 	bool* tiles; // num_tiles = size.x*size.y
 } Level;
 
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 typedef struct ReplayFrame 
 {
 	Entity* entities; size_t num_entities;
 } ReplayFrame;
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 
 // https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
 typedef struct Arena 
@@ -324,10 +324,10 @@ typedef struct Vulkan
 
 typedef struct Context 
 {
-#if TOGGLE_PROFILING
+#if LEGACY_FANTASY_PROFILING
 	SpallProfile spall_ctx;
 	SpallBuffer spall_buffer;
-#endif // TOGGLE_PROFILING
+#endif // LEGACY_FANTASY_PROFILING
 
 	Arena arena;
 	Stack stack;
@@ -357,13 +357,13 @@ typedef struct Context
 
 	Vulkan vk;
 
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 	ReplayFrame* replay_frames; 
 	size_t replay_frame_idx; 
 	size_t replay_frame_idx_max;
 	size_t c_replay_frames;
 	bool paused;
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 } Context;
 
 typedef struct VkImageMemoryRequirements 
@@ -710,7 +710,7 @@ static Sprite LoadSprite(Context* ctx, char* path)
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
-#if TOGGLE_TESTS
+#if LEGACY_FANTASY_TESTS
 		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
 #endif
 
@@ -1297,7 +1297,7 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 	SPALL_BUFFER_END();
 }
 
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 static void SetReplayFrame(Context* ctx, size_t replay_frame_idx) 
 {
 	if (replay_frame_idx < ctx->replay_frame_idx_max) 
@@ -1308,7 +1308,7 @@ static void SetReplayFrame(Context* ctx, size_t replay_frame_idx)
 		ctx->level.num_entities = replay_frame->num_entities;
 	}
 }
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 
 #ifdef _DEBUG
 VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user_data) 
@@ -1351,7 +1351,7 @@ int32_t main(int32_t argc, char* argv[])
 		ctx->stack = stack;
 	}
 
-#if TOGGLE_PROFILING
+#if LEGACY_FANTASY_PROFILING
 	{
 		bool ok;
 
@@ -1366,7 +1366,7 @@ int32_t main(int32_t argc, char* argv[])
 		};
 		ok = spall_buffer_init(&ctx->spall_ctx, &ctx->spall_buffer); SDL_assert(ok);
 	}
-#endif // TOGGLE_PROFILING
+#endif // LEGACY_FANTASY_PROFILING
 
 	// This is the only time that we set the sprite variables.
 	// After that, they are effectively constants.
@@ -1408,11 +1408,11 @@ int32_t main(int32_t argc, char* argv[])
 			int32_t window_width = display_mode->w;
 			int32_t window_height = display_mode->h;
 			SDL_WindowFlags window_flags = SDL_WINDOW_FULLSCREEN|SDL_WINDOW_HIDDEN|SDL_WINDOW_HIGH_PIXEL_DENSITY|SDL_WINDOW_VULKAN;
-#if !TOGGLE_FULLSCREEN
+#if !LEGACY_FANTASY_FULLSCREEN
 			window_width /= 2;
 			window_height /= 2;
 			window_flags &= ~SDL_WINDOW_FULLSCREEN;
-#endif // TOGGLE_FULLSCREEN
+#endif // LEGACY_FANTASY_FULLSCREEN
 			ctx->window = SDL_CreateWindow("LegacyFantasy", window_width, window_height, window_flags);
 			SDL_CHECK(ctx->window);
 
@@ -1443,12 +1443,12 @@ int32_t main(int32_t argc, char* argv[])
 		#error Unsupported platform.
 #endif // SDL_PLATFORM_WINDOWS
 
-#if TOGGLE_VULKAN_VALIDATION
+#if LEGACY_FANTASY_VULKAN_VALIDATION
 		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
 		#define VULKAN_DEBUG_EXTENSIONS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
 #else
 		#define VULKAN_DEBUG_EXTENSIONS
-#endif // TOGGLE_VULKAN_VALIDATION
+#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 		static char const * const instance_extensions[] =
 		{ 
 			VULKAN_DEBUG_EXTENSIONS
@@ -1471,15 +1471,15 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
-#if TOGGLE_VULKAN_VALIDATION
+#if LEGACY_FANTASY_VULKAN_VALIDATION
 			.enabledLayerCount = SDL_arraysize(layers),
 			.ppEnabledLayerNames = layers,
-#endif // TOGGLE_VULKAN_VALIDATION
+#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 			.enabledExtensionCount = SDL_arraysize(instance_extensions),
 			.ppEnabledExtensionNames = instance_extensions,
 		};
 
-#if TOGGLE_VULKAN_VALIDATION
+#if LEGACY_FANTASY_VULKAN_VALIDATION
 		VkDebugUtilsMessengerCreateInfoEXT debug_info = 
 		{
 			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -1506,7 +1506,7 @@ int32_t main(int32_t argc, char* argv[])
 
 		create_info.pNext = &debug_info;
 		debug_info.pNext = &validation_info;
-#endif // TOGGLE_VULKAN_VALIDATION
+#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 
 		if (vkCreateInstance(&create_info, NULL, &ctx->vk.instance) != VK_SUCCESS)
 		{
@@ -2249,7 +2249,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
-#if TOGGLE_TESTS
+#if LEGACY_FANTASY_TESTS
 	size_t error_count = 0;
 	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
 	{
@@ -2466,7 +2466,7 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
-#if TOGGLE_TESTS
+#if LEGACY_FANTASY_TESTS
 	// PrintLevel
 	{
 		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.val.x + 1, 1);
@@ -2827,12 +2827,12 @@ int32_t main(int32_t argc, char* argv[])
 	}
 
 	// InitReplayFrames
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 	{
 		ctx->c_replay_frames = 1024;
 		ctx->replay_frames = SDL_malloc(ctx->c_replay_frames * sizeof(ReplayFrame)); SDL_CHECK(ctx->replay_frames);
 	}
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 
 	ResetGame(ctx);
 
@@ -2870,9 +2870,9 @@ int32_t main(int32_t argc, char* argv[])
 						switch (event.key.key) 
 						{
 							case SDLK_SPACE:
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 								ctx->paused = !ctx->paused;
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 								break;
 							case SDLK_0:
 								break;
@@ -2884,24 +2884,24 @@ int32_t main(int32_t argc, char* argv[])
 								{
 									ctx->button_left = 1;
 								}
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 								if (ctx->paused) 
 								{
 									SetReplayFrame(ctx, SDL_max(ctx->replay_frame_idx - 1, 0));
 								}
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 								break;
 							case SDLK_RIGHT:
 								if (!event.key.repeat) 
 								{
 									ctx->button_right = 1;
 								}
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 								if (ctx->paused) 
 								{
 									SetReplayFrame(ctx, SDL_min(ctx->replay_frame_idx + 1, ctx->replay_frame_idx_max - 1));
 								}
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 								break;
 							case SDLK_UP:
 								if (!event.key.repeat) 
@@ -2976,11 +2976,11 @@ int32_t main(int32_t argc, char* argv[])
 			SPALL_BUFFER_END();
 		}
 		bool paused;
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 		paused = ctx->paused;
 #else
 		paused = false;
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 		if (!paused) 
 		{
 			// UpdateGame
@@ -3001,7 +3001,7 @@ int32_t main(int32_t argc, char* argv[])
 				SPALL_BUFFER_END();
 			}
 
-#if TOGGLE_REPLAY_FRAMES
+#if LEGACY_FANTASY_REPLAY_FRAMES
 			// RecordReplayFrame
 			{
 				SPALL_BUFFER_BEGIN_NAME("RecordReplayFrame");
@@ -3022,7 +3022,7 @@ int32_t main(int32_t argc, char* argv[])
 
 				SPALL_BUFFER_END();
 			}
-#endif // TOGGLE_REPLAY_FRAMES
+#endif // LEGACY_FANTASY_REPLAY_FRAMES
 		}
 		
 		// VulkanCopyInstancesToDynamicStagingBuffer
@@ -3511,10 +3511,10 @@ int32_t main(int32_t argc, char* argv[])
 	}
 
 	// NOTE: If we don't do this, we might not get the last few events.
-#if TOGGLE_PROFILING
+#if LEGACY_FANTASY_PROFILING
 	spall_buffer_quit(&ctx->spall_ctx, &ctx->spall_buffer);
 	spall_quit(&ctx->spall_ctx);
-#endif // TOGGLE_PROFILING
+#endif // LEGACY_FANTASY_PROFILING
 
 	// NOTE: If we don't do this, SDL might not reverse certain operations,
 	// like changing the resolution of the monitor.

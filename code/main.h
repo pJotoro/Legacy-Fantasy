@@ -21,7 +21,7 @@
 #define RADDBG_MARKUP_IMPLEMENTATION
 #include <raddbg_markup.h>
 
-#if TOGGLE_PROFILING
+#if LEGACY_FANTASY_PROFILING
 #include <spall/spall.h>
 #define SPALL_BUFFER_BEGIN_NAME(NAME) STMT( \
 	SDL_Time time; \
