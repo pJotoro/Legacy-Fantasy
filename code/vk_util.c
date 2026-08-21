@@ -86,66 +86,6 @@ static void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer)
 	*buffer = (VulkanBuffer){0};
 }
 
-static void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_IMAGE,
-			.objectHandle  = (uint64_t)image,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(image);
-	UNUSED(name);
-#endif
-}
-
-static void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
-			.objectHandle  = (uint64_t)image_view,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(image_view);
-	UNUSED(name);
-#endif
-}
-
-static void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_BUFFER,
-			.objectHandle  = (uint64_t)buffer,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(buffer);
-	UNUSED(name);
-#endif
-}
-
 /**
  * If the functions below seem a little strange, that's because they are.
  * Normally, you wouldn't mess with buffer or image memory directly in this way.

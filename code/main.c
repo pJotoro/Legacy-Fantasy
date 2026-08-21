@@ -7,7 +7,7 @@ It's clean up time! Here are some things I want to do with this codebase before 
 # Vulkan initialization (things like disabling features I know I won't use)
 # CMake build system.
 - Strenously domument everything.
-- Eliminate commented out code.
+# Eliminate commented out code.
 
 Originally, my plan was much more ambitious. However, I don't want this to turn into a multi-week long job, since I also want to clean up Based Renderer. Therefore, the focus should be to fix the worst problems, and then maybe write a post-mortem about certain mistakes I made and how I would do things differently were I to start a new project.
 */
@@ -37,7 +37,6 @@ Naming convention for functions:
 
 #define LEGACY_FANTASY_FULLSCREEN 0
 #define LEGACY_FANTASY_REPLAY_FRAMES 1
-#define LEGACY_FANTASY_TESTS 0
 
 #define GAMEPAD_THRESHOLD 0.1f
 
@@ -106,8 +105,6 @@ typedef struct SpriteFrame
 
 typedef struct SpriteDesc 
 {
-	char* name;
-
 	ivec2s origin;
 	ivec2s size;
 	SpriteFrame* frames; size_t num_frames;
@@ -604,13 +601,6 @@ static Sprite LoadSprite(Context* ctx, char* path)
 	SDL_assert(!sd && "Collision");
 	sd = &ctx->sprites[sprite.idx];
 
-	// SetSpriteName (we need this for vkSetDebugUtilsObjectNameEXT)
-	{
-		size_t buf_size = SDL_strlen(path) + 1;
-		sd->name = ArenaAllocRaw(&ctx->arena, buf_size, 1);
-		SDL_strlcpy(sd->name, path, buf_size);
-	}
-
 	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); 
 	SDL_CHECK(fs);
 
@@ -721,9 +711,6 @@ static Sprite LoadSprite(Context* ctx, char* path)
 
 			StackFree(&ctx->stack, raw_chunk);
 		}
-#if LEGACY_FANTASY_TESTS
-		SDL_Log("sprites[%s].frames[%llu].num_cells = %llu", sd->name, frame_idx, sd->frames[frame_idx].num_cells);
-#endif
 
 		if (sd->frames[frame_idx].num_cells > 0) 
 		{
@@ -2246,30 +2233,6 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
-#if LEGACY_FANTASY_TESTS
-	size_t error_count = 0;
-	for (size_t sprite_idx = 0; sprite_idx < MAX_SPRITES; sprite_idx += 1) 
-	{
-		SpriteDesc* sd = SpriteGetDesc(ctx, (Sprite){sprite_idx});
-		if (sd) 
-		{
-			for (size_t frame_idx = 0; frame_idx < sd->num_frames; frame_idx += 1) 
-			{
-				for (size_t cell_idx = 0; cell_idx < sd->frames[frame_idx].num_cells; cell_idx += 1) 
-				{
-					SpriteCell* cell = &ctx->sprites[sprite_idx].frames[frame_idx].cells[cell_idx];
-					if (cell->size.x == 0 || cell->size.y == 0) 
-					{
-						SDL_Log("ERROR: (%s).frames[%llu].cells[%llu].size == 0", sd->name, frame_idx, cell_idx);
-						error_count += 1;
-					}
-				}
-			}
-		}
-	}
-	SDL_Log("Error count: %llu", error_count);
-#endif
-
 	// LoadLevel
 	{
 		SPALL_BUFFER_BEGIN_NAME("LoadLevel");
@@ -2460,27 +2423,6 @@ int32_t main(int32_t argc, char* argv[])
 
 		SPALL_BUFFER_END();
 	}
-
-#if LEGACY_FANTASY_TESTS
-	// PrintLevel
-	{
-		uint8_t* buf = StackAllocRaw(&ctx->stack, ctx->level.size.val.x + 1, 1);
-		SDL_Log("level start");
-		for (size_t y = 0; y < (size_t)(ctx->level.size.val.y); y += 1) 
-		{
-			for (size_t x = 0; x < (size_t)(ctx->level.size.val.x); x += 1) 
-			{
-				buf[x] = ctx->level.tiles[x + y*(size_t)ctx->level.size.val.x];
-				if (buf[x] == 0) buf[x] = '0';
-				else buf[x] = '1';
-			}
-			buf[ctx->level.size.val.x] = 0;
-			SDL_Log((const char*)buf);
-		}
-		SDL_Log("level end");
-		StackFree(&ctx->stack, buf);
-	}
-#endif
 	
 	// VulkanCreateStaticStagingBuffer
 	{
@@ -2509,7 +2451,6 @@ int32_t main(int32_t argc, char* argv[])
 		}
 
 		ctx->vk.static_staging_buffer = VulkanCreateBuffer(&ctx->vk, ctx->vk.static_staging_buffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VulkanSetBufferName(ctx->vk.device, ctx->vk.static_staging_buffer.handle, "Static Staging Buffer");
 
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.static_staging_buffer);
 
@@ -2582,7 +2523,6 @@ int32_t main(int32_t argc, char* argv[])
 				sd->vk_image_array_layers = (size_t)info.arrayLayers;
 
 				VK_CHECK(vkCreateImage(ctx->vk.device, &info, NULL, &sd->vk_image));
-				VulkanSetImageName(ctx->vk.device, sd->vk_image, sd->name);
 
 				vkGetImageMemoryRequirements(ctx->vk.device, sd->vk_image, &mem_reqs[i]);
 				memory_offset = AlignForward(memory_offset, mem_reqs[i].alignment);
@@ -2659,7 +2599,6 @@ int32_t main(int32_t argc, char* argv[])
 					};
 					VK_CHECK(vkCreateImageView(ctx->vk.device, &info, NULL, &sd->vk_image_view));
 				}
-				VulkanSetImageViewName(ctx->vk.device, sd->vk_image_view, sd->name);
 			}
 		}
 
@@ -2699,7 +2638,6 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateUniformBuffer");
 
 		ctx->vk.uniform_buffer = VulkanCreateBuffer(&ctx->vk, sizeof(Uniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		VulkanSetBufferName(ctx->vk.device, ctx->vk.uniform_buffer.handle, "Uniform Buffer");
 
 		SPALL_BUFFER_END();
 	}
@@ -2798,7 +2736,6 @@ int32_t main(int32_t argc, char* argv[])
 		VkDeviceSize size = 0;
 		size += ctx->level.num_entities*sizeof(Instance)*2;
 		ctx->vk.dynamic_staging_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		VulkanSetBufferName(ctx->vk.device, ctx->vk.dynamic_staging_buffer.handle, "Dynamic Staging Buffer");
 		VulkanMapBufferMemory(&ctx->vk, &ctx->vk.dynamic_staging_buffer);
 
 		SPALL_BUFFER_END();
@@ -2816,7 +2753,6 @@ int32_t main(int32_t argc, char* argv[])
 			size += tile_layer->num_tiles*sizeof(Tile);
 		}
 		ctx->vk.vertex_buffer = VulkanCreateBuffer(&ctx->vk, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		VulkanSetBufferName(ctx->vk.device, ctx->vk.vertex_buffer.handle, "Vertex Buffer");
 
 		SPALL_BUFFER_END();
 	}
