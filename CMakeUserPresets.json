@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/ninja/debug",
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/ninja/release",
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
+}
