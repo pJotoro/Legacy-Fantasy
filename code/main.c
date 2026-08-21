@@ -11,6 +11,10 @@ It's clean up time! Here are some things I want to do with this codebase before 
 - Keep everything inside of one file (except aseprite declarations). Normally splitting things up into multiple files is good, but for a codebase this small, I would say it makes it a lot harder to follow what the heck is going on.
 - Strenously domument everything.
 - Eliminate commented out code.
+
+3. Get rid of build_shaders_debug.bat and build_shaders_release.bat. Instead, just build those things in the CMake build system. Also keep the shaders in a folder where the executable is so that way, you can copy-paste the build and still have it work fine.
+
+4. Add another build configuration. I'm not sure what it should be called yet, but "ship" would probably be fine. Basically it would do the same thing as release, except package the game in a zip folder without any unwanted files like debug symbols.
 */
 
 #define TOGGLE_PROFILING 0
