@@ -42,14 +42,13 @@ static VulkanBuffer VulkanCreateBuffer(Vulkan* vk, VkDeviceSize size, VkBufferUs
 {
 	VulkanBuffer res = {.size = size};
 	{
-		uint32_t queue_family_idx = 0; // TODO
+		uint32_t queue_family_idx = 0; // Because I already know I will only ever use the graphics queue family, which is always the first one.
 		VkBufferCreateInfo buffer_info = 
 		{
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = size,
 			.usage = usage,
 
-			// TODO
 			.queueFamilyIndexCount = 1,
 			.pQueueFamilyIndices = &queue_family_idx,
 		};
