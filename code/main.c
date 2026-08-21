@@ -590,7 +590,7 @@ static ASE_ChunkType ASE_ReadChunk(SDL_IOStream* fs, Stack* stack, void** out_ra
 	return chunk_header.type;
 }
 
-static Sprite LoadSprite(Context* ctx, char* path) 
+static Sprite SpriteLoad(Context* ctx, char* path) 
 {
 	SPALL_BUFFER_BEGIN();
 
@@ -1469,19 +1469,19 @@ int32_t main(int32_t argc, char* argv[])
 	// This is the only time that we set the sprite variables.
 	// After that, they are effectively constants.
 
-	player_idle = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
-	player_run = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
-	player_jump_start = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
-	player_jump_end = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
-	player_attack = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
-	player_die = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Dead\\Dead.aseprite");
+	player_idle = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Idle\\Idle.aseprite");
+	player_run = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Run\\Run.aseprite");
+	player_jump_start = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-Start\\Jump-Start.aseprite");
+	player_jump_end = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Jump-End\\Jump-End.aseprite");
+	player_attack = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Attack-01\\Attack-01.aseprite");
+	player_die = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Character\\Dead\\Dead.aseprite");
 
-	boar_idle = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
-	boar_walk = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
-	boar_run = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
-	boar_hit = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
+	boar_idle = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Idle\\Idle.aseprite");
+	boar_walk = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Walk\\Walk-Base.aseprite");
+	boar_run = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Run\\Run.aseprite");
+	boar_hit = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Mob\\Boar\\Hit-Vanish\\Hit.aseprite");
 
-	spr_tiles = LoadSprite(ctx, "assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
+	spr_tiles = SpriteLoad(ctx, "assets\\legacy_fantasy_high_forest\\Assets\\Tiles.aseprite");
 
 
 	// CreateWindow
