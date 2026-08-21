@@ -2,7 +2,7 @@
 It's clean up time! Here are some things I want to do with this codebase before I show it off at the interview:
 
 - Fix sprite loading.
-- Preprocessor macros
+# Preprocessor macros
 # Naming conventions
 - Vulkan initialization (things like disabling features I know I won't use)
 # CMake build system.
@@ -745,7 +745,7 @@ static Sprite LoadSprite(Context* ctx, char* path)
 				{
 
 					SpriteCell cell = 
-				{
+					{
 						.origin.x = (int32_t)chunk->x,
 						.origin.y = (int32_t)chunk->y,
 						.z_idx = chunk->z_idx,
@@ -1332,6 +1332,114 @@ VkBool32 VKAPI_CALL VulkanDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT s
 }
 #endif // _DEBUG
 
+static void VulkanModifyPhysicalDeviceFeatures(VkPhysicalDeviceFeatures2* physical_device_features)
+{
+	size_t num_missing_features = 0;
+	#define REQUIRE_FEATURE(FEATURE) STMT( \
+		if (!features->FEATURE) \
+		{ \
+			SDL_Log("Missing feature: %s", STRINGIFY(FEATURE)); \
+			++num_missing_features; \
+		} \
+	)
+	#define DISABLE_FEATURE(FEATURE) STMT( \
+		features->FEATURE = false; \
+	)
+	// You might say: this doesn't do anything. Why define it?
+	// It's so that way, when scrolling through all of the Vulkan
+	// features I might want to use, none of them are missing.
+	#define ALLOW_FEATURE(FEATURE)
+
+	VkPhysicalDeviceFeatures* features = &physical_device_features->features;
+	{
+		DISABLE_FEATURE(robustBufferAccess);
+		DISABLE_FEATURE(fullDrawIndexUint32);
+		DISABLE_FEATURE(imageCubeArray);
+		DISABLE_FEATURE(independentBlend);
+		DISABLE_FEATURE(geometryShader);
+		DISABLE_FEATURE(tessellationShader);
+		DISABLE_FEATURE(sampleRateShading);
+		DISABLE_FEATURE(dualSrcBlend);
+		DISABLE_FEATURE(logicOp);
+		DISABLE_FEATURE(multiDrawIndirect);
+		DISABLE_FEATURE(drawIndirectFirstInstance);
+		DISABLE_FEATURE(depthClamp);
+		DISABLE_FEATURE(depthBiasClamp);
+		DISABLE_FEATURE(fillModeNonSolid);
+		DISABLE_FEATURE(depthBounds);
+		DISABLE_FEATURE(wideLines);
+		DISABLE_FEATURE(largePoints);
+		DISABLE_FEATURE(alphaToOne);
+		DISABLE_FEATURE(multiViewport);
+		DISABLE_FEATURE(samplerAnisotropy);
+		DISABLE_FEATURE(textureCompressionETC2);
+		DISABLE_FEATURE(textureCompressionASTC_LDR);
+		DISABLE_FEATURE(textureCompressionBC);
+		DISABLE_FEATURE(occlusionQueryPrecise);
+		DISABLE_FEATURE(pipelineStatisticsQuery);
+		DISABLE_FEATURE(vertexPipelineStoresAndAtomics);
+		DISABLE_FEATURE(fragmentStoresAndAtomics);
+		DISABLE_FEATURE(shaderTessellationAndGeometryPointSize);
+		DISABLE_FEATURE(shaderImageGatherExtended);
+		DISABLE_FEATURE(shaderStorageImageExtendedFormats);
+		DISABLE_FEATURE(shaderStorageImageMultisample);
+		DISABLE_FEATURE(shaderStorageImageReadWithoutFormat);
+		DISABLE_FEATURE(shaderStorageImageWriteWithoutFormat);
+		DISABLE_FEATURE(shaderUniformBufferArrayDynamicIndexing);
+		DISABLE_FEATURE(shaderSampledImageArrayDynamicIndexing);
+		DISABLE_FEATURE(shaderStorageBufferArrayDynamicIndexing);
+		DISABLE_FEATURE(shaderStorageImageArrayDynamicIndexing);
+		DISABLE_FEATURE(shaderClipDistance);
+		DISABLE_FEATURE(shaderCullDistance);
+		DISABLE_FEATURE(shaderFloat64);
+		DISABLE_FEATURE(shaderInt64);
+		DISABLE_FEATURE(shaderInt16);
+		DISABLE_FEATURE(shaderResourceResidency);
+		DISABLE_FEATURE(shaderResourceMinLod);
+		DISABLE_FEATURE(sparseBinding);
+		DISABLE_FEATURE(sparseResidencyBuffer);
+		DISABLE_FEATURE(sparseResidencyImage2D);
+		DISABLE_FEATURE(sparseResidencyImage3D);
+		DISABLE_FEATURE(sparseResidency2Samples);
+		DISABLE_FEATURE(sparseResidency4Samples);
+		DISABLE_FEATURE(sparseResidency8Samples);
+		DISABLE_FEATURE(sparseResidency16Samples);
+		DISABLE_FEATURE(sparseResidencyAliased);
+		DISABLE_FEATURE(variableMultisampleRate);
+		DISABLE_FEATURE(inheritedQueries);
+	}
+
+	{
+		VkPhysicalDeviceVulkan11Features* features = physical_device_features->pNext;
+		DISABLE_FEATURE(storageBuffer16BitAccess);
+		DISABLE_FEATURE(uniformAndStorageBuffer16BitAccess);
+		DISABLE_FEATURE(storagePushConstant16);
+		DISABLE_FEATURE(storageInputOutput16);
+		DISABLE_FEATURE(multiview);
+		DISABLE_FEATURE(multiviewGeometryShader);
+		DISABLE_FEATURE(multiviewTessellationShader);
+		DISABLE_FEATURE(variablePointersStorageBuffer);
+		DISABLE_FEATURE(variablePointers);
+		DISABLE_FEATURE(protectedMemory);
+		DISABLE_FEATURE(samplerYcbcrConversion);
+		REQUIRE_FEATURE(shaderDrawParameters); // TODO: Do we need this?
+	}
+	
+	if (num_missing_features > 0)
+	{
+		SDL_CHECK(SDL_ShowSimpleMessageBox(
+			SDL_MESSAGEBOX_ERROR, 
+			"FATAL ERROR", 
+			"Please update your graphics driver. If that doesn't work, your computer is a toaster!", 
+			NULL));
+		SDL_TriggerBreakpoint();
+	}
+
+	#undef REQUIRE_FEATURE
+	#undef DISABLE_FEATURE
+	#undef ALLOW_FEATURE
+}
+
 int32_t main(int32_t argc, char* argv[]) 
 {
 	UNUSED(argc);
@@ -1577,7 +1685,9 @@ int32_t main(int32_t argc, char* argv[])
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
+		VulkanModifyPhysicalDeviceFeatures(&physical_device_features);
 
+		// What should I be doing here instead?
 		static float const queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
 		VkDeviceQueueCreateInfo* queue_infos = StackAlloc(&ctx->stack, ctx->vk.num_queue_family_properties, VkDeviceQueueCreateInfo);

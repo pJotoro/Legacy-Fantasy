@@ -60,6 +60,8 @@
 
 typedef int64_t ssize_t;
 
+#define STRINGIFY(X) #X
+
 #define STMT(X) do {X} while (false)
 
 #define UNUSED(X) (void)X
