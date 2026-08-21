@@ -3229,6 +3229,23 @@ int32_t main(int32_t argc, char* argv[])
 
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.uniform_buffer, UINT64_MAX);
 
+				/**
+				 * You might be thinking:
+				 * What on earth?
+				 * How is it that you are copying everything to the vertex buffer in two lines of code?
+				 * Where are all the complicated shenanigans involving buffer regions?
+				 * Surely you must be doing some really complicated business, right?
+				 * Surely you must be doing something really stupid or suboptimal.
+				 * 
+				 * Well, no. If you read the implementation of VulkanCmdCopyBuffer, you will find that it is trivial.
+				 * Admittedly, it *could* be very inefficient if called over and over again in a loop.
+				 * In that case, it would be better to just write out a command directly, passing an array of buffer regions.
+				 * 
+				 * In this case, I'm basically doing two things.
+				 * First of all, I've designed the memory layout such that we don't *need* a lot of complicated copying shenanigans. Pretty much, you can just copy everything in one go and it's fine.
+				 * Second of all, I've written some helper functions, including VulkanCmdCopyBuffer, which do more than just eliminate some of the verbosity of Vulkan. 
+				 * If you want to learn more, I would recommend actually reading the giant comment in vk_util.c.
+				*/
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				VkDeviceSize vertex_buffer_start = ctx->vk.vertex_buffer.offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);

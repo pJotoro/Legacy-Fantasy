@@ -86,6 +86,96 @@ static void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer)
 	*buffer = (VulkanBuffer){0};
 }
 
+static void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
+{
+#if TOGGLE_VULKAN_VALIDATION
+	{
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_IMAGE,
+			.objectHandle  = (uint64_t)image,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(image);
+	UNUSED(name);
+#endif
+}
+
+static void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
+{
+#if TOGGLE_VULKAN_VALIDATION
+	{
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
+			.objectHandle  = (uint64_t)image_view,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(image_view);
+	UNUSED(name);
+#endif
+}
+
+static void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
+{
+#if TOGGLE_VULKAN_VALIDATION
+	{
+		VkDebugUtilsObjectNameInfoEXT info = 
+		{
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = VK_OBJECT_TYPE_BUFFER,
+			.objectHandle  = (uint64_t)buffer,
+			.pObjectName = name,
+		};
+		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
+	}
+#else
+	UNUSED(device);
+	UNUSED(buffer);
+	UNUSED(name);
+#endif
+}
+
+/**
+ * If the functions below seem a little strange, that's because they are.
+ * Normally, you wouldn't mess with buffer or image memory directly in this way.
+ * Instead, you would use what's called a "render graph" which handles memory management for you, as well as synchronization.
+ * At the same time, this was a project I made for fun, and for educational reasons, so the normal rules don't apply.
+
+ * The basic idea is that it is never the case that you want to read from or write to a buffer at the same time.
+ * For example, let's say I want to transfer some vertices to the GPU.
+ * In order to do that in Vulkan, you can't *just* say glBufferData or something like you can in OpenGL (Direct3D11 has a similar thing). Instead, you have to do the following:
+	
+	1. Create and allocate a vertex buffer and a staging buffer, where the staging buffer has at least as much memory as the vertex buffer.
+	2. Map the vertices to the staging buffer.
+	3. Transfer both buffers to the GPU.
+	4. Copy vertices from the staging buffer to the vertex buffer.
+ 
+ * The above list glosses over many details, but whatever, you get the general idea.
+ * To start off, in (2) it is clearly the case that there is absolutely no reason why I would want to read vertices from the staging buffer, as nothing has been written yet!
+ * Furthermore, once the vertices have been written to the staging buffer, there is no reason why I'd want to write to it anymore. Writing again before first reading from it would cause the vertices I'd just written to become invalid.
+ * In the same way, until I have transferred the vertices from the staging buffer to the vertex buffer, there is no reason why I'd want to read vertices from the vertex buffer.
+
+ * Given the above, it would seem like a good idea to assign each buffer a mode.
+ * What this mode is doesn't actually matter, as Vulkan will do whatever you tell it to, regardless of whether it makes sense.
+ * However, for debugging purposes, we can assert that a buffer only be used for particular purposes based on which mode it is in.
+ * 
+ * Furthermore, we also give each buffer an 'offset' that automatically advances with each read or write, and also that determines where the next read or write will happen.
+ * 'start' works the same way, except it doesn't get automatically advanced.
+ * 
+ * If the above explanation isn't clear, I would strongly recommend reading the code below. Having already read the above explanation, you should be able to understand it just fine.
+*/
+
 static void VulkanMapBufferMemory(Vulkan* vk, VulkanBuffer* buffer) 
 {
 	SDL_assert(!buffer->mapped_memory);
@@ -156,64 +246,4 @@ static void VulkanResetBuffer(VulkanBuffer* buffer)
 	}
 #endif
 	buffer->offset = 0;
-}
-
-static void VulkanSetImageName(VkDevice device, VkImage image, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_IMAGE,
-			.objectHandle  = (uint64_t)image,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(image);
-	UNUSED(name);
-#endif
-}
-
-static void VulkanSetImageViewName(VkDevice device, VkImageView image_view, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
-			.objectHandle  = (uint64_t)image_view,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(image_view);
-	UNUSED(name);
-#endif
-}
-
-static void VulkanSetBufferName(VkDevice device, VkBuffer buffer, char* name) 
-{
-#if TOGGLE_VULKAN_VALIDATION
-	{
-		VkDebugUtilsObjectNameInfoEXT info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-			.objectType = VK_OBJECT_TYPE_BUFFER,
-			.objectHandle  = (uint64_t)buffer,
-			.pObjectName = name,
-		};
-		VK_CHECK(vkSetDebugUtilsObjectNameEXT(device, &info));
-	}
-#else
-	UNUSED(device);
-	UNUSED(buffer);
-	UNUSED(name);
-#endif
 }
