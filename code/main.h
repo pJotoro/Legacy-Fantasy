@@ -69,7 +69,7 @@ typedef int64_t ssize_t;
 #define HAS_FLAG(FLAGS, FLAG) ((FLAGS) & (FLAG)) // TODO: Figure out why I can't have multiple flags set in the second argument.
 #define FLAG(X) (1u << X##u)
 
-#define GetSprite(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
+#define SPRITE_FROM_PATH(path) ((Sprite){HashString(path, 0) & (MAX_SPRITES - 1)})
 
 #ifdef _DEBUG
 #define SDL_CHECK(E) STMT( \
