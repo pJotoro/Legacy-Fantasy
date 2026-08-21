@@ -594,12 +594,10 @@ static Sprite LoadSprite(Context* ctx, char* path)
 {
 	SPALL_BUFFER_BEGIN();
 
-	SDL_CHECK(SDL_GetPathInfo(path, NULL));
+	SDL_CHECK(SDL_GetPathInfo(path, NULL)); // Check if the path is valid.
 
-	Sprite sprite = GetSprite(path);
 	SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
 	SDL_assert(!sd && "Collision");
-	sd = &ctx->sprites[sprite.idx];
 
 	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); 
 	SDL_CHECK(fs);
@@ -621,6 +619,8 @@ static Sprite LoadSprite(Context* ctx, char* path)
 	sd->num_frames = header.num_frames;
 	sd->frames = ArenaAlloc(&ctx->arena, sd->num_frames, SpriteFrame);
 
+	// The hitbox layer and origin layer are specialized layers whose image data is not to be used for rendering.
+	// We must search for them so that we can extract information out of them.
 	uint16_t hitbox_layer_idx = UINT16_MAX;
 	uint16_t origin_layer_idx = UINT16_MAX;
 
@@ -652,17 +652,18 @@ static Sprite LoadSprite(Context* ctx, char* path)
 					SDL_assert(chunk->layer_name.len > 0);
 
 					char* layer_name = StackAlloc(&ctx->stack, chunk->layer_name.len + 1, char);
-
 					SDL_strlcpy(layer_name, (const char*)(chunk+1), chunk->layer_name.len + 1);
 
 					if (SDL_strcmp(layer_name, "Hitbox") == 0) 
 					{
-						SDL_assert(hitbox_layer_idx == UINT16_MAX);
+						bool hitbox_layer_is_unique = (hitbox_layer_idx == UINT16_MAX);
+						SDL_assert(hitbox_layer_is_unique);
 						hitbox_layer_idx = (uint16_t)layer_idx;
 					} 
 					else if (SDL_strcmp(layer_name, "Origin") == 0) 
 					{
-						SDL_assert(origin_layer_idx == UINT16_MAX);
+						bool origin_layer_is_unique = (origin_layer_idx == UINT16_MAX);
+						SDL_assert(origin_layer_is_unique);
 						origin_layer_idx = (uint16_t)layer_idx;					
 					}
 					layer_idx += 1;
@@ -745,10 +746,15 @@ static Sprite LoadSprite(Context* ctx, char* path)
 					size_t dst_buf_size = cell.size.x*cell.size.y * sizeof(uint32_t);
 					cell.dst_buf = SDL_malloc(dst_buf_size); SDL_CHECK(cell.dst_buf);
 
+					// But I thought calling malloc was bad! What gives?
+					// In this case, it's fine, because each destination buffer is getting allocated one after the other, only to later be freed one after the other.
+					// Which is to say, there is no way for heap fragmentation to happen given the way I'm using it.
+
 					// It's the zero-sized array at the end of ASE_CellChunk.
 					size_t src_buf_size = raw_chunk_size - sizeof(ASE_CellChunk) - 2;
 					void* src_buf = (void*)((&chunk->h)+1);
 
+					// Decompress the image data.
 					SPALL_BUFFER_BEGIN_NAME("INFL_ZInflate");
 					size_t res = INFL_ZInflate(cell.dst_buf, dst_buf_size, src_buf, src_buf_size);
 					SPALL_BUFFER_END();
@@ -1501,7 +1507,7 @@ int32_t main(int32_t argc, char* argv[])
 		// All of that is fine and dandy. However, this is a 2D pixel platformer prototype, so there isn't really a need for anything that fancy. 
 
 		// If you dig through the commit history, you'll find that originally, I was using substepping.
-		// The reason for this is that I was trying to fix some really annoying problems in the physics code, and some brilliant person online told me that the problem is obviously that the physics aren't updating fast enough.
+		// The reason for this is that I was trying to fix some really annoying problems in the physics code, and some brilliant person online told me that the problem is obviously that the physics isn't updating fast enough.
 		// Which is obviously ridiculous for a project like this, but I nevertheless believed it.
 		// I've since learned, after other similar situations, to never assume that a random person on the internet knows my own code better than I do. It's always better to just try to solve the problem myself.
 
