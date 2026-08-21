@@ -4,7 +4,7 @@ It's clean up time! Here are some things I want to do with this codebase before 
 - Fix sprite loading.
 # Preprocessor macros
 # Naming conventions
-- Vulkan initialization (things like disabling features I know I won't use)
+# Vulkan initialization (things like disabling features I know I won't use)
 # CMake build system.
 - Strenously domument everything.
 - Eliminate commented out code.
@@ -1054,10 +1054,6 @@ static void UpdatePlayer(Context* ctx)
 				player->state = EntityState_Jump;
 			}
 		} break;
-		default: 
-		{
-			// TODO?
-		} break;
 	}
 
 	if (player->pos.y > (float)(ctx->level.size.y*TILE_SIZE)) 
@@ -1210,11 +1206,6 @@ static void UpdatePlayer(Context* ctx)
 			bool loop = false;
 	    	AnimUpdate(ctx, &player->anim, loop);
 		} break;
-
-		default: 
-		{
-			// TODO?
-		} break;
 	}
 
 	SPALL_BUFFER_END();
@@ -1297,11 +1288,6 @@ static void UpdateBoar(Context* ctx, Entity* boar)
 
 			bool loop = true;
 			AnimUpdate(ctx, &boar->anim, loop);
-		} break;
-
-		default: 
-		{
-			// TODO?
 		} break;
 	}
 
@@ -1745,7 +1731,7 @@ int32_t main(int32_t argc, char* argv[])
 			}
 		}
 
-		ctx->vk.graphics_queue = ctx->vk.queues[0]; // TODO
+		ctx->vk.graphics_queue = ctx->vk.queues[0]; // Is there a better way to do this?
 
 		StackFree(&ctx->stack, queue_infos);
 	}
@@ -1834,8 +1820,8 @@ int32_t main(int32_t argc, char* argv[])
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
 		};
-	
-		// TODO: Search for graphics queue family index.
+
+		// In practice, the graphics queue family index is always 0, so we don't have to search for it.	
 		VK_CHECK(vkCreateCommandPool(ctx->vk.device, &info, NULL, &ctx->vk.command_pool));
 
 		SPALL_BUFFER_END();
@@ -2339,7 +2325,6 @@ int32_t main(int32_t argc, char* argv[])
 			if (SDL_strcmp(type, "Tiles") == 0) 
 			{
 				TileLayer* tile_layer = NULL;
-				// TODO
  				if (SDL_strcmp(ident, layer_tiles) == 0) 
  				{
 					tile_layer = &ctx->level.tile_layers[0];
@@ -2401,7 +2386,6 @@ int32_t main(int32_t argc, char* argv[])
 			{
 				cJSON* grid_tiles = cJSON_GetObjectItem(layer_instance, "gridTiles");
 
-				// TODO
 				TileLayer* tile_layer = NULL;
  				if (SDL_strcmp(ident, layer_tiles) == 0) 
  				{
@@ -2978,11 +2962,6 @@ int32_t main(int32_t argc, char* argv[])
 					ctx->running = false;
 					break;
 			}
-
-			// if (SDL_fabs(ctx->gamepad_left_stick.x) < GAMEPAD_THRESHOLD) 
-			// {
-			// 	ctx->gamepad_left_stick.x = 0.0f;
-			// }
 
 			SPALL_BUFFER_END();
 		}
