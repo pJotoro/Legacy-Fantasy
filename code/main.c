@@ -596,14 +596,11 @@ static Sprite SpriteLoad(Context* ctx, char* path)
 
 	SDL_CHECK(SDL_GetPathInfo(path, NULL)); // Check if the path is valid.
 
-	SpriteDesc* sd;
-	{
-		Sprite sprite = SPRITE_FROM_PATH(path);
-		sd = SpriteGetDesc(ctx, sprite);
-		// Admittedly, we have no way of handling collisions.
-		// At the same time, no issues have been caused by this yet.
-		// Were I to do another project like this in C, I would just use stbds.
-	}	
+	Sprite sprite = SPRITE_FROM_PATH(path);
+	SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
+	// Admittedly, we have no way of handling collisions.
+	// At the same time, no issues have been caused by this yet.
+	// Were I to do another project like this in C, I would just use stbds.
 
 	SDL_IOStream* fs = SDL_IOFromFile(path, "r"); 
 	SDL_CHECK(fs);
