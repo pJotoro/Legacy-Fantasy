@@ -23,10 +23,21 @@ Naming convention for functions:
 #include "main.h"
 #include "aseprite.h"
 
+#ifdef SDL_PLATFORM_WINDOWS
+		#define VK_KHR_platform_surface "VK_KHR_win32_surface"
+
+		#ifdef _DEBUG
+			#define LEGACY_FANTASY_DEBUG 1
+		#else
+			#define LEGACY_FANTASY_DEBUG 0
+		#endif
+#else
+		#error TODO: Implement other platforms.
+#endif // SDL_PLATFORM_WINDOWS
+
 #define LEGACY_FANTASY_FULLSCREEN 0
 #define LEGACY_FANTASY_REPLAY_FRAMES 1
 #define LEGACY_FANTASY_TESTS 0
-#define LEGACY_FANTASY_VULKAN_VALIDATION 1
 
 #define GAMEPAD_THRESHOLD 0.1f
 
@@ -252,7 +263,7 @@ typedef struct Vulkan
 	VkPhysicalDeviceProperties physical_device_properties;
 	VkPhysicalDeviceMemoryProperties physical_device_memory_properties;
 
-	VkLayerProperties* instance_layers; size_t num_instance_layers;
+	// No reason to load instance layers, since for that you can just use Vulkan Configurator.
 	VkExtensionProperties* instance_extensions; size_t num_instance_extensions;
 	VkExtensionProperties* device_extensions; size_t num_device_extensions;
 
@@ -1437,23 +1448,13 @@ int32_t main(int32_t argc, char* argv[])
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanCreateInstance");
 
-#ifdef SDL_PLATFORM_WINDOWS
-		#define VK_KHR_platform_surface "VK_KHR_win32_surface"
-#else
-		#error Unsupported platform.
-#endif // SDL_PLATFORM_WINDOWS
-
-#if LEGACY_FANTASY_VULKAN_VALIDATION
-		static char const * const layers[] = { "VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_monitor" };
-		#define VULKAN_DEBUG_EXTENSIONS "VK_EXT_debug_utils", "VK_EXT_layer_settings",
-#else
-		#define VULKAN_DEBUG_EXTENSIONS
-#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 		static char const * const instance_extensions[] =
 		{ 
-			VULKAN_DEBUG_EXTENSIONS
 			"VK_KHR_surface", 
-			VK_KHR_platform_surface, 
+			VK_KHR_platform_surface,
+#if LEGACY_FANTASY_DEBUG
+			"VK_EXT_debug_utils",
+#endif
 		};
 
 		VkApplicationInfo app_info =
@@ -1471,42 +1472,9 @@ int32_t main(int32_t argc, char* argv[])
 		{
 			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			.pApplicationInfo = &app_info,
-#if LEGACY_FANTASY_VULKAN_VALIDATION
-			.enabledLayerCount = SDL_arraysize(layers),
-			.ppEnabledLayerNames = layers,
-#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 			.enabledExtensionCount = SDL_arraysize(instance_extensions),
 			.ppEnabledExtensionNames = instance_extensions,
 		};
-
-#if LEGACY_FANTASY_VULKAN_VALIDATION
-		VkDebugUtilsMessengerCreateInfoEXT debug_info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-			.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
-			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-			.pfnUserCallback = VulkanDebugCallback,
-			.pUserData = ctx,
-		};
-
-		VkValidationFeatureEnableEXT validation_enabled[] = 
-		{
-			VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
-			VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
-		};
-
-		VkValidationFeaturesEXT validation_info = 
-		{
-			.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
-			.enabledValidationFeatureCount = SDL_arraysize(validation_enabled),
-			.pEnabledValidationFeatures = validation_enabled,
-			.disabledValidationFeatureCount = 0,
-			.pDisabledValidationFeatures = NULL,
-		};
-
-		create_info.pNext = &debug_info;
-		debug_info.pNext = &validation_info;
-#endif // LEGACY_FANTASY_VULKAN_VALIDATION
 
 		if (vkCreateInstance(&create_info, NULL, &ctx->vk.instance) != VK_SUCCESS)
 		{
@@ -1522,52 +1490,15 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_END();
 	}
 
-	// VulkanGetInstanceLayers
-	{
-		SPALL_BUFFER_BEGIN_NAME("VulkanGetInstanceLayers");
-
-		uint32_t count;
-		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, NULL));
-		ctx->vk.num_instance_layers = (size_t)count;
-		ctx->vk.instance_layers = ArenaAlloc(&ctx->arena, ctx->vk.num_instance_layers, VkLayerProperties);
-		VK_CHECK(vkEnumerateInstanceLayerProperties(&count, ctx->vk.instance_layers));
-
-		SPALL_BUFFER_END();
-	}
-
 	// VulkanGetInstanceExtensions
 	{
 		SPALL_BUFFER_BEGIN_NAME("VulkanGetInstanceExtensions");
 
 		uint32_t count;
-
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
-		for (size_t layer_idx = 0; 
-			layer_idx < ctx->vk.num_instance_layers;
-			++layer_idx, ctx->vk.num_instance_extensions += (size_t)count) 
-		{
-			VK_CHECK(vkEnumerateInstanceExtensionProperties(
-				ctx->vk.instance_layers[layer_idx].layerName, 
-				&count, 
-				NULL));
-		}
+		ctx->vk.num_instance_extensions = (size_t)count;
 		ctx->vk.instance_extensions = ArenaAlloc(&ctx->arena, ctx->vk.num_instance_extensions, VkExtensionProperties);
-
-		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, NULL));
 		VK_CHECK(vkEnumerateInstanceExtensionProperties(NULL, &count, ctx->vk.instance_extensions));
-		for (size_t layer_idx = 0, extension_idx = (size_t)count; 
-			layer_idx < ctx->vk.num_instance_layers && extension_idx < ctx->vk.num_instance_extensions;
-			++layer_idx, extension_idx += (size_t)count) 
-		{
-			VK_CHECK(vkEnumerateInstanceExtensionProperties(
-				ctx->vk.instance_layers[layer_idx].layerName, 
-				&count, 
-				NULL));
-			VK_CHECK(vkEnumerateInstanceExtensionProperties(
-				ctx->vk.instance_layers[layer_idx].layerName, 
-				&count, 
-				&ctx->vk.instance_extensions[extension_idx]));
-		}
 
 		SPALL_BUFFER_END();
 	}
@@ -1600,40 +1531,10 @@ int32_t main(int32_t argc, char* argv[])
 		SPALL_BUFFER_BEGIN_NAME("VulkanGetDeviceExtensions");
 
 		uint32_t count;
-
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
-		size_t layer_idx;
-		for (layer_idx = 0, ctx->vk.num_device_extensions = (size_t)count; 
-			layer_idx < ctx->vk.num_instance_layers;
-			++layer_idx, ctx->vk.num_device_extensions += (size_t)count) 
-		{
-			VK_CHECK(vkEnumerateDeviceExtensionProperties(
-				ctx->vk.physical_device, 
-				ctx->vk.instance_layers[layer_idx].layerName, 
-				&count, 
-				NULL));
-		}
+		ctx->vk.num_device_extensions = (size_t)count;
 		ctx->vk.device_extensions = ArenaAlloc(&ctx->arena, ctx->vk.num_device_extensions, VkExtensionProperties);
-
-		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, NULL));
 		VK_CHECK(vkEnumerateDeviceExtensionProperties(ctx->vk.physical_device, NULL, &count, ctx->vk.device_extensions));
-		size_t extension_idx;
-		for (layer_idx = 0, extension_idx = (size_t)count; 
-			layer_idx < ctx->vk.num_instance_layers && extension_idx < ctx->vk.num_device_extensions;
-			++layer_idx, extension_idx += (size_t)count) 
-		{
-			VK_CHECK(vkEnumerateDeviceExtensionProperties(
-					ctx->vk.physical_device,
-					ctx->vk.instance_layers[layer_idx].layerName, 
-					&count, 
-					NULL));
-			VK_CHECK(vkEnumerateDeviceExtensionProperties(
-					ctx->vk.physical_device, 
-					ctx->vk.instance_layers[layer_idx].layerName, 
-					&count, 
-					&ctx->vk.device_extensions[extension_idx]));
-
-		}
 
 		SPALL_BUFFER_END();
 	}

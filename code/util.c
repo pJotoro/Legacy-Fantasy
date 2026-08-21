@@ -100,7 +100,7 @@ static Entity* GetEnemies(Context* ctx, size_t* num_enemies)
     }
 }
 
-static void ResetAnim(Anim* anim) 
+static void AnimReset(Anim* anim) 
 {
     anim->frame_idx = 0;
     anim->dt_accumulator = 0.0;
@@ -115,7 +115,7 @@ static bool SpriteIsValid(Context* ctx, Sprite sprite)
     return size_check;
 }
 
-static SpriteDesc* GetSpriteDesc(Context* ctx, Sprite sprite) 
+static SpriteDesc* SpriteGetDesc(Context* ctx, Sprite sprite) 
 {
     if (!SpriteIsValid(ctx, sprite)) return NULL;
     return &ctx->sprites[sprite.idx];
