@@ -1,3 +1,24 @@
+/*
+It's clean up time! Here are some things I want to do with this codebase before I show it off at the interview:
+
+1. Change things to make them work more like in Based Renderer:
+- Preprocessor macros
+- Naming conventions
+- Vulkan initialization (things like disabling features I know I won't use)
+
+2. Clean up the damn code! I mean seriously, this code is very messy.
+- Keep everything inside of one file (except aseprite declarations). Normally splitting things up into multiple files is good, but for a codebase this small, I would say it makes it a lot harder to follow what the heck is going on.
+- Strenously domument everything.
+- Eliminate commented out code.
+
+3. Eliminate anything that isn't strictly necessary.
+- Replace cglm with custom vector types.
+- Replace SDL with the Windows API.
+- Replace CMake build system with a batch file.
+
+4. Update the README. 
+*/
+
 #define TOGGLE_PROFILING 0
 
 #include "main.h"
