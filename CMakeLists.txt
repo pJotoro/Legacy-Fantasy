@@ -11,7 +11,7 @@ else()
 	message(FATAL_ERROR "Failed to find Volk. It can be installed using the maintenance tool found at C:\\VulkanSDK\\...\\maintenancetool.exe")
 endif()
 
-include_directories(libraries libraries/SDL3 "${VULKAN_SDK}/Include")
+include_directories(libraries libraries/SDL3 libraries/cglm/include "${VULKAN_SDK}/Include")
 
 find_library(SDL3_lib NAMES SDL3.lib PATHS libraries/SDL3/lib REQUIRED)
 
