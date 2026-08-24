@@ -1,25 +1,3 @@
-/*
-It's clean up time! Here are some things I want to do with this codebase before I show it off at the interview:
-
-# Fix sprite loading.
-# Preprocessor macros
-# Naming conventions
-# Vulkan initialization (things like disabling features I know I won't use)
-# CMake build system.
-- Strenously domument everything.
-# Eliminate commented out code.
-
-Originally, my plan was much more ambitious. However, I don't want this to turn into a multi-week long job, since I also want to clean up Based Renderer. Therefore, the focus should be to fix the worst problems, and then maybe write a post-mortem about certain mistakes I made and how I would do things differently were I to start a new project.
-*/
-
-/*
-Naming convention for functions:
-- If a function is basically a method, put the type at the front of the name. For example, `AnimReset` as opposed to `ResetAnim`.
-- Otherwise, make the function name follow the normal rules of English.
-*/
-
-// NEXT TIME YOU CODE: Delete Vulkan from the libraries folder. Instead, get the Vulkan headers directly from the Vulkan SDK.
-
 #define LEGACY_FANTASY_PROFILING 0
 
 #include "main.h"
