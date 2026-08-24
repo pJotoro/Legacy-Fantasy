@@ -3174,12 +3174,10 @@ int32_t main(int32_t argc, char* argv[])
 					StackFree(&ctx->stack, regions);
 				}
 
-				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.uniform_buffer, UINT64_MAX);
-
 				/**
 				 * You might be thinking:
 				 * What on earth?
-				 * How is it that you are copying everything to the vertex buffer in two lines of code?
+				 * How is it that you are doing all of your buffer copies in three lines of code?
 				 * Where are all the complicated shenanigans involving buffer regions?
 				 * Surely you must be doing some really complicated business, right?
 				 * Surely you must be doing something really stupid or suboptimal.
@@ -3193,6 +3191,7 @@ int32_t main(int32_t argc, char* argv[])
 				 * Second of all, I've written some helper functions, including VulkanCmdCopyBuffer, which do more than just eliminate some of the verbosity of Vulkan. 
 				 * If you want to learn more, I would recommend actually reading the giant comment in vk_util.c.
 				*/
+				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.uniform_buffer, UINT64_MAX);
 				VulkanCmdCopyBuffer(cb, &ctx->vk.static_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
 				VkDeviceSize vertex_buffer_start = ctx->vk.vertex_buffer.offset;
 				VulkanCmdCopyBuffer(cb, &ctx->vk.dynamic_staging_buffer, &ctx->vk.vertex_buffer, UINT64_MAX);
