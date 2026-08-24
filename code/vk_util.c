@@ -89,7 +89,7 @@ static void VulkanDestroyBuffer(Vulkan* vk, VulkanBuffer* buffer)
  * If the functions below seem a little strange, that's because they are.
  * Normally, you wouldn't mess with buffer or image memory directly in this way.
  * Instead, you would use what's called a "render graph" which handles memory management for you, as well as synchronization.
- * At the same time, this was a project I made for fun, and for educational reasons, so the normal rules don't apply.
+ * But in my view, doing things that way defeats the purpose of using Vulkan. Please read postmortem.md if you want to learn more.
 
  * The basic idea is that it is never the case that you want to read from or write to a buffer at the same time.
  * For example, let's say I want to transfer some vertices to the GPU.
