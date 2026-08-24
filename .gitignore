@@ -10,4 +10,3 @@ profile/*
 code/main.cpp
 captures/*.rdc
 *.radproj
-libraries/*
