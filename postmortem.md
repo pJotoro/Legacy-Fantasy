@@ -38,5 +38,3 @@ In order to build from source, "simply" follow these steps:
 Notice all the times where I said "easily" or "simply." The reality is, it's not always so easy. You never know what another person's starting point is. Not everyone knows how to use a command prompt or a package manager, or how to mess with build settings in their favorite editor. It is always better to make these things as automatic as possible so that way, few if any problems can happen.
 
 Furthermore, whenever a project requires certain dependencies, the versions of those dependencies should always be specified by the build system. That way, it is always guarunteed that everyone uses the same versions. If an update to a particular dependency is desired, then that requires a change to the build system, which then gets saved in the version control system's history.
-
-# Final thoughts

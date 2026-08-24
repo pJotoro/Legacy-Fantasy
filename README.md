@@ -1,9 +1,7 @@
 # Legacy Fantasy
 This is a prototype of a 2D platformer game rendered using the Vulkan API. [Here is a demo of it.](https://www.youtube.com/watch?v=J81yIJgHqP0)
 
-# NOTICE
-
-I have done a little overhaul of this repository, as well as a little postmortem, which I would highly recommend reading. In it, I explain how to actually build the project, among other things.
+*NOTICE*: I have done a little overhaul of this repository, as well as a little postmortem, which I would highly recommend reading. In it, I explain how to actually build the project, among other things.
 
 ## What I did
 Everything except for the art and libraries I used. That is: I wrote all the game code in C; the shaders in GLSL; and the makeshift build system in a mix of CMake, batch files, and a Sublime Text project file. Although I didn't make any of the art, I did have to manually add hitboxes to the player and boar sprites; I also had to add an origin to each sprite in order for them to render in the right place.
