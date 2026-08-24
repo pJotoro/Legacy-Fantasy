@@ -597,8 +597,8 @@ static Sprite SpriteLoad(Context* ctx, char* path)
 	SDL_CHECK(SDL_GetPathInfo(path, NULL)); // Check if the path is valid.
 
 	Sprite sprite = SPRITE_FROM_PATH(path);
-	SpriteDesc* sd = SpriteGetDesc(ctx, sprite);
-	// Admittedly, we have no way of handling collisions.
+	SpriteDesc* sd = SpriteGetDescUnsafe(ctx, sprite);
+	// Admittedly, we have no way of handling collisions between sprite keys.
 	// At the same time, no issues have been caused by this yet.
 	// Were I to do another project like this in C, I would just use stbds.
 
@@ -782,6 +782,7 @@ static Sprite SpriteLoad(Context* ctx, char* path)
 
 	SDL_CloseIO(fs);
 	SPALL_BUFFER_END();
+	ctx->num_sprites++;
 	return sprite;
 }
 
@@ -1673,9 +1674,14 @@ int32_t main(int32_t argc, char* argv[])
 			vkGetPhysicalDeviceQueueFamilyProperties(ctx->vk.physical_device, &count, ctx->vk.queue_family_properties);
 		}
 
+		VkPhysicalDeviceVulkan11Features physical_device_vulkan11_features = 
+		{
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+		};
 		VkPhysicalDeviceFeatures2 physical_device_features = 
 		{
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+			.pNext = &physical_device_vulkan11_features,
 		};
 		vkGetPhysicalDeviceFeatures2(ctx->vk.physical_device, &physical_device_features);
 		VulkanModifyPhysicalDeviceFeatures(&physical_device_features);
@@ -2686,7 +2692,12 @@ int32_t main(int32_t argc, char* argv[])
 		VkDescriptorSet* descriptor_sets = StackAlloc(&ctx->stack, descriptor_set_count, VkDescriptorSet);
 		VK_CHECK(vkAllocateDescriptorSets(ctx->vk.device, &info, descriptor_sets));
 
-		VkDescriptorImageInfo* image_infos = StackAlloc(&ctx->stack, descriptor_set_count - 1, VkDescriptorImageInfo);
+		// NOTE: This comment was written much later than the one for `writes`.
+		// For some reason, if we allocate image_infos with the stack allocator, the program crashes.
+		// At this point, I'm certain that there is just something wrong with the stack allocator I'm using.
+		// I'm not sure if that's because gingerBill made a mistake in it, or if that's because I made a mistake in copying down.
+		// Either way, I'm not going to investigate it! I've got a post mortem to write! 
+		VkDescriptorImageInfo* image_infos = SDL_malloc((descriptor_set_count - 1) * sizeof(VkDescriptorImageInfo));
 
 		// NOTE: For some strange reason, this array gets overwritten while writing to image_infos if we allocate it with the stack allocator.
 		// I have tried using address sanitizer and it does not catch anything. Also the stack allocator isn't causing problems anywhere else,
@@ -2742,7 +2753,7 @@ int32_t main(int32_t argc, char* argv[])
 		vkUpdateDescriptorSets(ctx->vk.device, (uint32_t)descriptor_set_count, writes, 0, NULL);
 
 		SDL_free(writes);
-		StackFree(&ctx->stack, image_infos);
+		SDL_free(image_infos);
 		StackFree(&ctx->stack, descriptor_sets);
 		StackFree(&ctx->stack, descriptor_set_layouts);
 

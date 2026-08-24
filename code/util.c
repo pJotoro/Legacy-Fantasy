@@ -121,6 +121,11 @@ static SpriteDesc* SpriteGetDesc(Context* ctx, Sprite sprite)
     return &ctx->sprites[sprite.idx];
 }
 
+static SpriteDesc* SpriteGetDescUnsafe(Context* ctx, Sprite sprite) 
+{
+    return &ctx->sprites[sprite.idx];
+}
+
 static bool SpritesEqual(Sprite a, Sprite b) 
 {
     return a.idx == b.idx;

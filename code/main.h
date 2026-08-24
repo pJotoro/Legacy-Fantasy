@@ -18,8 +18,6 @@
 #ifndef _DEBUG
 #define RADDBG_MARKUP_STUBS
 #endif
-#define RADDBG_MARKUP_IMPLEMENTATION
-#include <raddbg_markup.h>
 
 #if LEGACY_FANTASY_PROFILING
 #include <spall/spall.h>
