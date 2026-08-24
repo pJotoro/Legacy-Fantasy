@@ -18,6 +18,8 @@ Naming convention for functions:
 - Otherwise, make the function name follow the normal rules of English.
 */
 
+// NEXT TIME YOU CODE: Delete Vulkan from the libraries folder. Instead, get the Vulkan headers directly from the Vulkan SDK.
+
 #define LEGACY_FANTASY_PROFILING 0
 
 #include "main.h"
