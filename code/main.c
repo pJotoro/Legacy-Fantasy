@@ -1,7 +1,7 @@
 /*
 It's clean up time! Here are some things I want to do with this codebase before I show it off at the interview:
 
-- Fix sprite loading.
+# Fix sprite loading.
 # Preprocessor macros
 # Naming conventions
 # Vulkan initialization (things like disabling features I know I won't use)
@@ -35,8 +35,8 @@ Naming convention for functions:
 		#error TODO: Implement other platforms.
 #endif // SDL_PLATFORM_WINDOWS
 
-#define LEGACY_FANTASY_FULLSCREEN 0
-#define LEGACY_FANTASY_REPLAY_FRAMES 1
+#define LEGACY_FANTASY_FULLSCREEN 1
+#define LEGACY_FANTASY_REPLAY_FRAMES 0
 
 #define GAMEPAD_THRESHOLD 0.1f
 
@@ -1405,7 +1405,7 @@ static void VulkanModifyPhysicalDeviceFeatures(VkPhysicalDeviceFeatures2* physic
 		DISABLE_FEATURE(variablePointers);
 		DISABLE_FEATURE(protectedMemory);
 		DISABLE_FEATURE(samplerYcbcrConversion);
-		REQUIRE_FEATURE(shaderDrawParameters); // TODO: Do we need this?
+		DISABLE_FEATURE(shaderDrawParameters);
 	}
 	
 	if (num_missing_features > 0)
